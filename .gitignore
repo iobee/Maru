@@ -1,0 +1,62 @@
+# Xcode
+#
+# gitignore 文件用于指定Git应忽略的文件和目录
+#
+## 用户设置
+xcuserdata/
+*.xcuserstate
+
+## 兼容性
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+## App 打包
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+#
+# 添加此行以禁止将所有依赖项检入版本控制
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj
+.swiftpm
+.build/
+
+# macOS 系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 图标必须以两个 \r 结尾
+Icon
+
+# 缩略图
+._*
+
+# 可能出现在卷根目录中的文件
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# 可能在远程AFP共享上创建的目录
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# 编辑器临时文件
+*~
+*.swp 
