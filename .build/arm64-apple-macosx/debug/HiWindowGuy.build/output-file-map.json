@@ -1,0 +1,29 @@
+{
+  "": {
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/master.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/WindowManager.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/hiWindowGuyApp.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/DerivedSources/resource_bundle_accessor.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swiftdeps"
+  }
+}

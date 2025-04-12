@@ -1,0 +1,92 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "HiWindowGuy-arm64-apple-macosx15.0-debug.exe": ["<HiWindowGuy-arm64-apple-macosx15.0-debug.exe>"]
+  "HiWindowGuy-arm64-apple-macosx15.0-debug.module": ["<HiWindowGuy-arm64-apple-macosx15.0-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "main": ["<HiWindowGuy-arm64-apple-macosx15.0-debug.exe>","<HiWindowGuy-arm64-apple-macosx15.0-debug.module>"]
+  "test": ["<HiWindowGuy-arm64-apple-macosx15.0-debug.exe>","<HiWindowGuy-arm64-apple-macosx15.0-debug.module>"]
+default: "main"
+nodes:
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy":
+    is-mutated: true
+commands:
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy-entitlement.plist":
+    tool: write-auxiliary-file
+    inputs: ["<entitlement-plist>","<com.apple.security.get-task-allow>"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy-entitlement.plist"]
+    description: "Write auxiliary file /Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy-entitlement.plist"
+
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/WindowManager.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/hiWindowGuyApp.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/DerivedSources/resource_bundle_accessor.swift"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/sources"]
+    description: "Write auxiliary file /Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/sources"
+
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swift.o"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.product/Objects.LinkFileList"
+
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy_HiWindowGuy.bundle/Assets.xcassets":
+    tool: copy-tool
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/Assets.xcassets/"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy_HiWindowGuy.bundle/Assets.xcassets/"]
+    description: "Copying /Users/nick/Documents/Code/Swift/hiWindowGuy/Assets.xcassets"
+
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
+
+  "<HiWindowGuy-arm64-apple-macosx15.0-debug.exe>":
+    tool: phony
+    inputs: ["<HiWindowGuy-arm64-apple-macosx15.0-debug.exe-CodeSigning>"]
+    outputs: ["<HiWindowGuy-arm64-apple-macosx15.0-debug.exe>"]
+
+  "<HiWindowGuy-arm64-apple-macosx15.0-debug.module>":
+    tool: phony
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/Modules/HiWindowGuy.swiftmodule"]
+    outputs: ["<HiWindowGuy-arm64-apple-macosx15.0-debug.module>"]
+
+  "C.HiWindowGuy-arm64-apple-macosx15.0-debug.exe":
+    tool: shell
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.product/Objects.LinkFileList"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy"]
+    description: "Linking ./.build/arm64-apple-macosx/debug/HiWindowGuy"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug","-o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy","-module-name","HiWindowGuy","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_HiWindowGuy_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-5.5/macosx","-target","arm64-apple-macosx11.0","-Xlinker","-add_ast_path","-Xlinker","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/Modules/HiWindowGuy.swiftmodule","-F","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/Library/Developer/Frameworks"]
+
+  "C.HiWindowGuy-arm64-apple-macosx15.0-debug.exe-entitlements":
+    tool: shell
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy-entitlement.plist"]
+    outputs: ["<HiWindowGuy-arm64-apple-macosx15.0-debug.exe-CodeSigning>"]
+    description: "Applying debug entitlements to ./.build/arm64-apple-macosx/debug/HiWindowGuy"
+    args: ["codesign","--force","--sign","-","--entitlements","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy-entitlement.plist","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy"]
+
+  "C.HiWindowGuy-arm64-apple-macosx15.0-debug.module":
+    tool: shell
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/WindowManager.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/hiWindowGuyApp.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/DerivedSources/resource_bundle_accessor.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt","<HiWindowGuy-arm64-apple-macosx15.0-debug.module-resources>","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/sources"]
+    outputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swift.o","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/Modules/HiWindowGuy.swiftmodule"]
+    description: "Compiling Swift Module 'HiWindowGuy' (4 sources)"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","HiWindowGuy","-emit-dependencies","-emit-module","-emit-module-path","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/Modules/HiWindowGuy.swiftmodule","-output-file-map","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/output-file-map.json","-incremental","-c","@/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/sources","-I","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx11.0","-enable-batch-mode","-index-store-path","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j8","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","HiWindowGuy_main","-color-diagnostics","-swift-version","5","-F","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g"]
+
+  "HiWindowGuy-arm64-apple-macosx15.0-debug.module-resources":
+    tool: phony
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy_HiWindowGuy.bundle/Assets.xcassets/"]
+    outputs: ["<HiWindowGuy-arm64-apple-macosx15.0-debug.module-resources>"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/nick/Documents/Code/Swift/hiWindowGuy/","/Users/nick/Documents/Code/Swift/hiWindowGuy/Package.swift","/Users/nick/Documents/Code/Swift/hiWindowGuy/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
