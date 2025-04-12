@@ -2,11 +2,41 @@
   "": {
     "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/master.swiftdeps"
   },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppConfig.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppLogger.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger.swiftdeps"
+  },
   "/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift": {
     "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.d",
     "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o",
     "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView~partial.swiftmodule",
     "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/LogViewer.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/RuleConfigView.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView.swiftdeps"
+  },
+  "/Users/nick/Documents/Code/Swift/hiWindowGuy/SearchBarView.swift": {
+    "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView.d",
+    "object": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView.swift.o",
+    "swiftmodule": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView~partial.swiftmodule",
+    "swift-dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView.swiftdeps"
   },
   "/Users/nick/Documents/Code/Swift/hiWindowGuy/WindowManager.swift": {
     "dependencies": "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.d",

@@ -37,7 +37,27 @@
       "inputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppConfig.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppLogger.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/LogViewer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/RuleConfigView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/SearchBarView.swift"
         },
         {
           "kind" : "file",
@@ -68,7 +88,12 @@
       "moduleName" : "HiWindowGuy",
       "moduleOutputPath" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/Modules/HiWindowGuy.swiftmodule",
       "objects" : [
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig.swift.o",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger.swift.o",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer.swift.o",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView.swift.o",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView.swift.o",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/WindowManager.swift.o",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/hiWindowGuyApp.swift.o",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/resource_bundle_accessor.swift.o"
@@ -112,7 +137,27 @@
       "outputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView.swift.o"
         },
         {
           "kind" : "file",
@@ -133,7 +178,12 @@
       ],
       "prepareForIndexing" : false,
       "sources" : [
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppConfig.swift",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppLogger.swift",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/LogViewer.swift",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/RuleConfigView.swift",
+        "/Users/nick/Documents/Code/Swift/hiWindowGuy/SearchBarView.swift",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/WindowManager.swift",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/hiWindowGuyApp.swift",
         "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/DerivedSources/resource_bundle_accessor.swift"
@@ -152,7 +202,12 @@
       "HiWindowGuy",
       "-incremental",
       "-c",
+      "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppConfig.swift",
+      "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppLogger.swift",
       "/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift",
+      "/Users/nick/Documents/Code/Swift/hiWindowGuy/LogViewer.swift",
+      "/Users/nick/Documents/Code/Swift/hiWindowGuy/RuleConfigView.swift",
+      "/Users/nick/Documents/Code/Swift/hiWindowGuy/SearchBarView.swift",
       "/Users/nick/Documents/Code/Swift/hiWindowGuy/WindowManager.swift",
       "/Users/nick/Documents/Code/Swift/hiWindowGuy/hiWindowGuyApp.swift",
       "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/DerivedSources/resource_bundle_accessor.swift",
@@ -230,7 +285,27 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppConfig.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/AppLogger.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/LogViewer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/RuleConfigView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/SearchBarView.swift"
         },
         {
           "kind" : "file",
@@ -256,7 +331,27 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppConfig.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/AppLogger.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/LogViewer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/RuleConfigView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/nick/Documents/Code/Swift/hiWindowGuy/.build/arm64-apple-macosx/debug/HiWindowGuy.build/SearchBarView.swift.o"
         },
         {
           "kind" : "file",

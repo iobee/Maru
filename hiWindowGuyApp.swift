@@ -9,6 +9,8 @@ struct HiWindowGuyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(AppConfig.shared)
+                .environmentObject(AppLogger.shared)
         }
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
@@ -28,8 +30,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 创建状态栏图标
         setupStatusBar()
         
-        // 显示加载通知
-        showNotification(message: "窗口管理器已启动")
+        // 记录启动日志
+        AppLogger.shared.log("应用已启动", level: .info)
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        // 记录关闭日志
+        AppLogger.shared.log("应用已关闭", level: .info)
     }
     
     private func setupStatusBar() {
@@ -39,19 +46,98 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             button.image = NSImage(systemSymbolName: "window.vertical.closed", accessibilityDescription: "窗口管理器")
             
             let menu = NSMenu()
+            
+            // 应用名称菜单项
+            let titleItem = NSMenuItem(title: "窗口管理器", action: nil, keyEquivalent: "")
+            titleItem.isEnabled = false
+            titleItem.attributedTitle = NSAttributedString(
+                string: "窗口管理器",
+                attributes: [
+                    .font: NSFont.boldSystemFont(ofSize: 12),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
+            menu.addItem(titleItem)
+            menu.addItem(NSMenuItem.separator())
+            
+            // 显示主窗口菜单项
+            let showWindowItem = NSMenuItem(title: "显示主窗口", action: #selector(showMainWindow), keyEquivalent: "")
+            menu.addItem(showWindowItem)
+            
+            // 规则配置菜单项
+            let configItem = NSMenuItem(title: "规则配置", action: #selector(showRulesConfig), keyEquivalent: "")
+            menu.addItem(configItem)
+            
+            // 查看日志菜单项
+            let logItem = NSMenuItem(title: "查看日志", action: #selector(showLogs), keyEquivalent: "")
+            menu.addItem(logItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 启用/停用菜单项
+            let toggleItem = NSMenuItem(title: "启用窗口管理", action: #selector(toggleWindowManagement), keyEquivalent: "")
+            toggleItem.state = .on
+            menu.addItem(toggleItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 退出菜单项
             menu.addItem(NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q"))
+            
             statusItem?.menu = menu
         }
     }
     
-    @objc private func quit() {
-        NSApplication.shared.terminate(nil)
+    @objc private func showMainWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first?.makeKeyAndOrderFront(nil)
     }
     
-    private func showNotification(message: String) {
-        let notification = NSUserNotification()
-        notification.title = "窗口管理器"
-        notification.informativeText = message
-        NSUserNotificationCenter.default.deliver(notification)
+    @objc private func showRulesConfig() {
+        NSApp.activate(ignoringOtherApps: true)
+        
+        if let window = NSApp.windows.first {
+            window.makeKeyAndOrderFront(nil)
+            
+            // 通知ContentView切换到规则配置标签
+            NotificationCenter.default.post(
+                name: Notification.Name("showRulesConfig"),
+                object: nil
+            )
+        }
+    }
+    
+    @objc private func showLogs() {
+        NSApp.activate(ignoringOtherApps: true)
+        
+        if let window = NSApp.windows.first {
+            window.makeKeyAndOrderFront(nil)
+            
+            // 通知ContentView切换到日志查看标签
+            NotificationCenter.default.post(
+                name: Notification.Name("showLogs"),
+                object: nil
+            )
+        }
+    }
+    
+    @objc private func toggleWindowManagement(_ sender: NSMenuItem) {
+        if sender.state == .on {
+            sender.state = .off
+            windowManager?.stopMonitoring()
+            logNotification("窗口管理已停用")
+        } else {
+            sender.state = .on
+            windowManager?.startMonitoring()
+            logNotification("窗口管理已启用")
+        }
+    }
+    
+    private func logNotification(_ message: String) {
+        AppLogger.shared.log(message, level: .info)
+    }
+    
+    @objc private func quit() {
+        NSApplication.shared.terminate(nil)
     }
 } 

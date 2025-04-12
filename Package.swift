@@ -16,6 +16,11 @@ let package = Package(
             name: "HiWindowGuy",
             dependencies: [],
             path: ".",
+            exclude: [
+                "demo.lua",
+                "README.md",
+                "Info.plist"
+            ],
             resources: [
                 .process("Assets.xcassets")
             ]

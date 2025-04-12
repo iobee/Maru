@@ -5,25 +5,6 @@ class WindowManager {
     // 延迟时间（秒）
     private let debounceTime: TimeInterval = 0.1
     
-    // 需要居中处理的应用
-    private let messageApps: Set<String> = [
-        "WeChat",
-        "Messages",
-        "Telegram",
-        "WhatsApp",
-        "Slack",
-        "Discord",
-        "System Settings"
-    ]
-    
-    // 需要跳过的应用
-    private let skipApps: Set<String> = [
-        "HiTranslator",
-        "Raycast",
-        "iPhone Mirroring",
-        "Electron"
-    ]
-    
     private var workspaceNotificationObserver: NSObjectProtocol?
     private var debounceTimer: Timer?
     
@@ -54,6 +35,8 @@ class WindowManager {
         if let activeApp = NSWorkspace.shared.frontmostApplication {
             debounceWindowManagement(for: activeApp)
         }
+        
+        AppLogger.shared.log("窗口管理器已启动监控", level: .info)
     }
     
     func stopMonitoring() {
@@ -64,6 +47,8 @@ class WindowManager {
         
         debounceTimer?.invalidate()
         debounceTimer = nil
+        
+        AppLogger.shared.log("窗口管理器已停止监控", level: .info)
     }
     
     private func debounceWindowManagement(for app: NSRunningApplication) {
@@ -77,27 +62,34 @@ class WindowManager {
     }
     
     private func manageWindow(for app: NSRunningApplication) {
-        guard let appName = app.localizedName else { return }
-        
-        // 跳过特定应用
-        if skipApps.contains(appName) {
-            print("[窗口管理器] 跳过应用: \(appName)")
+        guard let appName = app.localizedName,
+              let bundleId = app.bundleIdentifier else {
+            AppLogger.shared.log("无法获取应用信息", level: .warning)
             return
         }
         
-        // 获取活动窗口
-        guard let window = getActiveWindow() else {
-            print("[窗口管理器] 无法获取活动窗口")
-            return
-        }
+        // 获取应用规则
+        let rule = AppConfig.shared.getRule(for: bundleId, appName: appName)
         
-        // 根据应用类型调整窗口
-        if messageApps.contains(appName) {
-            print("[窗口管理器] 管理消息应用: \(appName) (居中)")
-            centerWindow(window)
-        } else {
-            print("[窗口管理器] 管理其他应用: \(appName) (几乎最大化)")
-            almostMaximizeWindow(window)
+        // 根据规则处理窗口
+        switch rule {
+        case .center:
+            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
+            if let window = getActiveWindow() {
+                centerWindow(window)
+            }
+            
+        case .almostMaximize:
+            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
+            if let window = getActiveWindow() {
+                almostMaximizeWindow(window)
+            }
+            
+        case .ignore:
+            AppLogger.shared.log("忽略应用: \(appName) (\(bundleId))", level: .debug)
+            
+        case .custom:
+            AppLogger.shared.log("应用 \(appName) (\(bundleId)) 使用自定义规则，暂未实现", level: .warning)
         }
     }
     
@@ -105,7 +97,10 @@ class WindowManager {
         let options = CGWindowListOption(arrayLiteral: .optionOnScreenOnly, .excludeDesktopElements)
         let windowsListInfo = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
         
-        guard let windowsListInfo = windowsListInfo else { return nil }
+        guard let windowsListInfo = windowsListInfo else {
+            AppLogger.shared.log("无法获取窗口列表", level: .warning)
+            return nil
+        }
         
         // 找到当前活动窗口
         for windowInfo in windowsListInfo {
@@ -121,6 +116,7 @@ class WindowManager {
             }
         }
         
+        AppLogger.shared.log("未找到活动窗口", level: .warning)
         return nil
     }
     
@@ -172,7 +168,7 @@ class WindowManager {
             scriptObject.executeAndReturnError(&error)
             
             if let error = error {
-                print("[窗口管理器] AppleScript错误: \(error)")
+                AppLogger.shared.log("AppleScript错误: \(error)", level: .error)
             }
         }
     }
