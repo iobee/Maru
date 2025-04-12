@@ -5,6 +5,7 @@ struct RuleConfigView: View {
     @State private var searchText = ""
     @State private var selectedRule: AppRule?
     @State private var sortOption = SortOption.lastUsed // 默认按最近使用排序
+    @Environment(\.colorScheme) private var colorScheme
     
     enum SortOption: String, CaseIterable, Identifiable {
         case lastUsed = "最近使用"
@@ -37,136 +38,219 @@ struct RuleConfigView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // 标题栏
             HStack {
                 Text("应用规则配置")
-                    .font(.title2.weight(.semibold))
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
                 
                 Spacer()
                 
-                Picker("排序", selection: $sortOption) {
+                Menu {
                     ForEach(SortOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
+                        Button {
+                            sortOption = option
+                        } label: {
+                            Label(option.rawValue, systemImage: sortOptionIcon(option))
+                        }
                     }
+                } label: {
+                    Label("排序: \(sortOption.rawValue)", systemImage: "arrow.up.arrow.down")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .pickerStyle(MenuPickerStyle())
-                .frame(width: 120)
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.vertical, 16)
+            .background(Material.bar)
             
+            // 搜索栏
             SearchBar(text: $searchText, placeholder: "搜索应用名称或包ID")
                 .padding(.horizontal)
-                .padding(.bottom, 10)
+                .padding(.vertical, 12)
             
-            Divider()
-            
-            List {
-                ForEach(filteredRules) { rule in
-                    RuleRow(rule: rule)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedRule = rule
+            // 规则列表
+            ScrollView {
+                if filteredRules.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                            .padding(.bottom, 4)
+                        
+                        Text("没有找到匹配的应用规则")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            
+                        Text("尝试使用不同的搜索关键词")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.vertical, 40)
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(filteredRules) { rule in
+                            RuleRow(rule: rule)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedRule = rule
+                                }
+                                .contextMenu { // 添加右键菜单
+                                    Button {
+                                        selectedRule = rule
+                                    } label: {
+                                        Label("编辑规则", systemImage: "pencil")
+                                    }
+                                    
+                                    Divider()
+                                    
+                                    if rule.rule != .ignore {
+                                        Button {
+                                            AppConfig.shared.updateRule(for: rule.bundleId, rule: .ignore)
+                                        } label: {
+                                            Label("忽略此应用", systemImage: "eye.slash")
+                                        }
+                                    }
+                                    
+                                    if rule.rule != .center {
+                                        Button {
+                                            AppConfig.shared.updateRule(for: rule.bundleId, rule: .center)
+                                        } label: {
+                                            Label("设为居中", systemImage: "rectangle.center.inset.filled")
+                                        }
+                                    }
+                                    
+                                    if rule.rule != .almostMaximize {
+                                        Button {
+                                            AppConfig.shared.updateRule(for: rule.bundleId, rule: .almostMaximize)
+                                        } label: {
+                                            Label("设为几乎最大化", systemImage: "rectangle.inset.filled")
+                                        }
+                                    }
+                                }
+                                .animation(.easeOut(duration: 0.2), value: rule.rule)
+                                .padding(.horizontal)
+                                .transition(.opacity)
                         }
-                        .contextMenu { // 添加右键菜单
-                            Button {
-                                selectedRule = rule
-                            } label: {
-                                Label("编辑规则", systemImage: "pencil")
-                            }
-                            
-                            if rule.rule != .ignore {
-                                Button {
-                                    AppConfig.shared.updateRule(for: rule.bundleId, rule: .ignore)
-                                } label: {
-                                    Label("忽略此应用", systemImage: "eye.slash")
-                                }
-                            }
-                            
-                            if rule.rule != .center {
-                                Button {
-                                    AppConfig.shared.updateRule(for: rule.bundleId, rule: .center)
-                                } label: {
-                                    Label("设为居中", systemImage: "rectangle.center.inset.filled")
-                                }
-                            }
-                            
-                            if rule.rule != .almostMaximize {
-                                Button {
-                                    AppConfig.shared.updateRule(for: rule.bundleId, rule: .almostMaximize)
-                                } label: {
-                                    Label("设为几乎最大化", systemImage: "rectangle.inset.filled")
-                                }
-                            }
-                        }
+                    }
+                    .padding(.vertical, 8)
                 }
             }
-            .listStyle(PlainListStyle())
-            
-            Divider()
-            
-            HStack {
-                Text("共 \(filteredRules.count) 个应用")
-                    .foregroundColor(.secondary)
-                    .font(.footnote)
-                
-                Spacer()
-                
-                Text("右键点击可快速修改规则")
-                    .foregroundColor(.secondary)
-                    .font(.footnote)
+            .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white.opacity(0.5))
+            .safeAreaInset(edge: .bottom) {
+                // 底部状态栏
+                HStack {
+                    Label("\(filteredRules.count) 个应用", systemImage: "app.badge")
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                    
+                    Spacer()
+                    
+                    Label("右键点击可快速修改规则", systemImage: "info.circle")
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                }
+                .padding()
+                .background(Material.thin)
             }
-            .padding()
         }
-        .frame(minWidth: 500, idealWidth: 600, maxWidth: 800, minHeight: 350, idealHeight: 450, maxHeight: 600)
+        .frame(minWidth: 600, idealWidth: 720, maxWidth: 900, minHeight: 450, idealHeight: 550, maxHeight: 700)
         .sheet(item: $selectedRule) { rule in
             RuleEditView(rule: rule)
-                .frame(minWidth: 400, idealWidth: 450, maxWidth: 500, minHeight: 300, idealHeight: 350, maxHeight: 400)
+                .frame(width: 500, height: 400)
+        }
+    }
+    
+    private func sortOptionIcon(_ option: SortOption) -> String {
+        switch option {
+        case .lastUsed:
+            return "clock"
+        case .name:
+            return "textformat"
+        case .useCount:
+            return "number"
         }
     }
 }
 
 struct RuleRow: View {
     let rule: AppRule
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: 16) {
+            // 应用图标
             Image(nsImage: NSWorkspace.shared.icon(forFile: NSRunningApplication.runningApplications(withBundleIdentifier: rule.bundleId).first?.bundleURL?.path ?? ""))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 32, height: 32)
+                .frame(width: 40, height: 40)
+                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+                .background(
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 44, height: 44)
+                )
                 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(rule.appName)
                     .font(.headline)
+                    .foregroundStyle(.primary)
                     
                 Text(rule.bundleId)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            .padding(.vertical, 4)
             
             Spacer()
             
-            VStack(alignment: .trailing, spacing: 4) {
-                HStack(spacing: 4) {
+            VStack(alignment: .trailing, spacing: 6) {
+                // 规则标签
+                HStack(spacing: 6) {
                     Image(systemName: ruleIcon(for: rule.rule))
                     Text(rule.rule.rawValue)
                 }
-                .font(.subheadline)
-                .foregroundColor(ruleColor(for: rule.rule))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(ruleColor(for: rule.rule).opacity(0.15))
+                .font(.subheadline.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(ruleColor(for: rule.rule))
                 .clipShape(Capsule())
                 
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                    Text("\(formattedRelativeDate(rule.lastUsed))")
+                // 使用统计
+                HStack(spacing: 8) {
+                    Label("\(rule.useCount)次", systemImage: "number")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    Text("•")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    
+                    Label("\(formattedRelativeDate(rule.lastUsed))", systemImage: "clock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundColor(.secondary)
             }
         }
-        .padding(.vertical, 8)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? 
+                     Color(NSColor.controlBackgroundColor).opacity(0.3) : 
+                     Color(NSColor.controlBackgroundColor).opacity(0.7))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
     
     private func formattedRelativeDate(_ date: Date) -> String {
@@ -205,7 +289,8 @@ struct RuleRow: View {
 struct RuleEditView: View {
     let rule: AppRule
     @State private var selectedRule: WindowHandlingRule
-    @Environment(\.presentationMode) var presentationMode // 使用旧的 presentationMode
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     
     init(rule: AppRule) {
         self.rule = rule
@@ -213,84 +298,152 @@ struct RuleEditView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("编辑应用规则: \(rule.appName)")
-                .font(.title3.weight(.semibold))
-                .padding(.top)
+        VStack(spacing: 0) {
+            // 标题栏
+            HStack {
+                Text("编辑应用规则")
+                    .font(.title3.bold())
+                Spacer()
                 
-            Divider()
-            
-            VStack(alignment: .leading, spacing: 15) {
-                HStack {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: NSRunningApplication.runningApplications(withBundleIdentifier: rule.bundleId).first?.bundleURL?.path ?? ""))
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 40, height: 40)
-                    
-                    VStack(alignment: .leading) {
-                        Text(rule.appName)
-                            .font(.title2)
-                            
-                        Text(rule.bundleId)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
                 }
-                
-                VStack(alignment: .leading) {
-                    Text("窗口处理规则")
-                        .font(.headline)
-                    
-                    Picker("窗口处理规则", selection: $selectedRule) {
-                        ForEach(WindowHandlingRule.allCases) { rule in
-                            HStack {
-                                Image(systemName: ruleIcon(for: rule))
-                                Text(rule.rawValue)
-                            }
-                            .tag(rule)
+                .buttonStyle(.plain)
+            }
+            .padding()
+            .background(Material.bar)
+            
+            // 内容区域
+            ScrollView {
+                VStack(spacing: 24) {
+                    // 应用信息
+                    VStack(spacing: 24) {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: NSRunningApplication.runningApplications(withBundleIdentifier: rule.bundleId).first?.bundleURL?.path ?? ""))
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 80, height: 80)
+                            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
+                        
+                        VStack(spacing: 8) {
+                            Text(rule.appName)
+                                .font(.title2.bold())
+                                
+                            Text(rule.bundleId)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .labelsHidden()
-                }
-                
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("最后使用")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("\(formattedDate(rule.lastUsed))")
-                            .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    
+                    Divider()
+                        .padding(.horizontal)
+                    
+                    // 规则选择器
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("窗口处理规则")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        
+                        VStack(spacing: 12) {
+                            ForEach(WindowHandlingRule.allCases) { ruleOption in
+                                Button {
+                                    selectedRule = ruleOption
+                                } label: {
+                                    HStack {
+                                        Image(systemName: ruleIcon(for: ruleOption))
+                                            .font(.system(size: 18))
+                                            .foregroundStyle(ruleColor(for: ruleOption))
+                                            .frame(width: 30)
+                                        
+                                        Text(ruleOption.rawValue)
+                                            .font(.body)
+                                        
+                                        Spacer()
+                                        
+                                        if selectedRule == ruleOption {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.blue)
+                                        }
+                                    }
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(selectedRule == ruleOption ? 
+                                                 (colorScheme == .dark ? Color.blue.opacity(0.2) : Color.blue.opacity(0.1)) : 
+                                                 Material.ultraThinMaterial)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
-                    Spacer()
-                    VStack(alignment: .leading) {
-                        Text("使用次数")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("\(rule.useCount)")
-                            .font(.subheadline)
+                    .padding()
+                    
+                    Divider()
+                        .padding(.horizontal)
+                    
+                    // 统计信息
+                    HStack(spacing: 20) {
+                        VStack(alignment: .center, spacing: 8) {
+                            Text("\(rule.useCount)")
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundStyle(.primary)
+                            
+                            Text("使用次数")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Material.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        
+                        VStack(alignment: .center, spacing: 8) {
+                            Text(formattedDate(rule.lastUsed))
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
+                            
+                            Text("最后使用")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Material.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
+                    .padding(.horizontal)
                 }
+                .padding(.vertical, 20)
             }
-            .padding(.horizontal)
             
-            Spacer()
-            
+            // 底部按钮
             HStack {
-                Button("取消") { // 移除 role 参数
-                    presentationMode.wrappedValue.dismiss()
+                Button("取消", role: .cancel) {
+                    dismiss()
                 }
+                .keyboardShortcut(.escape)
                 
                 Spacer()
                 
-                Button("保存") {
+                Button {
                     AppConfig.shared.updateRule(for: rule.bundleId, rule: selectedRule)
-                    presentationMode.wrappedValue.dismiss()
+                    dismiss()
+                } label: {
+                    Text("保存")
+                        .frame(width: 100)
                 }
-                .buttonStyle(.bordered) // 使用 bordered 样式
+                .keyboardShortcut(.return)
+                .buttonStyle(.borderedProminent)
             }
             .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            .background(Material.bar)
         }
     }
     
@@ -311,6 +464,19 @@ struct RuleEditView: View {
             return "eye.slash.fill"
         case .custom:
             return "slider.horizontal.3"
+        }
+    }
+    
+    private func ruleColor(for rule: WindowHandlingRule) -> Color {
+        switch rule {
+        case .center:
+            return .blue
+        case .almostMaximize:
+            return .green
+        case .ignore:
+            return .gray
+        case .custom:
+            return .orange
         }
     }
 } 
