@@ -149,7 +149,7 @@ struct RuleConfigView: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(colorScheme == .dark ? Color.black.opacity(0.2) : Color.white.opacity(0.5))
+        .background(Material.ultraThinMaterial)
         .safeAreaInset(edge: .bottom) {
             bottomStatusBar
         }
@@ -181,10 +181,12 @@ struct RuleConfigView: View {
             SearchBar(text: $searchText, placeholder: "搜索应用名称或包ID")
                 .padding(.horizontal)
                 .padding(.vertical, 12)
+                .background(Material.ultraThinMaterial)
             
             // Use extracted rules list view
             rulesListView
         }
+        .background(Color.clear)
         .frame(minWidth: 600, idealWidth: 720, maxWidth: 900, minHeight: 450, idealHeight: 550, maxHeight: 700)
         .sheet(item: $selectedRule) { rule in
             RuleEditView(rule: rule)
@@ -288,15 +290,13 @@ struct RuleRow: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? 
-                     Color(NSColor.controlBackgroundColor).opacity(0.3) : 
-                     Color(NSColor.controlBackgroundColor).opacity(0.7))
+                .fill(Material.regularMaterial)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.primary.opacity(0.05), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
     }
     
     private func formattedRelativeDate(_ date: Date) -> String {

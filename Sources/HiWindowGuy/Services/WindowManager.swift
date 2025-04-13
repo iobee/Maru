@@ -74,15 +74,19 @@ class WindowManager {
         // 根据规则处理窗口
         switch rule {
         case .center:
-            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
             if let window = getActiveWindow() {
+                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
                 centerWindow(window)
+            } else {
+                AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行居中操作", level: .debug)
             }
             
         case .almostMaximize:
-            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
             if let window = getActiveWindow() {
+                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
                 almostMaximizeWindow(window)
+            } else {
+                AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行几乎最大化操作", level: .debug)
             }
             
         case .ignore:
@@ -153,22 +157,31 @@ class WindowManager {
     }
     
     private func setWindowFrame(_ frame: CGRect) {
-        // 使用AppleScript调整窗口大小和位置
+        // 使用AppleScript调整窗口大小和位置，增加错误处理
         let script = """
         tell application "System Events"
             set frontApp to first application process whose frontmost is true
-            set frontWindow to first window of frontApp
-            set position of frontWindow to {\(frame.origin.x), \(frame.origin.y)}
-            set size of frontWindow to {\(frame.width), \(frame.height)}
+            -- 检查应用是否有窗口
+            if (count of windows of frontApp) > 0 then
+                set frontWindow to first window of frontApp
+                set position of frontWindow to {\(frame.origin.x), \(frame.origin.y)}
+                set size of frontWindow to {\(frame.width), \(frame.height)}
+            else
+                -- 没有窗口，记录信息但不抛出错误
+                log "应用没有窗口可调整"
+            end if
         end tell
         """
         
         var error: NSDictionary?
         if let scriptObject = NSAppleScript(source: script) {
-            scriptObject.executeAndReturnError(&error)
+            let result = scriptObject.executeAndReturnError(&error)
             
             if let error = error {
+                // 记录错误但不中断程序流程
                 AppLogger.shared.log("AppleScript错误: \(error)", level: .error)
+            } else {
+                AppLogger.shared.log("成功调整窗口位置和大小", level: .debug)
             }
         }
     }

@@ -25,29 +25,36 @@ struct LogViewer: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(spacing: 0) {
             HStack {
-                Text("应用日志")
-                    .font(.title2.weight(.semibold))
+                Text("系统日志")
+                    .font(.title2.bold())
                 
                 Spacer()
                 
                 Button {
-                    loadLogFiles()
                     showingFileSelector = true
+                    loadLogFiles()
                 } label: {
-                    Label("查看历史日志", systemImage: "folder")
+                    Label("历史日志", systemImage: "folder")
                 }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 8)
+                
+                Divider()
+                    .frame(height: 15)
+                    .padding(.horizontal, 4)
                 
                 Button {
                     confirmClearLogs()
                 } label: {
-                    Label("清除当前日志", systemImage: "trash")
+                    Label("清空", systemImage: "trash")
                 }
-                .accentColor(.red)
-                .padding(.leading, 8)
+                .buttonStyle(.borderless)
+                .foregroundColor(.red)
             }
             .padding()
+            .background(Material.bar)
             
             HStack {
                 SearchBar(text: $searchText, placeholder: "搜索日志内容或文件名")
@@ -67,7 +74,8 @@ struct LogViewer: View {
                 .frame(width: 120)
             }
             .padding(.horizontal)
-            .padding(.bottom, 10)
+            .padding(.vertical, 10)
+            .background(Material.ultraThinMaterial)
             
             Divider()
             
@@ -77,6 +85,7 @@ struct LogViewer: View {
                 }
             }
             .listStyle(PlainListStyle())
+            .background(Material.ultraThinMaterial)
             
             Divider()
             
@@ -95,7 +104,9 @@ struct LogViewer: View {
                 .font(.footnote)
             }
             .padding()
+            .background(Material.thin)
         }
+        .background(Color.clear)
         .frame(minWidth: 550, idealWidth: 700, maxWidth: 1000, minHeight: 400, idealHeight: 500, maxHeight: 800)
         .sheet(isPresented: $showingFileSelector) {
             LogFileSelector(logFiles: logFiles, selectedFile: $selectedLogFile, isPresented: $showingFileSelector)
@@ -171,12 +182,14 @@ struct LogViewer: View {
 struct LogEntryRow: View {
     let entry: LogEntry
     @State private var isExpanded = false
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: entry.level.icon)
                     .foregroundColor(logLevelColor(entry.level))
+                    .font(.system(size: 12, weight: .semibold))
                 
                 Text(entry.formattedTimestamp)
                     .font(.caption.monospacedDigit())
@@ -196,6 +209,7 @@ struct LogEntryRow: View {
                 .buttonStyle(PlainButtonStyle())
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .contentShape(Rectangle())
             }
             
             if isExpanded {
@@ -211,6 +225,15 @@ struct LogEntryRow: View {
             }
         }
         .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(colorScheme == .dark ? 
+                     Color.black.opacity(0.1) : 
+                     Color.white.opacity(0.3))
+                .opacity(isExpanded ? 1 : 0)
+        )
+        .animation(.easeInOut(duration: 0.2), value: isExpanded)
     }
     
     private func logLevelColor(_ level: LogLevel) -> Color {

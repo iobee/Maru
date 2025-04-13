@@ -32,6 +32,7 @@ struct ContentView: View {
                     .tag(2)
             }
         }
+        // 在整个视图上应用毛玻璃效果
         .background(Material.ultraThinMaterial)
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showRulesConfig"))) { _ in
             selectedTab = 1
@@ -82,9 +83,9 @@ struct ContentView: View {
             // 应用统计信息
             statsView
                 .padding()
-                .background(Material.ultraThinMaterial)
+                .background(Color.primary.opacity(0.05)) // 替换毛玻璃效果为轻微背景色
                 .cornerRadius(10)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                 .padding(.horizontal)
             
             Text("应用将自动管理窗口大小和位置")
@@ -96,9 +97,8 @@ struct ContentView: View {
             Spacer()
         }
         .padding()
-        .background(Material.regularMaterial)
+        .background(Color.clear) // 移除背景
         .cornerRadius(16)
-        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
         .frame(minWidth: 300, idealWidth: 320, maxWidth: 400, minHeight: 400, idealHeight: 450, maxHeight: 500)
     }
     
