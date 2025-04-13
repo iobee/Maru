@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct RuleConfigView: View {
-    @ObservedObject var config = AppConfig.shared
+    @StateObject private var config = AppConfig.shared
     @State private var searchText = ""
     @State private var selectedRule: AppRule?
     @State private var sortOption = SortOption.lastUsed // 默认按最近使用排序
+    @State private var refreshTrigger = UUID() // 强制刷新触发器
     @Environment(\.colorScheme) private var colorScheme
     
     enum SortOption: String, CaseIterable, Identifiable {
@@ -16,6 +17,9 @@ struct RuleConfigView: View {
     }
     
     var filteredRules: [AppRule] {
+        // 使用 refreshID 来确保视图刷新
+        _ = config.refreshID
+        
         let rules = config.appRules
         
         // 搜索过滤
@@ -59,13 +63,12 @@ struct RuleConfigView: View {
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.regularMaterial)
+                    .background(Material.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 16)
-        .background(Material.bar)
+        .padding(.horizontal, 32)
+        .padding(.vertical, 24)
     }
     
     // Extract empty state view
@@ -101,7 +104,7 @@ struct RuleConfigView: View {
             
             if rule.rule != .ignore {
                 Button {
-                    AppConfig.shared.updateRule(for: rule.bundleId, rule: .ignore)
+                    updateRuleAndRefresh(for: rule.bundleId, rule: .ignore)
                 } label: {
                     Label("忽略此应用", systemImage: "eye.slash")
                 }
@@ -109,7 +112,7 @@ struct RuleConfigView: View {
             
             if rule.rule != .center {
                 Button {
-                    AppConfig.shared.updateRule(for: rule.bundleId, rule: .center)
+                    updateRuleAndRefresh(for: rule.bundleId, rule: .center)
                 } label: {
                     Label("设为居中", systemImage: "rectangle.center.inset.filled")
                 }
@@ -117,12 +120,20 @@ struct RuleConfigView: View {
             
             if rule.rule != .almostMaximize {
                 Button {
-                    AppConfig.shared.updateRule(for: rule.bundleId, rule: .almostMaximize)
+                    updateRuleAndRefresh(for: rule.bundleId, rule: .almostMaximize)
                 } label: {
                     Label("设为几乎最大化", systemImage: "rectangle.inset.filled")
                 }
             }
         }
+    }
+    
+    // 添加辅助方法来更新规则并刷新视图
+    private func updateRuleAndRefresh(for bundleId: String, rule: WindowHandlingRule) {
+        // 更新规则 - AppConfig 内部会刷新 refreshID
+        config.updateRule(for: bundleId, rule: rule)
+        // 强制刷新视图
+        forceRefresh()
     }
     
     // Extract rules list view
@@ -132,7 +143,7 @@ struct RuleConfigView: View {
                 emptyStateView
             } else {
                 LazyVStack(spacing: 12) {
-                    ForEach(filteredRules) { rule in
+                    ForEach(filteredRules, id: \.bundleId) { rule in
                         RuleRow(rule: rule)
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -174,23 +185,65 @@ struct RuleConfigView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Use extracted title bar
-            titleBar
+            // 排序菜单工具栏
+            HStack {
+                Spacer()
+                
+                Menu {
+                    ForEach(SortOption.allCases) { option in
+                        Button {
+                            sortOption = option
+                        } label: {
+                            Label(option.rawValue, systemImage: sortOptionIcon(option))
+                        }
+                    }
+                } label: {
+                    Label("排序: \(sortOption.rawValue)", systemImage: "arrow.up.arrow.down")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Material.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.top, 24)
             
             // 搜索栏
             SearchBar(text: $searchText, placeholder: "搜索应用名称或包ID")
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(Material.ultraThinMaterial)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
             
-            // Use extracted rules list view
+            // 规则列表
             rulesListView
         }
         .background(Color.clear)
-        .frame(minWidth: 600, idealWidth: 720, maxWidth: 900, minHeight: 450, idealHeight: 550, maxHeight: 700)
         .sheet(item: $selectedRule) { rule in
-            RuleEditView(rule: rule)
+            RuleEditView(rule: rule, config: config, onSave: forceRefresh)
                 .frame(width: 500, height: 400)
+        }
+        .toolbar {
+            ToolbarItem {
+                Menu {
+                    ForEach(SortOption.allCases) { option in
+                        Button {
+                            sortOption = option
+                        } label: {
+                            Label(option.rawValue, systemImage: sortOptionIcon(option))
+                        }
+                    }
+                } label: {
+                    Label("排序", systemImage: "arrow.up.arrow.down")
+                }
+            }
+        }
+        .id(refreshTrigger) // 使用 ID 修饰符强制刷新整个视图
+        .onReceive(config.objectWillChange) { _ in
+            forceRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RuleUpdated"))) { _ in
+            forceRefresh()
         }
     }
     
@@ -203,6 +256,11 @@ struct RuleConfigView: View {
         case .useCount:
             return "number"
         }
+    }
+    
+    // 强制刷新视图的方法
+    private func forceRefresh() {
+        refreshTrigger = UUID()
     }
 }
 
@@ -333,14 +391,18 @@ struct RuleRow: View {
 }
 
 struct RuleEditView: View {
+    @ObservedObject var config: AppConfig
     let rule: AppRule
     @State private var selectedRule: WindowHandlingRule
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    let onSave: () -> Void
     
-    init(rule: AppRule) {
+    init(rule: AppRule, config: AppConfig, onSave: @escaping () -> Void) {
         self.rule = rule
+        self.config = config
         _selectedRule = State(initialValue: rule.rule)
+        self.onSave = onSave
     }
     
     // Extract a method to create a single rule option button
@@ -507,7 +569,8 @@ struct RuleEditView: View {
                 Spacer()
                 
                 Button {
-                    AppConfig.shared.updateRule(for: rule.bundleId, rule: selectedRule)
+                    config.updateRule(for: rule.bundleId, rule: selectedRule)
+                    onSave()
                     dismiss()
                 } label: {
                     Text("保存")

@@ -29,6 +29,9 @@ class AppConfig: ObservableObject {
     // 发布的应用规则列表
     @Published var appRules: [AppRule] = []
     
+    // 用于手动触发视图刷新的 ID
+    @Published var refreshID = UUID()
+    
     // 日志级别
     @Published var logLevel: LogLevel = .info
     
@@ -139,8 +142,22 @@ class AppConfig: ObservableObject {
     // 更新应用规则
     func updateRule(for bundleId: String, rule: WindowHandlingRule) {
         if let index = appRules.firstIndex(where: { $0.bundleId == bundleId }) {
-            appRules[index].rule = rule
+            // 创建规则的副本并修改它
+            var updatedRule = appRules[index]
+            updatedRule.rule = rule
+            updatedRule.lastUsed = Date() // 更新最后使用时间
+            
+            // 替换原始规则
+            appRules[index] = updatedRule
+            
+            // 保存配置
             saveConfig()
+            
+            // 触发刷新ID更新
+            refreshID = UUID()
+            
+            // 发送通知
+            NotificationCenter.default.post(name: Notification.Name("RuleUpdated"), object: nil)
         }
     }
     
@@ -164,6 +181,7 @@ class AppConfig: ObservableObject {
         
         // 保存配置
         saveConfig()
+        refreshID = UUID() // 触发视图刷新
     }
     
     // 获取应用规则

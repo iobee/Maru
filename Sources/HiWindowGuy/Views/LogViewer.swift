@@ -26,36 +26,7 @@ struct LogViewer: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("系统日志")
-                    .font(.title2.bold())
-                
-                Spacer()
-                
-                Button {
-                    showingFileSelector = true
-                    loadLogFiles()
-                } label: {
-                    Label("历史日志", systemImage: "folder")
-                }
-                .buttonStyle(.borderless)
-                .padding(.horizontal, 8)
-                
-                Divider()
-                    .frame(height: 15)
-                    .padding(.horizontal, 4)
-                
-                Button {
-                    confirmClearLogs()
-                } label: {
-                    Label("清空", systemImage: "trash")
-                }
-                .buttonStyle(.borderless)
-                .foregroundColor(.red)
-            }
-            .padding()
-            .background(Material.bar)
-            
+            // 筛选栏
             HStack {
                 SearchBar(text: $searchText, placeholder: "搜索日志内容或文件名")
                     .frame(maxWidth: .infinity)
@@ -73,22 +44,19 @@ struct LogViewer: View {
                 .pickerStyle(MenuPickerStyle())
                 .frame(width: 120)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-            .background(Material.ultraThinMaterial)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 16)
             
-            Divider()
-            
+            // 日志列表
             List {
                 ForEach(filteredLogs) { logEntry in
                     LogEntryRow(entry: logEntry)
                 }
             }
-            .listStyle(PlainListStyle())
+            .listStyle(.plain)
             .background(Material.ultraThinMaterial)
             
-            Divider()
-            
+            // 底部状态栏
             HStack {
                 Text("共 \(filteredLogs.count) 条日志")
                     .foregroundColor(.secondary)
@@ -107,7 +75,6 @@ struct LogViewer: View {
             .background(Material.thin)
         }
         .background(Color.clear)
-        .frame(minWidth: 550, idealWidth: 700, maxWidth: 1000, minHeight: 400, idealHeight: 500, maxHeight: 800)
         .sheet(isPresented: $showingFileSelector) {
             LogFileSelector(logFiles: logFiles, selectedFile: $selectedLogFile, isPresented: $showingFileSelector)
                 .frame(minWidth: 400, idealWidth: 450, maxWidth: 500, minHeight: 300, idealHeight: 400, maxHeight: 500)
@@ -115,6 +82,25 @@ struct LogViewer: View {
         .onChange(of: selectedLogFile) { file in
             if let file = file {
                 loadLogsFromFile(file)
+            }
+        }
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    showingFileSelector = true
+                    loadLogFiles()
+                } label: {
+                    Label("历史日志", systemImage: "folder")
+                }
+            }
+            
+            ToolbarItem {
+                Button {
+                    confirmClearLogs()
+                } label: {
+                    Label("清空", systemImage: "trash")
+                        .foregroundStyle(.red)
+                }
             }
         }
     }

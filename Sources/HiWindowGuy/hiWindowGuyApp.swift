@@ -11,8 +11,10 @@ struct HiWindowGuyApp: App {
             ContentView()
                 .environmentObject(AppConfig.shared)
                 .environmentObject(AppLogger.shared)
+                .background(.regularMaterial)
         }
-        .windowStyle(HiddenTitleBarWindowStyle())
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
