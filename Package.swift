@@ -15,14 +15,13 @@ let package = Package(
         .executableTarget(
             name: "HiWindowGuy",
             dependencies: [],
-            path: ".",
+            path: "Sources",
             exclude: [
-                "demo.lua",
-                "README.md",
-                "Info.plist"
+                "HiWindowGuy/Utilities/demo.lua",
+                "HiWindowGuy/Info.plist"
             ],
             resources: [
-                .process("Assets.xcassets")
+                .process("HiWindowGuy/Assets.xcassets")
             ]
         )
     ]
