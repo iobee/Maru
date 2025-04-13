@@ -63,3 +63,7 @@ Temporary Items
 *~
 *.swp 
 .build/build.db
+.dmg
+.build/*
+build/HiWindowGuy.dmg
+build
