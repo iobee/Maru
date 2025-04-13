@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "HiWindowGuy",
     platforms: [
-        .macOS(.v11)
+        .macOS(.v12)
     ],
     products: [
         .executable(name: "HiWindowGuy", targets: ["HiWindowGuy"])

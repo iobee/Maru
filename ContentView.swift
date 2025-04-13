@@ -7,7 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var logger: AppLogger
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             TabView(selection: $selectedTab) {
                 // 主界面
                 mainView
@@ -31,6 +31,7 @@ struct ContentView: View {
                     .tag(2)
             }
         }
+        .background(Material.ultraThinMaterial)
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showRulesConfig"))) { _ in
             selectedTab = 1
         }
@@ -80,8 +81,9 @@ struct ContentView: View {
             // 应用统计信息
             statsView
                 .padding()
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.8))
+                .background(Material.ultraThinMaterial)
                 .cornerRadius(10)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
                 .padding(.horizontal)
             
             Text("应用将自动管理窗口大小和位置")
@@ -91,39 +93,16 @@ struct ContentView: View {
                 .padding(.horizontal)
                 
             Spacer()
-            
-            HStack {
-                Button {
-                    selectedTab = 1
-                } label: {
-                    Label("规则配置", systemImage: "gearshape")
-                }
-                .buttonStyle(.bordered)
-                
-                Button {
-                    selectedTab = 2
-                } label: {
-                    Label("查看日志", systemImage: "doc.text")
-                }
-                .buttonStyle(.bordered)
-                
-                Spacer()
-                
-                Button {
-                    NSApplication.shared.terminate(nil)
-                } label: {
-                    Label("退出应用", systemImage: "power")
-                }
-                .accentColor(.red)
-            }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
         }
+        .padding()
+        .background(Material.regularMaterial)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
         .frame(minWidth: 300, idealWidth: 320, maxWidth: 400, minHeight: 400, idealHeight: 450, maxHeight: 500)
     }
     
     private var statsView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("应用统计")
                 .font(.headline)
                 .padding(.bottom, 4)
@@ -131,37 +110,71 @@ struct ContentView: View {
             Divider()
             
             HStack {
-                Label("已记录应用", systemImage: "app.badge")
+                Label {
+                    Text("已记录应用")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "app.badge")
+                        .foregroundStyle(.purple)
+                }
                 Spacer()
                 Text("\(appConfig.appRules.count)")
                     .fontWeight(.semibold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(Color.purple.opacity(0.2))
+                    .cornerRadius(6)
             }
             
             HStack {
-                Label("居中处理", systemImage: "rectangle.center.inset.filled")
-                    .foregroundColor(.blue)
+                Label {
+                    Text("居中处理")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "rectangle.center.inset.filled")
+                        .foregroundStyle(.blue)
+                }
                 Spacer()
                 Text("\(appConfig.appRules.filter { $0.rule == .center }.count)")
                     .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(Color.blue.opacity(0.2))
+                    .cornerRadius(6)
             }
             
             HStack {
-                Label("几乎最大化", systemImage: "rectangle.inset.filled")
-                    .foregroundColor(.green)
+                Label {
+                    Text("几乎最大化")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "rectangle.inset.filled")
+                        .foregroundStyle(.green)
+                }
                 Spacer()
                 Text("\(appConfig.appRules.filter { $0.rule == .almostMaximize }.count)")
                     .fontWeight(.semibold)
-                    .foregroundColor(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(Color.green.opacity(0.2))
+                    .cornerRadius(6)
             }
             
             HStack {
-                Label("忽略处理", systemImage: "eye.slash.fill")
-                    .foregroundColor(.gray)
+                Label {
+                    Text("忽略处理")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "eye.slash.fill")
+                        .foregroundStyle(.gray)
+                }
                 Spacer()
                 Text("\(appConfig.appRules.filter { $0.rule == .ignore }.count)")
                     .fontWeight(.semibold)
-                    .foregroundColor(.gray)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(6)
             }
         }
         .font(.subheadline)
