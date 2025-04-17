@@ -35,8 +35,17 @@ class AppConfig: ObservableObject {
     // 日志级别
     @Published var logLevel: LogLevel = .info
     
+    // 窗口缩放比例 (0.0-1.0)，控制几乎最大化时窗口的大小
+    @Published var windowScaleFactor: Double = 0.92 {
+        didSet {
+            // 当值变化时保存配置
+            saveGeneralConfig()
+        }
+    }
+    
     // 配置文件路径
     private let configFilePath: URL
+    private let generalConfigFilePath: URL
     
     // 单例实例
     static let shared = AppConfig()
@@ -51,12 +60,60 @@ class AppConfig: ObservableObject {
         
         // 设置配置文件路径
         configFilePath = appDir.appendingPathComponent("config.json")
+        generalConfigFilePath = appDir.appendingPathComponent("general.json")
         
         // 加载配置
         loadConfig()
+        loadGeneralConfig()
         
         // 设置默认规则（如果尚未设置）
         setupDefaultRules()
+    }
+    
+    // 保存一般配置
+    func saveGeneralConfig() {
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            
+            // 创建配置数据结构
+            let configData: [String: Any] = [
+                "windowScaleFactor": windowScaleFactor,
+                "logLevel": logLevel.rawValue
+            ]
+            
+            // 转换为JSON
+            let data = try JSONSerialization.data(withJSONObject: configData, options: .prettyPrinted)
+            try data.write(to: generalConfigFilePath)
+            AppLogger.shared.log("一般配置已保存", level: .debug)
+        } catch {
+            AppLogger.shared.log("保存一般配置失败: \(error.localizedDescription)", level: .error)
+        }
+    }
+    
+    // 加载一般配置
+    private func loadGeneralConfig() {
+        do {
+            if FileManager.default.fileExists(atPath: generalConfigFilePath.path) {
+                let data = try Data(contentsOf: generalConfigFilePath)
+                if let configData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                    // 加载窗口缩放比例
+                    if let scaleFactor = configData["windowScaleFactor"] as? Double {
+                        windowScaleFactor = scaleFactor
+                    }
+                    
+                    // 加载日志级别
+                    if let rawLogLevel = configData["logLevel"] as? String,
+                       let level = LogLevel(rawValue: rawLogLevel) {
+                        logLevel = level
+                    }
+                    
+                    AppLogger.shared.log("一般配置已加载", level: .debug)
+                }
+            }
+        } catch {
+            AppLogger.shared.log("加载一般配置失败: \(error.localizedDescription)", level: .error)
+        }
     }
     
     // 保存配置

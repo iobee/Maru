@@ -266,8 +266,8 @@ class WindowManager {
         let statusBarHeight = screenFrame.height - visibleFrame.height
         AppLogger.shared.log("状态栏高度: \(statusBarHeight)", level: .debug)
         
-        // 窗口比例参数 (0.0-1.0)，表示窗口占屏幕的比例
-        let scaleFactor: CGFloat = 0.92 // 92% 的屏幕大小
+        // 从配置获取窗口比例参数 (0.0-1.0)
+        let scaleFactor = CGFloat(AppConfig.shared.windowScaleFactor)
         
         // 基于比例计算边距
         let horizontalMargin = (screenFrame.width * (1.0 - scaleFactor)) / 2
@@ -278,9 +278,9 @@ class WindowManager {
         // 计算新的框架，Y坐标从状态栏下方开始
         let newFrame = CGRect(
             x: screenFrame.origin.x + horizontalMargin,
-            y: screenFrame.origin.y + statusBarHeight + verticalMargin / 2, // 上边距减半，考虑状态栏
+            y: screenFrame.origin.y + statusBarHeight + verticalMargin, // 上边距减半，考虑状态栏
             width: screenFrame.width - (horizontalMargin * 2),
-            height: screenFrame.height - (verticalMargin * 2) // 下边距保持不变，上边距减半
+            height: screenFrame.height  - (verticalMargin * 2) // 下边距保持不变，上边距减半
         )
         
         AppLogger.shared.log("新的窗口框架: \(newFrame)", level: .debug)

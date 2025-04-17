@@ -168,6 +168,54 @@ struct ContentView: View {
                     .padding()
                     .background(Material.ultraThinMaterial)
                     .cornerRadius(10)
+                    
+                    // 窗口缩放比例设置
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("窗口缩放比例")
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                
+                                Text("控制「几乎最大化」时窗口的大小")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Text("\(Int(appConfig.windowScaleFactor * 100))%")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .frame(width: 50, alignment: .trailing)
+                        }
+                        
+                        VStack(spacing: 6) {
+                            Slider(
+                                value: $appConfig.windowScaleFactor,
+                                in: 0.7...0.97,
+                                step: 0.01
+                            )
+                            .padding(.horizontal, 2)
+                            
+                            HStack {
+                                Text("更紧凑")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Spacer()
+                                
+                                Text("更宽敞")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                    }
+                    .padding()
+                    .background(Material.ultraThinMaterial)
+                    .cornerRadius(10)
                 }
                 
                 Divider()
