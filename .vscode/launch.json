@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:hiWindowGuy}",
+            "name": "Debug HiWindowGuy",
+            "program": "${workspaceFolder:hiWindowGuy}/.build/debug/HiWindowGuy",
+            "preLaunchTask": "swift: Build Debug HiWindowGuy"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:hiWindowGuy}",
+            "name": "Release HiWindowGuy",
+            "program": "${workspaceFolder:hiWindowGuy}/.build/release/HiWindowGuy",
+            "preLaunchTask": "swift: Build Release HiWindowGuy"
+        }
+    ]
+}
