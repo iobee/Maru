@@ -33,27 +33,36 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationSplitView {
+        HSplitView {
             // 侧边栏
-            sidebarView
-                .navigationSplitViewColumnWidth(min: 220, ideal: 250)
-                .toolbar {
-                    ToolbarItem(placement: .automatic) {
-                        Button {
-                            NSApplication.shared.terminate(nil)
-                        } label: {
-                            Label("退出", systemImage: "power")
-                                .foregroundStyle(.red)
+            List(selection: $selectedSection) {
+                Section("设置") {
+                    ForEach(NavigationSection.allCases) { section in
+                        HStack {
+                            Image(systemName: section.icon)
+                            Text(section.title)
                         }
-                        .help("退出应用")
+                        .tag(section.rawValue)
                     }
                 }
-        } detail: {
+            }
+            .listStyle(.sidebar)
+            .frame(minWidth: 200, maxWidth: 300)
+            
             // 主内容区域
-            contentView
+            Group {
+                switch NavigationSection(rawValue: selectedSection) {
+                case .home:
+                    homeView
+                case .rules:
+                    RuleConfigView()
+                case .logs:
+                    LogViewer()
+                case .none:
+                    homeView
+                }
+            }
         }
-        .navigationSplitViewStyle(.automatic)
-        .navigationTitle("窗口管理器")
         .frame(minWidth: 800, idealWidth: 900, maxWidth: .infinity, 
                minHeight: 500, idealHeight: 600, maxHeight: .infinity)
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showRulesConfig"))) { _ in
@@ -61,44 +70,6 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showLogs"))) { _ in
             selectedSection = NavigationSection.logs.rawValue
-        }
-    }
-    
-    private var sidebarView: some View {
-        List(selection: $selectedSection) {
-            Section("设置") {
-                ForEach(NavigationSection.allCases) { section in
-                    NavigationLink(value: section.rawValue) {
-                        Label {
-                            Text(section.title)
-                                .lineLimit(1)
-                        } icon: {
-                            Image(systemName: section.icon)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-            }
-        }
-        .listStyle(.sidebar)
-    }
-    
-    @ViewBuilder
-    private var contentView: some View {
-        switch NavigationSection(rawValue: selectedSection) {
-        case .home:
-            homeView
-                .navigationTitle("常规")
-        case .rules:
-            RuleConfigView()
-                .navigationTitle("应用规则")
-        case .logs:
-            LogViewer()
-                .navigationTitle("日志")
-        case .none:
-            // 默认显示主页
-            homeView
-                .navigationTitle("常规")
         }
     }
     

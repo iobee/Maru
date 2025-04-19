@@ -11,13 +11,10 @@ struct HiWindowGuyApp: App {
             ContentView()
                 .environmentObject(AppConfig.shared)
                 .environmentObject(AppLogger.shared)
-                .background(.regularMaterial)
+                .background(Color(NSColor.windowBackgroundColor))
         }
-        .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unified)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 900, height: 600)
     }
 }
 
@@ -26,100 +23,69 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 创建窗口管理器
-        windowManager = WindowManager()
+        AppLogger.shared.log("====== 应用开始启动 ======", level: .info)
         
-        // 创建状态栏图标
+        // 初始化必要的组件
+        captureExceptions()
+        windowManager = WindowManager()
         setupStatusBar()
         
-        // 记录启动日志
-        AppLogger.shared.log("应用已启动", level: .info)
-    }
-    
-    func applicationWillTerminate(_ notification: Notification) {
-        // 记录关闭日志
-        AppLogger.shared.log("应用已关闭", level: .info)
+        // 配置主窗口
+        if let window = NSApp.windows.first {
+            window.title = "HiWindowGuy"
+            window.delegate = self
+        }
     }
     
     private func setupStatusBar() {
+        AppLogger.shared.log("开始设置状态栏图标", level: .debug)
+        
+        // 创建状态栏图标
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "window.vertical.closed", accessibilityDescription: "窗口管理器")
+            // 设置状态栏图标
+            if let image = NSImage(systemSymbolName: "window.vertical.closed", accessibilityDescription: "窗口管理器") {
+                button.image = image
+                button.imagePosition = .imageLeft
+            } else {
+                AppLogger.shared.log("无法创建状态栏图标图像", level: .error)
+            }
             
+            // 创建菜单
             let menu = NSMenu()
             
-            // 应用名称菜单项
-            let titleItem = NSMenuItem(title: "窗口管理器", action: nil, keyEquivalent: "")
-            titleItem.isEnabled = false
-            titleItem.attributedTitle = NSAttributedString(
-                string: "窗口管理器",
-                attributes: [
-                    .font: NSFont.boldSystemFont(ofSize: 12),
-                    .foregroundColor: NSColor.labelColor
-                ]
-            )
-            menu.addItem(titleItem)
-            menu.addItem(NSMenuItem.separator())
-            
-            // 显示主窗口菜单项
-            let showWindowItem = NSMenuItem(title: "显示主窗口", action: #selector(showMainWindow), keyEquivalent: "")
+            // 显示主窗口菜单项 - 设置快捷键为"m"
+            let showWindowItem = NSMenuItem(title: "显示主窗口", action: #selector(showMainWindow), keyEquivalent: "m")
+            showWindowItem.target = self
             menu.addItem(showWindowItem)
             
-            // 规则配置菜单项
-            let configItem = NSMenuItem(title: "规则配置", action: #selector(showRulesConfig), keyEquivalent: "")
+            // 规则配置菜单项 - 设置快捷键为"r"
+            let configItem = NSMenuItem(title: "规则配置", action: #selector(showRulesConfig), keyEquivalent: "r")
+            configItem.target = self
             menu.addItem(configItem)
-            
-            // 查看日志菜单项
-            let logItem = NSMenuItem(title: "查看日志", action: #selector(showLogs), keyEquivalent: "")
-            menu.addItem(logItem)
             
             menu.addItem(NSMenuItem.separator())
             
-            // 启用/停用菜单项
+            // 启用/停用窗口管理
             let toggleItem = NSMenuItem(title: "启用窗口管理", action: #selector(toggleWindowManagement), keyEquivalent: "")
+            toggleItem.target = self
             toggleItem.state = .on
             menu.addItem(toggleItem)
             
             menu.addItem(NSMenuItem.separator())
             
-            // 退出菜单项
-            menu.addItem(NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q"))
+            // 退出菜单项 - 设置快捷键为"q"
+            let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
+            quitItem.target = self
+            menu.addItem(quitItem)
             
+            // 设置菜单
             statusItem?.menu = menu
-        }
-    }
-    
-    @objc private func showMainWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first?.makeKeyAndOrderFront(nil)
-    }
-    
-    @objc private func showRulesConfig() {
-        NSApp.activate(ignoringOtherApps: true)
-        
-        if let window = NSApp.windows.first {
-            window.makeKeyAndOrderFront(nil)
             
-            // 通知ContentView切换到规则配置标签
-            NotificationCenter.default.post(
-                name: Notification.Name("showRulesConfig"),
-                object: nil
-            )
-        }
-    }
-    
-    @objc private func showLogs() {
-        NSApp.activate(ignoringOtherApps: true)
-        
-        if let window = NSApp.windows.first {
-            window.makeKeyAndOrderFront(nil)
-            
-            // 通知ContentView切换到日志查看标签
-            NotificationCenter.default.post(
-                name: Notification.Name("showLogs"),
-                object: nil
-            )
+            AppLogger.shared.log("状态栏菜单已设置，包含 \(menu.items.count) 个项目", level: .info)
+        } else {
+            AppLogger.shared.log("无法创建状态栏图标", level: .error)
         }
     }
     
@@ -127,19 +93,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if sender.state == .on {
             sender.state = .off
             windowManager?.stopMonitoring()
-            logNotification("窗口管理已停用")
+            AppLogger.shared.log("窗口管理已停用", level: .info)
         } else {
             sender.state = .on
             windowManager?.startMonitoring()
-            logNotification("窗口管理已启用")
+            AppLogger.shared.log("窗口管理已启用", level: .info)
         }
     }
     
-    private func logNotification(_ message: String) {
-        AppLogger.shared.log(message, level: .info)
+    @objc private func showMainWindow() {
+        if let window = NSApp.windows.first {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+    
+    @objc private func showRulesConfig() {
+        NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
+        showMainWindow()
     }
     
     @objc private func quit() {
-        NSApplication.shared.terminate(nil)
+        NSApp.terminate(nil)
+    }
+    
+    private func captureExceptions() {
+        NSSetUncaughtExceptionHandler { exception in
+            AppLogger.shared.log("未捕获的异常: \(exception)", level: .error)
+        }
+    }
+}
+
+// MARK: - NSWindowDelegate
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            AppLogger.shared.log("窗口即将关闭: \(window.title)", level: .debug)
+        }
+    }
+    
+    func windowDidBecomeKey(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            AppLogger.shared.log("窗口成为焦点: \(window.title)", level: .debug)
+        }
+    }
+    
+    func windowDidResignKey(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            AppLogger.shared.log("窗口失去焦点: \(window.title)", level: .debug)
+        }
     }
 } 

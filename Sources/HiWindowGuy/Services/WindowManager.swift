@@ -280,7 +280,7 @@ class WindowManager {
             x: screenFrame.origin.x + horizontalMargin,
             y: screenFrame.origin.y + statusBarHeight + verticalMargin, // 上边距减半，考虑状态栏
             width: screenFrame.width - (horizontalMargin * 2),
-            height: screenFrame.height  - (verticalMargin * 2) // 下边距保持不变，上边距减半
+            height: screenFrame.height - statusBarHeight - (verticalMargin * 2) // 下边距保持不变，上边距减半
         )
         
         AppLogger.shared.log("新的窗口框架: \(newFrame)", level: .debug)
