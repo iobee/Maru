@@ -1,11 +1,13 @@
 import SwiftUI
 import Foundation
+import AppKit
 
 struct ContentView: View {
     @State private var isRunning = true
     @State private var selectedSection = 0
     @EnvironmentObject var appConfig: AppConfig
     @EnvironmentObject var logger: AppLogger
+    @StateObject private var windowManager = WindowManager()
     
     // 定义导航项
     enum NavigationSection: Int, CaseIterable, Identifiable {
@@ -125,14 +127,12 @@ struct ContentView: View {
                             .labelsHidden()
                             .toggleStyle(.switch)
                             .onChange(of: isRunning) { newValue in
-                                if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-                                    if newValue {
-                                        appDelegate.windowManager?.startMonitoring()
-                                        AppLogger.shared.log("窗口管理已启用", level: .info)
-                                    } else {
-                                        appDelegate.windowManager?.stopMonitoring()
-                                        AppLogger.shared.log("窗口管理已停用", level: .info)
-                                    }
+                                if newValue {
+                                    windowManager.startMonitoring()
+                                    AppLogger.shared.log("窗口管理已启用", level: .info)
+                                } else {
+                                    windowManager.stopMonitoring()
+                                    AppLogger.shared.log("窗口管理已停用", level: .info)
                                 }
                             }
                     }

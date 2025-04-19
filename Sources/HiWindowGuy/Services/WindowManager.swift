@@ -2,9 +2,11 @@ import Cocoa
 import Combine
 import ApplicationServices
 
-class WindowManager {
+class WindowManager: ObservableObject {
     // 延迟时间（秒）
     private let debounceTime: TimeInterval = 0.1
+    
+    @Published private(set) var isMonitoring = false
     
     private var workspaceNotificationObserver: NSObjectProtocol?
     private var debounceTimer: Timer?
@@ -59,6 +61,7 @@ class WindowManager {
             debounceWindowManagement(for: activeApp)
         }
         
+        isMonitoring = true
         AppLogger.shared.log("窗口管理器已启动监控", level: .info)
     }
     
@@ -71,6 +74,7 @@ class WindowManager {
         debounceTimer?.invalidate()
         debounceTimer = nil
         
+        isMonitoring = false
         AppLogger.shared.log("窗口管理器已停止监控", level: .info)
     }
     
@@ -130,7 +134,7 @@ class WindowManager {
         
         if result == .success, let window = windowRef {
             AppLogger.shared.log("获取到焦点窗口", level: .debug)
-            return window as! AXUIElement
+            return (window as! AXUIElement)
         }
         
         // 如果获取焦点窗口失败，尝试获取所有窗口
