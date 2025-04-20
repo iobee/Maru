@@ -102,7 +102,7 @@ class WindowManager: ObservableObject {
         switch rule {
         case .center:
             if let window = getFrontmostWindow(for: app) {
-                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
+            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
                 centerWindow(window)
             } else {
                 AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行居中操作", level: .debug)
@@ -110,7 +110,7 @@ class WindowManager: ObservableObject {
             
         case .almostMaximize:
             if let window = getFrontmostWindow(for: app) {
-                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
+            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
                 almostMaximizeWindow(window)
             } else {
                 AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行几乎最大化操作", level: .debug)

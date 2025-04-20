@@ -1,12 +1,14 @@
 import SwiftUI
 import Foundation
 import AppKit
+import OSLog
 
 struct ContentView: View {
+    @Binding var selectedTab: NavigationTab
+    @EnvironmentObject var appConfig: AppConfig
     @State private var isRunning = true
     @State private var selectedSection = 0
-    @EnvironmentObject var appConfig: AppConfig
-    @EnvironmentObject var logger: AppLogger
+    @EnvironmentObject var appLogger: AppLogger
     @StateObject private var windowManager = WindowManager()
     
     // 定义导航项
@@ -50,18 +52,29 @@ struct ContentView: View {
             }
             .listStyle(.sidebar)
             .frame(minWidth: 200, maxWidth: 300)
+            .onChange(of: selectedSection) { newValue in
+                // 根据选择的部分更新标签
+                switch newValue {
+                case NavigationSection.home.rawValue:
+                    selectedTab = .home
+                case NavigationSection.rules.rawValue:
+                    selectedTab = .rules
+                case NavigationSection.logs.rawValue:
+                    selectedTab = .logs
+                default:
+                    break
+                }
+            }
             
             // 主内容区域
             Group {
-                switch NavigationSection(rawValue: selectedSection) {
+                switch selectedTab {
                 case .home:
                     homeView
                 case .rules:
                     RuleConfigView()
                 case .logs:
                     LogViewer()
-                case .none:
-                    homeView
                 }
             }
         }
@@ -128,11 +141,9 @@ struct ContentView: View {
                             .toggleStyle(.switch)
                             .onChange(of: isRunning) { newValue in
                                 if newValue {
-                                    windowManager.startMonitoring()
-                                    AppLogger.shared.log("窗口管理已启用", level: .info)
+                                    appLogger.log("窗口管理已启用", level: .info)
                                 } else {
-                                    windowManager.stopMonitoring()
-                                    AppLogger.shared.log("窗口管理已停用", level: .info)
+                                    appLogger.log("窗口管理已停用", level: .info)
                                 }
                             }
                     }

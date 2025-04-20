@@ -1,6 +1,9 @@
 import SwiftUI
 import Cocoa
 import Combine
+import Foundation
+import AppKit
+import OSLog
 
 @main
 struct HiWindowGuyApp: App {
@@ -8,10 +11,12 @@ struct HiWindowGuyApp: App {
     @StateObject private var logger = AppLogger.shared
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
+    @State private var selectedTab: NavigationTab = .home
+    @StateObject private var windowManager = WindowManager()
     
     var body: some Scene {
         WindowGroup("HiWindowGuy", id: "mainWindow") {
-            ContentView()
+            ContentView(selectedTab: $selectedTab)
                 .environmentObject(appConfig)
                 .environmentObject(logger)
                 .background(Color(NSColor.windowBackgroundColor))
@@ -36,8 +41,10 @@ struct HiWindowGuyApp: App {
                 .onChange(of: isWindowManagementEnabled) { newValue in
                     if newValue {
                         logger.log("窗口管理已启用", level: .info)
+                        windowManager.startMonitoring()
                     } else {
                         logger.log("窗口管理已停用", level: .info)
+                        windowManager.stopMonitoring()
                     }
                 }
             
@@ -57,5 +64,15 @@ struct HiWindowGuyApp: App {
         
         // 记录应用启动
         AppLogger.shared.log("====== 应用开始启动 ======", level: .info)
+        
+        // 应用启动完成的记录（原来在 AppDelegate 中的逻辑）
+        NotificationCenter.default.addObserver(forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("应用启动完成", level: .info)
+        }
+        
+        // 应用退出的记录（原来在 AppDelegate 中的逻辑）
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("应用即将退出", level: .info)
+        }
     }
 } 
