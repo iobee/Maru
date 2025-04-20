@@ -3,17 +3,30 @@ import Combine
 import ApplicationServices
 
 class WindowManager: ObservableObject {
-    // 延迟时间（秒）
-    private let debounceTime: TimeInterval = 0.1
+    // 延迟时间（秒）- 增加延迟时间以防止重复处理
+    private let debounceTime: TimeInterval = 0.3
     
     @Published private(set) var isMonitoring = false
     
     private var workspaceNotificationObserver: NSObjectProtocol?
     private var debounceTimer: Timer?
+    // 记录最近处理的应用ID和时间
+    private var lastProcessedAppInfo: (bundleId: String, timestamp: Date)?
+    // 记录最近处理的窗口位置和大小，用于识别窗口
+    private var lastProcessedWindowSignature: (position: CGPoint, size: CGSize)?
+    // 处理操作锁，防止并发处理
+    private var isProcessing = false
+    // 防重处理的最小时间间隔（秒）
+    private let minProcessingInterval: TimeInterval = 2.0
+    // 锁定机制，防止循环触发
+    private var isOperatingWindow = false
+    // 操作后冷却期
+    private var cooldownEndTime: Date?
     
     init() {
         requestAccessibilityPermission()
-        startMonitoring()
+        // 不再在初始化时自动启动监控
+        // startMonitoring()
     }
     
     deinit {
@@ -42,6 +55,16 @@ class WindowManager: ObservableObject {
     }
     
     func startMonitoring() {
+        // 先停止当前监控（如果有的话）
+        stopMonitoring()
+        
+        // 重置所有状态变量
+        lastProcessedAppInfo = nil
+        lastProcessedWindowSignature = nil
+        isProcessing = false
+        isOperatingWindow = false
+        cooldownEndTime = nil
+        
         // 监听窗口焦点变化
         workspaceNotificationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
@@ -50,15 +73,34 @@ class WindowManager: ObservableObject {
         ) { [weak self] notification in
             guard let self = self else { return }
             
+            AppLogger.shared.log("检测到应用切换:", level: .debug)
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            AppLogger.shared.log("应用切换事件时间: \(Date().timeIntervalSince1970), 应用信息: \(app?.localizedName ?? "未知")", level: .info)
+            // 检查是否在冷却期内
+            if let cooldownTime = self.cooldownEndTime, Date() < cooldownTime {
+                AppLogger.shared.log("窗口管理器处于冷却期，跳过处理", level: .debug)
+                return
+            }
+            
+            // 检查是否在窗口操作中
+            if self.isOperatingWindow {
+                AppLogger.shared.log("窗口正在被操作中，跳过处理", level: .debug)
+                return
+            }
+            
             // 获取当前活动的应用
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
                 self.debounceWindowManagement(for: app)
             }
         }
         
-        // 处理当前活动窗口
-        if let activeApp = NSWorkspace.shared.frontmostApplication {
-            debounceWindowManagement(for: activeApp)
+        // 延迟处理当前活动窗口，避免启动时的混乱
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self, self.isMonitoring else { return }
+            if let activeApp = NSWorkspace.shared.frontmostApplication {
+                AppLogger.shared.log("延迟处理初始应用: \(activeApp.localizedName ?? "unknown")", level: .info)
+                self.debounceWindowManagement(for: activeApp)
+            }
         }
         
         isMonitoring = true
@@ -82,9 +124,37 @@ class WindowManager: ObservableObject {
         // 取消之前的计时器
         debounceTimer?.invalidate()
         
+        // 验证应用信息
+        guard let appName = app.localizedName,
+              let bundleId = app.bundleIdentifier else { return }
+        
+        // 防止并发处理
+        if isProcessing {
+            AppLogger.shared.log("【防重处理】跳过应用 \(appName) (\(bundleId))：已有窗口处理任务在执行", level: .info)
+            return
+        }
+        
+        // 检查是否最近刚处理过该应用 - 使用更严格的时间限制
+        if let lastInfo = lastProcessedAppInfo,
+           lastInfo.bundleId == bundleId,
+           Date().timeIntervalSince(lastInfo.timestamp) < minProcessingInterval {
+            AppLogger.shared.log("【防重处理】跳过应用 \(appName) (\(bundleId))：距离上次处理时间不足 \(minProcessingInterval) 秒", level: .info)
+            return
+        }
+        
+        // 标记正在处理中
+        isProcessing = true
+        
+        // 立即更新最近处理的应用信息，防止在debounce期间多次触发
+        lastProcessedAppInfo = (bundleId: bundleId, timestamp: Date())
+        AppLogger.shared.log("【防重处理】标记应用 \(appName) (\(bundleId)) 为处理中", level: .debug)
+        
         // 创建新的延迟计时器
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceTime, repeats: false) { [weak self] _ in
-            self?.manageWindow(for: app)
+            guard let self = self else { return }
+            self.manageWindow(for: app)
+            // 处理完成后重置处理标志
+            self.isProcessing = false
         }
     }
     
@@ -92,6 +162,7 @@ class WindowManager: ObservableObject {
         guard let appName = app.localizedName,
               let bundleId = app.bundleIdentifier else {
             AppLogger.shared.log("无法获取应用信息", level: .warning)
+            isProcessing = false
             return
         }
         
@@ -102,16 +173,80 @@ class WindowManager: ObservableObject {
         switch rule {
         case .center:
             if let window = getFrontmostWindow(for: app) {
-            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
+                // 生成窗口特征（位置+大小作为唯一标识）
+                let windowSignature = getWindowSignature(window)
+                
+                if let signature = windowSignature {
+                    // 检查是否与上次处理的窗口特征相同
+                    if let lastSignature = lastProcessedWindowSignature,
+                       abs(lastSignature.position.x - signature.position.x) < 5 &&
+                       abs(lastSignature.position.y - signature.position.y) < 5 &&
+                       abs(lastSignature.size.width - signature.size.width) < 5 &&
+                       abs(lastSignature.size.height - signature.size.height) < 5 {
+                        AppLogger.shared.log("跳过窗口：已处理过相同位置和大小的窗口", level: .info)
+                        return
+                    }
+                    
+                    // 记录窗口特征
+                    lastProcessedWindowSignature = signature
+                    AppLogger.shared.log("处理窗口，位置: (\(signature.position.x), \(signature.position.y)), 大小: \(signature.size.width) x \(signature.size.height)", level: .debug)
+                }
+                
+                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
+                
+                // 标记窗口正在被操作，防止操作过程中的事件触发新的处理
+                isOperatingWindow = true
+                
+                // 执行窗口操作
                 centerWindow(window)
+                
+                // 设置冷却期，避免操作完窗口后立即被再次处理
+                cooldownEndTime = Date().addingTimeInterval(minProcessingInterval)
+                
+                // 延迟重置操作标志，给系统时间处理可能的事件
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.isOperatingWindow = false
+                }
             } else {
                 AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行居中操作", level: .debug)
             }
             
         case .almostMaximize:
             if let window = getFrontmostWindow(for: app) {
-            AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
+                // 生成窗口特征（位置+大小作为唯一标识）
+                let windowSignature = getWindowSignature(window)
+                
+                if let signature = windowSignature {
+                    // 检查是否与上次处理的窗口特征相同
+                    if let lastSignature = lastProcessedWindowSignature,
+                       abs(lastSignature.position.x - signature.position.x) < 5 &&
+                       abs(lastSignature.position.y - signature.position.y) < 5 &&
+                       abs(lastSignature.size.width - signature.size.width) < 5 &&
+                       abs(lastSignature.size.height - signature.size.height) < 5 {
+                        AppLogger.shared.log("跳过窗口：已处理过相同位置和大小的窗口", level: .info)
+                        return
+                    }
+                    
+                    // 记录窗口特征
+                    lastProcessedWindowSignature = signature
+                    AppLogger.shared.log("处理窗口，位置: (\(signature.position.x), \(signature.position.y)), 大小: \(signature.size.width) x \(signature.size.height)", level: .debug)
+                }
+                
+                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
+                
+                // 标记窗口正在被操作，防止操作过程中的事件触发新的处理
+                isOperatingWindow = true
+                
+                // 执行窗口操作
                 almostMaximizeWindow(window)
+                
+                // 设置冷却期，避免操作完窗口后立即被再次处理
+                cooldownEndTime = Date().addingTimeInterval(minProcessingInterval)
+                
+                // 延迟重置操作标志，给系统时间处理可能的事件
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.isOperatingWindow = false
+                }
             } else {
                 AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行几乎最大化操作", level: .debug)
             }
@@ -150,34 +285,163 @@ class WindowManager: ObservableObject {
         return nil
     }
     
-    private func centerWindow(_ window: AXUIElement) {
-        AppLogger.shared.log("开始居中窗口操作", level: .debug)
+    // 获取窗口特征，用于标识窗口
+    private func getWindowSignature(_ window: AXUIElement) -> (position: CGPoint, size: CGSize)? {
+        var positionRef: AnyObject?
+        var sizeRef: AnyObject?
         
-        // 获取窗口当前所在的屏幕
+        let positionResult = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionRef)
+        let sizeResult = AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeRef)
+        
+        if positionResult == .success && sizeResult == .success,
+           let positionValue = positionRef,
+           let sizeValue = sizeRef {
+            
+            var position = CGPoint.zero
+            var size = CGSize.zero
+            
+            if AXValueGetValue(positionValue as! AXValue, .cgPoint, &position) &&
+               AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) {
+                return (position, size)
+            }
+        }
+        
+        return nil
+    }
+    
+    // 获取窗口所在的屏幕的简单方法
+    private func getScreenForWindow(_ window: AXUIElement) -> NSScreen {
+        AppLogger.shared.log("开始查找窗口所在屏幕", level: .debug)
+        
+        // 获取窗口位置
         var positionRef: AnyObject?
         let positionResult = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionRef)
         
-        if positionResult != .success {
-            AppLogger.shared.log("获取窗口位置失败: \(positionResult.rawValue)", level: .warning)
-            return
+        // 获取窗口大小
+        var sizeRef: AnyObject?
+        let sizeResult = AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeRef)
+        
+        if positionResult == .success && sizeResult == .success,
+           let positionValue = positionRef,
+           let sizeValue = sizeRef {
+            
+            var position = CGPoint.zero
+            var size = CGSize.zero
+            
+            // 转换AXValue到CGPoint和CGSize
+            if AXValueGetValue(positionValue as! AXValue, .cgPoint, &position) &&
+               AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) {
+            
+                AppLogger.shared.log("窗口位置: (\(position.x), \(position.y)), 大小: \(size.width) x \(size.height)", level: .debug)
+                
+                // 计算窗口中心点
+                let centerPoint = CGPoint(x: position.x + size.width/2, y: position.y + size.height/2)
+                
+                // 记录所有屏幕
+                AppLogger.shared.log("系统有 \(NSScreen.screens.count) 个屏幕", level: .debug)
+                for (index, screen) in NSScreen.screens.enumerated() {
+                    let frame = screen.frame
+                    AppLogger.shared.log("屏幕\(index): \(screen.localizedName), 坐标: \(frame.origin.x), \(frame.origin.y), 大小: \(frame.width) x \(frame.height)", level: .debug)
+                }
+                
+                // 检查窗口是否在任一屏幕的坐标范围内
+                for screen in NSScreen.screens {
+                    // 检查窗口中心点是否在这个屏幕内
+                    let frame = screen.frame
+                    
+                    // macOS使用的是左下角为原点的坐标系
+                    // 检查窗口坐标范围
+                    let screenMinX = frame.origin.x
+                    let screenMaxX = frame.origin.x + frame.width
+                    let screenMinY = frame.origin.y
+                    let screenMaxY = frame.origin.y + frame.height
+                    
+                    AppLogger.shared.log("检查屏幕: \(screen.localizedName), X范围: \(screenMinX)..\(screenMaxX), Y范围: \(screenMinY)..\(screenMaxY), 窗口中心点: \(centerPoint.x), \(centerPoint.y)", level: .debug)
+                    
+                    if centerPoint.x >= screenMinX && centerPoint.x <= screenMaxX &&
+                       centerPoint.y >= screenMinY && centerPoint.y <= screenMaxY {
+                        AppLogger.shared.log("找到窗口所在屏幕: \(screen.localizedName)", level: .info)
+                        return screen
+                    }
+                }
+                
+                // 特殊处理 DELL 屏幕和内置屏幕的坐标
+                // 根据日志，DELL屏幕坐标为(-237.0, 982.0, 1920.0, 1080.0)
+                // 如果窗口Y坐标为负值且很大，很可能是在DELL屏幕上
+                if position.y < 0 && abs(position.y) > 500 {
+                    // 查找DELL屏幕
+                    for screen in NSScreen.screens {
+                        if screen.localizedName.contains("DELL") {
+                            AppLogger.shared.log("基于Y坐标特征判定窗口位于DELL屏幕上", level: .info)
+                            return screen
+                        }
+                    }
+                }
+                
+                // 如果找不到精确匹配，改进最接近屏幕算法
+                var bestScreen: NSScreen? = nil
+                var maxOverlapArea: CGFloat = 0
+                
+                // 计算窗口区域
+                let windowRect = CGRect(x: position.x, y: position.y, width: size.width, height: size.height)
+                
+                for screen in NSScreen.screens {
+                    // 计算与每个屏幕的重叠区域
+                    let intersection = windowRect.intersection(screen.frame)
+                    if !intersection.isNull && intersection.width > 0 && intersection.height > 0 {
+                        let overlapArea = intersection.width * intersection.height
+                        if overlapArea > maxOverlapArea {
+                            maxOverlapArea = overlapArea
+                            bestScreen = screen
+                        }
+                    }
+                }
+                
+                if let screen = bestScreen {
+                    AppLogger.shared.log("通过重叠区域计算，窗口最匹配的屏幕是: \(screen.localizedName)", level: .info)
+                    return screen
+                }
+                
+                // 如果仍然没有匹配，则根据窗口位置选择屏幕
+                // 查找与窗口中心点最近的屏幕
+                var closestScreen = NSScreen.screens.first!
+                var minDistance = CGFloat.greatestFiniteMagnitude
+                
+                for screen in NSScreen.screens {
+                    let screenCenter = CGPoint(
+                        x: screen.frame.origin.x + screen.frame.width / 2,
+                        y: screen.frame.origin.y + screen.frame.height / 2
+                    )
+                    let distance = hypot(centerPoint.x - screenCenter.x, centerPoint.y - screenCenter.y)
+                    AppLogger.shared.log("屏幕 \(screen.localizedName) 距离窗口中心点距离: \(distance)", level: .debug)
+                    if distance < minDistance {
+                        minDistance = distance
+                        closestScreen = screen
+                    }
+                }
+                
+                AppLogger.shared.log("使用距离窗口中心点最近的屏幕: \(closestScreen.localizedName)", level: .info)
+                return closestScreen
+            }
         }
         
-        // 转换 AXValue 到 CGPoint
-        var currentPosition = CGPoint.zero
-        guard let axValue = positionRef else { return }
-        if AXValueGetType(axValue as! AXValue) == .cgPoint,
-           AXValueGetValue(axValue as! AXValue, .cgPoint, &currentPosition) {
-            AppLogger.shared.log("当前窗口位置: \(currentPosition)", level: .debug)
-        } else {
-            AppLogger.shared.log("无法转换窗口位置", level: .warning)
-            return
+        // 获取当前应用活动窗口所在的屏幕
+        if let mainWindow = NSApplication.shared.mainWindow, let screen = mainWindow.screen {
+            AppLogger.shared.log("返回主窗口所在屏幕: \(screen.localizedName)", level: .info)
+            return screen
         }
         
-        // 获取当前窗口所在的屏幕
-        let currentScreen = NSScreen.screens.first { screen in
-            screen.frame.contains(currentPosition)
-        } ?? NSScreen.main ?? NSScreen.screens.first!
+        // 如果找不到，优先返回主屏幕（通常是内置显示器）
+        let defaultScreen = NSScreen.main ?? NSScreen.screens.first!
+        AppLogger.shared.log("返回默认屏幕: \(defaultScreen.localizedName)", level: .info)
+        return defaultScreen
+    }
+    
+    private func centerWindow(_ window: AXUIElement) {
+        AppLogger.shared.log("开始居中窗口操作", level: .debug)
         
+        // 直接获取窗口所在的屏幕
+        let currentScreen = getScreenForWindow(window)
         AppLogger.shared.log("使用屏幕: \(currentScreen.localizedName), frame: \(currentScreen.frame)", level: .debug)
         
         // 使用 frame 而不是 visibleFrame，因为在 Stage Manager 下，visibleFrame 可能不准确
@@ -235,31 +499,8 @@ class WindowManager: ObservableObject {
     private func almostMaximizeWindow(_ window: AXUIElement) {
         AppLogger.shared.log("开始几乎最大化窗口操作", level: .debug)
         
-        // 获取窗口当前所在的屏幕
-        var positionRef: AnyObject?
-        let positionResult = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionRef)
-        
-        if positionResult != .success {
-            AppLogger.shared.log("获取窗口位置失败: \(positionResult.rawValue)", level: .warning)
-            return
-        }
-        
-        // 转换 AXValue 到 CGPoint
-        var currentPosition = CGPoint.zero
-        guard let axValue = positionRef else { return }
-        if AXValueGetType(axValue as! AXValue) == .cgPoint,
-           AXValueGetValue(axValue as! AXValue, .cgPoint, &currentPosition) {
-            AppLogger.shared.log("当前窗口位置: \(currentPosition)", level: .debug)
-        } else {
-            AppLogger.shared.log("无法转换窗口位置", level: .warning)
-            return
-        }
-        
-        // 获取当前窗口所在的屏幕
-        let currentScreen = NSScreen.screens.first { screen in
-            screen.frame.contains(currentPosition)
-        } ?? NSScreen.main ?? NSScreen.screens.first!
-        
+        // 直接获取窗口所在的屏幕
+        let currentScreen = getScreenForWindow(window)
         AppLogger.shared.log("使用屏幕: \(currentScreen.localizedName), frame: \(currentScreen.frame)", level: .debug)
         
         // 使用 frame，但需要考虑状态栏高度

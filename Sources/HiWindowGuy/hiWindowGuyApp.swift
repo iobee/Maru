@@ -24,6 +24,15 @@ struct HiWindowGuyApp: App {
                     // 在下一个运行循环中配置窗口
                     DispatchQueue.main.async {
                         configureWindow()
+                        
+                        // 根据当前配置决定是否启用窗口监控
+                        if isWindowManagementEnabled {
+                            logger.log("根据配置启用窗口管理", level: .info)
+                            windowManager.startMonitoring()
+                        } else {
+                            logger.log("根据配置停用窗口管理", level: .info)
+                            windowManager.stopMonitoring()
+                        }
                     }
                 }
         }
