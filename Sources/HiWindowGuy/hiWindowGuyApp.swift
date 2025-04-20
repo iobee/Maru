@@ -21,9 +21,9 @@ struct HiWindowGuyApp: App {
                 .environmentObject(logger)
                 .background(Color(NSColor.windowBackgroundColor))
                 .onAppear {
-                    // 在下一个运行循环中设置窗口层级
+                    // 在下一个运行循环中配置窗口
                     DispatchQueue.main.async {
-                        setWindowToFront()
+                        configureWindow()
                     }
                 }
         }
@@ -103,21 +103,29 @@ struct HiWindowGuyApp: App {
         }
     }
     
-    private func setWindowToFront() {
-        // 查找并设置应用的所有窗口级别
+    private func configureWindow() {
+        // 查找应用窗口
         for window in NSApplication.shared.windows {
             if window.title == "HiWindowGuy" {
-                // 设置窗口级别为浮动级别（比普通窗口高）
-                window.level = .floating
-                logger.log("设置窗口始终在最前: \(window.title)", level: .info)
+                // 设置窗口的可收集性，使其在Stage Manager中正常工作
+                window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
+                
+                // 设置窗口特性
+                window.isOpaque = false
+                window.titlebarAppearsTransparent = true
+                
+                // 窗口级别保持为普通级别，这样在Stage Manager中会正常工作
+                // window.level = .normal
+                
+                logger.log("配置窗口: \(window.title)", level: .info)
             }
         }
         
-        // 注册窗口创建通知，以便在新窗口创建时也设置级别
+        // 注册窗口创建通知，以便在新窗口创建时也进行配置
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
             if let window = notification.object as? NSWindow, window.title == "HiWindowGuy" {
-                window.level = .floating
-                logger.log("新窗口设置为始终在最前: \(window.title)", level: .info)
+                window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
+                logger.log("配置新窗口: \(window.title)", level: .info)
             }
         }
     }
