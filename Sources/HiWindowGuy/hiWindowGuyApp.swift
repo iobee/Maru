@@ -20,6 +20,12 @@ struct HiWindowGuyApp: App {
                 .environmentObject(appConfig)
                 .environmentObject(logger)
                 .background(Color(NSColor.windowBackgroundColor))
+                .onAppear {
+                    // 在下一个运行循环中设置窗口层级
+                    DispatchQueue.main.async {
+                        setWindowToFront()
+                    }
+                }
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 900, height: 600)
@@ -94,6 +100,25 @@ struct HiWindowGuyApp: App {
             Button("退出") {
                 NSApp.terminate(nil)
             }.keyboardShortcut("q")
+        }
+    }
+    
+    private func setWindowToFront() {
+        // 查找并设置应用的所有窗口级别
+        for window in NSApplication.shared.windows {
+            if window.title == "HiWindowGuy" {
+                // 设置窗口级别为浮动级别（比普通窗口高）
+                window.level = .floating
+                logger.log("设置窗口始终在最前: \(window.title)", level: .info)
+            }
+        }
+        
+        // 注册窗口创建通知，以便在新窗口创建时也设置级别
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
+            if let window = notification.object as? NSWindow, window.title == "HiWindowGuy" {
+                window.level = .floating
+                logger.log("新窗口设置为始终在最前: \(window.title)", level: .info)
+            }
         }
     }
     
