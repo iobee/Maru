@@ -332,10 +332,13 @@ class WindowManager: ObservableObject {
             if AXValueGetValue(positionValue as! AXValue, .cgPoint, &position) &&
                AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) {
             
-                AppLogger.shared.log("窗口位置: (\(position.x), \(position.y)), 大小: \(size.width) x \(size.height)", level: .debug)
+                AppLogger.shared.log("窗口位置(AX坐标系): (\(position.x), \(position.y)), 大小: \(size.width) x \(size.height)", level: .debug)
                 
-                // 计算窗口中心点
-                let centerPoint = CGPoint(x: position.x + size.width/2, y: position.y + size.height/2)
+                // 获取主屏幕尺寸，用于坐标系转换
+                guard let mainScreen = NSScreen.screens.first else {
+                    AppLogger.shared.log("无法获取主屏幕", level: .error)
+                    return NSScreen.main ?? NSScreen.screens.first!
+                }
                 
                 // 记录所有屏幕
                 AppLogger.shared.log("系统有 \(NSScreen.screens.count) 个屏幕", level: .debug)
@@ -344,50 +347,88 @@ class WindowManager: ObservableObject {
                     AppLogger.shared.log("屏幕\(index): \(screen.localizedName), 坐标: \(frame.origin.x), \(frame.origin.y), 大小: \(frame.width) x \(frame.height)", level: .debug)
                 }
                 
+                // 转换坐标系 - AXUIElement使用左上角为原点，Y轴向下；NSScreen使用左下角为原点，Y轴向上
+                // 先将AX坐标转换为flipped坐标（相对于主屏幕左上角）
+                let flippedYCoordinate = position.y
+                
+                // 计算窗口中心点（在flipped坐标系中）
+                let centerPoint = CGPoint(x: position.x + size.width/2, y: flippedYCoordinate + size.height/2)
+                
+                AppLogger.shared.log("窗口中心点(flipped坐标系): (\(centerPoint.x), \(centerPoint.y))", level: .debug)
+                
+                // 创建一个NSPoint用于坐标系转换
+                var nsPoint = NSPoint(x: centerPoint.x, y: centerPoint.y)
+                
                 // 检查窗口是否在任一屏幕的坐标范围内
+                // 注意：我们需要为每个屏幕单独计算坐标
                 for screen in NSScreen.screens {
-                    // 检查窗口中心点是否在这个屏幕内
-                    let frame = screen.frame
+                    // 计算屏幕在flipped坐标系中的边界
+                    let screenFrame = screen.frame
                     
-                    // macOS使用的是左下角为原点的坐标系
-                    // 检查窗口坐标范围
-                    let screenMinX = frame.origin.x
-                    let screenMaxX = frame.origin.x + frame.width
-                    let screenMinY = frame.origin.y
-                    let screenMaxY = frame.origin.y + frame.height
+                    // 计算屏幕在flipped坐标系中的坐标范围
+                    let flippedScreenMinY = mainScreen.frame.height - (screenFrame.origin.y + screenFrame.height)
+                    let flippedScreenMaxY = mainScreen.frame.height - screenFrame.origin.y
                     
-                    AppLogger.shared.log("检查屏幕: \(screen.localizedName), X范围: \(screenMinX)..\(screenMaxX), Y范围: \(screenMinY)..\(screenMaxY), 窗口中心点: \(centerPoint.x), \(centerPoint.y)", level: .debug)
+                    // 在flipped坐标系中的屏幕坐标范围
+                    let screenMinX = screenFrame.origin.x
+                    let screenMaxX = screenFrame.origin.x + screenFrame.width
+                    let screenMinY = flippedScreenMinY
+                    let screenMaxY = flippedScreenMaxY
+                    
+                    AppLogger.shared.log("检查屏幕: \(screen.localizedName), flipped坐标系 - X范围: \(screenMinX)..\(screenMaxX), Y范围: \(screenMinY)..\(screenMaxY)", level: .debug)
                     
                     if centerPoint.x >= screenMinX && centerPoint.x <= screenMaxX &&
                        centerPoint.y >= screenMinY && centerPoint.y <= screenMaxY {
-                        AppLogger.shared.log("找到窗口所在屏幕: \(screen.localizedName)", level: .info)
+                        AppLogger.shared.log("找到窗口所在屏幕: \(screen.localizedName) (通过flipped坐标系匹配)", level: .info)
                         return screen
                     }
                 }
                 
-                // 特殊处理 DELL 屏幕和内置屏幕的坐标
-                // 根据日志，DELL屏幕坐标为(-237.0, 982.0, 1920.0, 1080.0)
-                // 如果窗口Y坐标为负值且很大，很可能是在DELL屏幕上
-                if position.y < 0 && abs(position.y) > 500 {
-                    // 查找DELL屏幕
-                    for screen in NSScreen.screens {
-                        if screen.localizedName.contains("DELL") {
-                            AppLogger.shared.log("基于Y坐标特征判定窗口位于DELL屏幕上", level: .info)
+                // 如果找不到精确匹配，使用更健壮的方法 - 将AX坐标转换为屏幕坐标系
+                AppLogger.shared.log("通过flipped坐标系未找到匹配屏幕，尝试使用边界匹配", level: .debug)
+                
+                // 使用屏幕ID和边界检查
+                for screen in NSScreen.screens {
+                    // 获取屏幕描述信息 - 注意deviceDescription不是可选类型
+                    let deviceDescription = screen.deviceDescription
+                    if let screenNumber = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
+                        // 创建CGDirectDisplayID
+                        let displayID = CGDirectDisplayID(screenNumber.uint32Value)
+                        
+                        // 获取显示器边界
+                        let displayBounds = CGDisplayBounds(displayID)
+                        
+                        // 创建窗口矩形
+                        let windowRect = CGRect(x: position.x, y: position.y, width: size.width, height: size.height)
+                        
+                        // 检查窗口是否与显示器边界有重叠
+                        if windowRect.intersects(displayBounds) {
+                            AppLogger.shared.log("找到窗口所在屏幕: \(screen.localizedName) (通过边界匹配)", level: .info)
                             return screen
                         }
                     }
                 }
                 
+                // 如果仍然无法找到，则使用备选方法
                 // 如果找不到精确匹配，改进最接近屏幕算法
                 var bestScreen: NSScreen? = nil
                 var maxOverlapArea: CGFloat = 0
                 
                 // 计算窗口区域
-                let windowRect = CGRect(x: position.x, y: position.y, width: size.width, height: size.height)
+                let windowRect = CGRect(x: position.x, y: flippedYCoordinate, width: size.width, height: size.height)
                 
                 for screen in NSScreen.screens {
+                    // 转换屏幕区域到flipped坐标系
+                    let screenOriginY = mainScreen.frame.height - (screen.frame.origin.y + screen.frame.height)
+                    let flippedScreenRect = CGRect(
+                        x: screen.frame.origin.x,
+                        y: screenOriginY,
+                        width: screen.frame.width,
+                        height: screen.frame.height
+                    )
+                    
                     // 计算与每个屏幕的重叠区域
-                    let intersection = windowRect.intersection(screen.frame)
+                    let intersection = windowRect.intersection(flippedScreenRect)
                     if !intersection.isNull && intersection.width > 0 && intersection.height > 0 {
                         let overlapArea = intersection.width * intersection.height
                         if overlapArea > maxOverlapArea {
@@ -408,12 +449,15 @@ class WindowManager: ObservableObject {
                 var minDistance = CGFloat.greatestFiniteMagnitude
                 
                 for screen in NSScreen.screens {
-                    let screenCenter = CGPoint(
+                    // 转换屏幕中心点到flipped坐标系
+                    let screenOriginY = mainScreen.frame.height - (screen.frame.origin.y + screen.frame.height)
+                    let screenCenterFlipped = CGPoint(
                         x: screen.frame.origin.x + screen.frame.width / 2,
-                        y: screen.frame.origin.y + screen.frame.height / 2
+                        y: screenOriginY + screen.frame.height / 2
                     )
-                    let distance = hypot(centerPoint.x - screenCenter.x, centerPoint.y - screenCenter.y)
-                    AppLogger.shared.log("屏幕 \(screen.localizedName) 距离窗口中心点距离: \(distance)", level: .debug)
+                    
+                    let distance = hypot(centerPoint.x - screenCenterFlipped.x, centerPoint.y - screenCenterFlipped.y)
+                    AppLogger.shared.log("屏幕 \(screen.localizedName) 在flipped坐标系中距离窗口中心点距离: \(distance)", level: .debug)
                     if distance < minDistance {
                         minDistance = distance
                         closestScreen = screen
@@ -467,18 +511,32 @@ class WindowManager: ObservableObject {
             return
         }
         
+        // 获取主屏幕高度（用于坐标系转换）
+        guard let mainScreen = NSScreen.screens.first else {
+            AppLogger.shared.log("无法获取主屏幕", level: .error)
+            return
+        }
+        let mainScreenHeight = mainScreen.frame.height
+        
         // 计算居中位置，考虑 Stage Manager 的情况
         // Stage Manager 通常会在左右两侧预留空间，我们估计大约是屏幕宽度的 15%
         let stageManagerSideMargin = screenFrame.width * 0.15
         let usableScreenWidth = screenFrame.width - (stageManagerSideMargin * 2)
         
-        // 计算新位置
+        // 计算新位置 (NSScreen坐标系，原点在左下角，Y轴向上)
+        let nsScreenX = screenFrame.origin.x + stageManagerSideMargin + (usableScreenWidth - windowSize.width) / 2
+        let nsScreenY = screenFrame.origin.y + (screenFrame.height - windowSize.height) / 2
+        
+        // 将NSScreen坐标系转换为AXUIElement坐标系（原点在左上角，Y轴向下）
+        // 只需要转换Y坐标: AX_Y = MainScreenHeight - NSScreen_Y - WindowHeight
+        // 对于多显示器情况，我们需要考虑相对于主屏幕的位置
         var newPosition = CGPoint(
-            x: screenFrame.origin.x + stageManagerSideMargin + (usableScreenWidth - windowSize.width) / 2,
-            y: screenFrame.origin.y + (screenFrame.height - windowSize.height) / 2
+            x: nsScreenX,
+            y: mainScreenHeight - nsScreenY - windowSize.height
         )
         
-        AppLogger.shared.log("计算的新位置 - X: \(newPosition.x), Y: \(newPosition.y)", level: .debug)
+        AppLogger.shared.log("计算的新位置 - NSScreen坐标: (\(nsScreenX), \(nsScreenY))", level: .debug)
+        AppLogger.shared.log("转换后的AX坐标: (\(newPosition.x), \(newPosition.y))", level: .debug)
         
         // 创建新位置的 AXValue
         guard let axPosition = AXValueCreate(.cgPoint, &newPosition) else {
@@ -490,7 +548,7 @@ class WindowManager: ObservableObject {
         let setPositionResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, axPosition)
         
         if setPositionResult == .success {
-            AppLogger.shared.log("窗口已成功居中，新位置: (\(newPosition.x), \(newPosition.y))，考虑了 Stage Manager", level: .info)
+            AppLogger.shared.log("窗口已成功居中，新位置(AX坐标系): (\(newPosition.x), \(newPosition.y))", level: .info)
         } else {
             AppLogger.shared.log("设置窗口位置失败: \(setPositionResult.rawValue)", level: .error)
         }
@@ -502,6 +560,13 @@ class WindowManager: ObservableObject {
         // 直接获取窗口所在的屏幕
         let currentScreen = getScreenForWindow(window)
         AppLogger.shared.log("使用屏幕: \(currentScreen.localizedName), frame: \(currentScreen.frame)", level: .debug)
+        
+        // 获取主屏幕高度（用于坐标系转换）
+        guard let mainScreen = NSScreen.screens.first else {
+            AppLogger.shared.log("无法获取主屏幕", level: .error)
+            return
+        }
+        let mainScreenHeight = mainScreen.frame.height
         
         // 使用 frame，但需要考虑状态栏高度
         let screenFrame = currentScreen.frame
@@ -520,36 +585,39 @@ class WindowManager: ObservableObject {
         
         AppLogger.shared.log("使用比例系数: \(scaleFactor), 计算得到边距 - 水平: \(horizontalMargin), 垂直: \(verticalMargin)", level: .debug)
         
-        // 计算新的框架，Y坐标从状态栏下方开始
-        let newFrame = CGRect(
-            x: screenFrame.origin.x + horizontalMargin,
-            y: screenFrame.origin.y + statusBarHeight + verticalMargin, // 上边距减半，考虑状态栏
-            width: screenFrame.width - (horizontalMargin * 2),
-            height: screenFrame.height - statusBarHeight - (verticalMargin * 2) // 下边距保持不变，上边距减半
-        )
+        // 计算新的框架，Y坐标从状态栏下方开始 (NSScreen坐标系)
+        let nsFrameX = screenFrame.origin.x + horizontalMargin
+        let nsFrameY = screenFrame.origin.y + statusBarHeight + verticalMargin
+        let nsFrameWidth = screenFrame.width - (horizontalMargin * 2)
+        let nsFrameHeight = screenFrame.height - statusBarHeight - (verticalMargin * 2)
         
-        AppLogger.shared.log("新的窗口框架: \(newFrame)", level: .debug)
+        // 将位置从NSScreen坐标系转换为AXUIElement坐标系
+        let axPositionX = nsFrameX
+        let axPositionY = mainScreenHeight - nsFrameY - nsFrameHeight
         
-        // 创建新位置的 AXValue
-        var newPosition = newFrame.origin
+        // 创建新位置的 AXValue (AXUIElement坐标系)
+        var newPosition = CGPoint(x: axPositionX, y: axPositionY)
         guard let axPosition = AXValueCreate(.cgPoint, &newPosition) else {
             AppLogger.shared.log("创建位置 AXValue 失败", level: .error)
             return
         }
         
         // 创建新大小的 AXValue
-        var newSize = newFrame.size
+        var newSize = CGSize(width: nsFrameWidth, height: nsFrameHeight)
         guard let axSize = AXValueCreate(.cgSize, &newSize) else {
             AppLogger.shared.log("创建大小 AXValue 失败", level: .error)
             return
         }
+        
+        AppLogger.shared.log("NSScreen坐标系位置: (\(nsFrameX), \(nsFrameY)), 大小: \(nsFrameWidth) x \(nsFrameHeight)", level: .debug)
+        AppLogger.shared.log("转换后的AX坐标系位置: (\(axPositionX), \(axPositionY)), 大小: \(nsFrameWidth) x \(nsFrameHeight)", level: .debug)
         
         // 设置新位置和大小
         let setPositionResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, axPosition)
         let setSizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, axSize)
         
         if setPositionResult == .success && setSizeResult == .success {
-            AppLogger.shared.log("窗口已成功几乎最大化，比例: \(scaleFactor)，新位置: \(newFrame.origin)，新大小: \(newFrame.size)", level: .info)
+            AppLogger.shared.log("窗口已成功几乎最大化，比例: \(scaleFactor)，新位置(AX坐标系): \(newPosition)，新大小: \(newSize)", level: .info)
         } else {
             AppLogger.shared.log("设置窗口位置或大小失败 - 位置: \(setPositionResult.rawValue), 大小: \(setSizeResult.rawValue)", level: .error)
         }
