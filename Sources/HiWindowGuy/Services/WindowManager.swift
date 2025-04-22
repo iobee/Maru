@@ -594,6 +594,8 @@ class WindowManager: ObservableObject {
         
         // 使用 frame 而不是 visibleFrame，因为在 Stage Manager 下，visibleFrame 可能不准确
         let screenFrame = currentScreen.frame
+
+        let statusBarHeight = getStatusBarHeight(for: currentScreen)
         
         // 获取窗口当前大小
         var sizeRef: AnyObject?
@@ -622,7 +624,7 @@ class WindowManager: ObservableObject {
         
         // 计算新位置 (NSScreen坐标系，原点在左下角，Y轴向上)
         let nsScreenX = screenFrame.origin.x + stageManagerSideMargin + (usableScreenWidth - windowSize.width) / 2
-        let nsScreenY = screenFrame.origin.y + (screenFrame.height - windowSize.height) / 2
+        let nsScreenY = screenFrame.origin.y + (screenFrame.height - statusBarHeight - windowSize.height) / 2
         let nsPosition = CGPoint(x: nsScreenX, y: nsScreenY)
         
         // 将NSScreen坐标系转换为AXUIElement坐标系
@@ -648,6 +650,36 @@ class WindowManager: ObservableObject {
         }
     }
     
+    // MARK: - 屏幕和状态栏相关方法
+    
+    /// 获取指定屏幕的状态栏高度
+    /// - Parameter screen: 目标屏幕
+    /// - Returns: 状态栏高度（像素）
+    private func getStatusBarHeight(for screen: NSScreen) -> CGFloat {
+        // 状态栏高度是屏幕总高度减去可见区域高度
+        let screenFrame = screen.frame
+        let visibleFrame = screen.visibleFrame
+        
+        let statusBarHeight = screenFrame.height - visibleFrame.height
+        
+        // 考虑多显示器情况: 只有主显示器会有状态栏，其他显示器状态栏高度可能为0
+        // 但也可能因为系统设置，多个显示器都有状态栏
+        if statusBarHeight > 0 {
+            AppLogger.shared.log("屏幕 \(screen.localizedName) 的状态栏高度: \(statusBarHeight)", level: .debug)
+        } else {
+            AppLogger.shared.log("屏幕 \(screen.localizedName) 无状态栏", level: .debug)
+        }
+        
+        return statusBarHeight
+    }
+    
+    /// 获取指定屏幕可用的内容区域（不包含状态栏）
+    /// - Parameter screen: 目标屏幕
+    /// - Returns: 可用内容区域的矩形
+    private func getContentArea(for screen: NSScreen) -> CGRect {
+        return screen.visibleFrame
+    }
+    
     private func almostMaximizeWindow(_ window: AXUIElement) {
         AppLogger.shared.log("开始几乎最大化窗口操作", level: .debug)
         
@@ -657,10 +689,9 @@ class WindowManager: ObservableObject {
         
         // 使用 frame，但需要考虑状态栏高度
         let screenFrame = currentScreen.frame
-        let visibleFrame = currentScreen.visibleFrame
         
-        // 计算状态栏高度
-        let statusBarHeight = screenFrame.height - visibleFrame.height
+        // 获取状态栏高度
+        let statusBarHeight = getStatusBarHeight(for: currentScreen)
         AppLogger.shared.log("状态栏高度: \(statusBarHeight)", level: .debug)
         
         // 从配置获取窗口比例参数 (0.0-1.0)
@@ -674,7 +705,7 @@ class WindowManager: ObservableObject {
         
         // 计算新的框架，Y坐标从状态栏下方开始 (NSScreen坐标系)
         let nsFrameX = screenFrame.origin.x + horizontalMargin
-        let nsFrameY = screenFrame.origin.y + statusBarHeight + verticalMargin
+        let nsFrameY = screenFrame.origin.y + verticalMargin
         let nsFrameWidth = screenFrame.width - (horizontalMargin * 2)
         let nsFrameHeight = screenFrame.height - statusBarHeight - (verticalMargin * 2)
         
