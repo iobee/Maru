@@ -3,26 +3,22 @@ import Combine
 import ApplicationServices
 
 class WindowManager: ObservableObject {
-    // 延迟时间（秒）- 增加延迟时间以防止重复处理
+    // 延迟时间（秒）
     private let debounceTime: TimeInterval = 0.3
     
     @Published private(set) var isMonitoring = false
     
     private var workspaceNotificationObserver: NSObjectProtocol?
     private var debounceTimer: Timer?
-    // 记录最近处理的应用ID和时间
-    private var lastProcessedAppInfo: (bundleId: String, timestamp: Date)?
-    // 记录最近处理的窗口位置和大小，用于识别窗口
-    private var lastProcessedWindowSignature: (position: CGPoint, size: CGSize)?
-    // 处理操作锁，防止并发处理
-    private var isProcessing = false
-    // 防重处理的最小时间间隔（秒）
-    private let minProcessingInterval: TimeInterval = 2.0
-    // 锁定机制，防止循环触发
-    private var isOperatingWindow = false
-    // 操作后冷却期
-    private var cooldownEndTime: Date?
     
+    // 简化防重机制
+    // 记录最近处理的窗口信息
+    private var lastProcessedWindowInfo: (bundleId: String, timestamp: Date)?
+    // 防重处理的最小时间间隔（秒）
+    private let minProcessingInterval: TimeInterval = 1.5
+    // 窗口操作状态标记
+    private var isWindowOperationInProgress = false
+
     init() {
         requestAccessibilityPermission()
     }
@@ -57,11 +53,8 @@ class WindowManager: ObservableObject {
         stopMonitoring()
         
         // 重置所有状态变量
-        lastProcessedAppInfo = nil
-        lastProcessedWindowSignature = nil
-        isProcessing = false
-        isOperatingWindow = false
-        cooldownEndTime = nil
+        lastProcessedWindowInfo = nil
+        isWindowOperationInProgress = false
         
         // 监听窗口焦点变化
         workspaceNotificationObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -71,23 +64,14 @@ class WindowManager: ObservableObject {
         ) { [weak self] notification in
             guard let self = self else { return }
             
-            AppLogger.shared.log("检测到应用切换:", level: .debug)
-            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            AppLogger.shared.log("应用切换事件时间: \(Date().timeIntervalSince1970), 应用信息: \(app?.localizedName ?? "未知")", level: .info)
-            // 检查是否在冷却期内
-            if let cooldownTime = self.cooldownEndTime, Date() < cooldownTime {
-                AppLogger.shared.log("窗口管理器处于冷却期，跳过处理", level: .debug)
-                return
-            }
-            
-            // 检查是否在窗口操作中
-            if self.isOperatingWindow {
-                AppLogger.shared.log("窗口正在被操作中，跳过处理", level: .debug)
+            // 如果窗口操作正在进行中，跳过处理
+            if self.isWindowOperationInProgress {
                 return
             }
             
             // 获取当前活动的应用
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+                AppLogger.shared.log("检测到应用切换: \(app.localizedName ?? "未知")", level: .debug)
                 self.debounceWindowManagement(for: app)
             }
         }
@@ -126,33 +110,18 @@ class WindowManager: ObservableObject {
         guard let appName = app.localizedName,
               let bundleId = app.bundleIdentifier else { return }
         
-        // 防止并发处理
-        if isProcessing {
-            AppLogger.shared.log("【防重处理】跳过应用 \(appName) (\(bundleId))：已有窗口处理任务在执行", level: .info)
-            return
-        }
-        
-        // 检查是否最近刚处理过该应用 - 使用更严格的时间限制
-        if let lastInfo = lastProcessedAppInfo,
+        // 检查是否在冷却期内
+        if let lastInfo = lastProcessedWindowInfo,
            lastInfo.bundleId == bundleId,
            Date().timeIntervalSince(lastInfo.timestamp) < minProcessingInterval {
-            AppLogger.shared.log("【防重处理】跳过应用 \(appName) (\(bundleId))：距离上次处理时间不足 \(minProcessingInterval) 秒", level: .info)
+            AppLogger.shared.log("应用 \(appName) 处于冷却期，跳过处理", level: .debug)
             return
         }
-        
-        // 标记正在处理中
-        isProcessing = true
-        
-        // 立即更新最近处理的应用信息，防止在debounce期间多次触发
-        lastProcessedAppInfo = (bundleId: bundleId, timestamp: Date())
-        AppLogger.shared.log("【防重处理】标记应用 \(appName) (\(bundleId)) 为处理中", level: .debug)
         
         // 创建新的延迟计时器
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceTime, repeats: false) { [weak self] _ in
             guard let self = self else { return }
             self.manageWindow(for: app)
-            // 处理完成后重置处理标志
-            self.isProcessing = false
         }
     }
     
@@ -160,7 +129,6 @@ class WindowManager: ObservableObject {
         guard let appName = app.localizedName,
               let bundleId = app.bundleIdentifier else {
             AppLogger.shared.log("无法获取应用信息", level: .warning)
-            isProcessing = false
             return
         }
         
@@ -169,91 +137,54 @@ class WindowManager: ObservableObject {
         
         // 根据规则处理窗口
         switch rule {
-        case .center:
-            if let window = getFrontmostWindow(for: app) {
-                // 生成窗口特征（位置+大小作为唯一标识）
-                let windowSignature = getWindowSignature(window)
-                
-                if let signature = windowSignature {
-                    // 检查是否与上次处理的窗口特征相同
-                    if let lastSignature = lastProcessedWindowSignature,
-                       abs(lastSignature.position.x - signature.position.x) < 5 &&
-                       abs(lastSignature.position.y - signature.position.y) < 5 &&
-                       abs(lastSignature.size.width - signature.size.width) < 5 &&
-                       abs(lastSignature.size.height - signature.size.height) < 5 {
-                        AppLogger.shared.log("跳过窗口：已处理过相同位置和大小的窗口", level: .info)
-                        return
-                    }
-                    
-                    // 记录窗口特征
-                    lastProcessedWindowSignature = signature
-                    AppLogger.shared.log("处理窗口，位置: (\(signature.position.x), \(signature.position.y)), 大小: \(signature.size.width) x \(signature.size.height)", level: .debug)
-                }
-                
-                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 居中处理", level: .info)
-                
-                // 标记窗口正在被操作，防止操作过程中的事件触发新的处理
-                isOperatingWindow = true
-                
-                // 执行窗口操作
-                centerWindow(window)
-                
-                // 设置冷却期，避免操作完窗口后立即被再次处理
-                cooldownEndTime = Date().addingTimeInterval(minProcessingInterval)
-                
-                // 延迟重置操作标志，给系统时间处理可能的事件
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    self?.isOperatingWindow = false
-                }
-            } else {
-                AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行居中操作", level: .debug)
-            }
-            
-        case .almostMaximize:
-            if let window = getFrontmostWindow(for: app) {
-                // 生成窗口特征（位置+大小作为唯一标识）
-                let windowSignature = getWindowSignature(window)
-                
-                if let signature = windowSignature {
-                    // 检查是否与上次处理的窗口特征相同
-                    if let lastSignature = lastProcessedWindowSignature,
-                       abs(lastSignature.position.x - signature.position.x) < 5 &&
-                       abs(lastSignature.position.y - signature.position.y) < 5 &&
-                       abs(lastSignature.size.width - signature.size.width) < 5 &&
-                       abs(lastSignature.size.height - signature.size.height) < 5 {
-                        AppLogger.shared.log("跳过窗口：已处理过相同位置和大小的窗口", level: .info)
-                        return
-                    }
-                    
-                    // 记录窗口特征
-                    lastProcessedWindowSignature = signature
-                    AppLogger.shared.log("处理窗口，位置: (\(signature.position.x), \(signature.position.y)), 大小: \(signature.size.width) x \(signature.size.height)", level: .debug)
-                }
-                
-                AppLogger.shared.log("管理应用: \(appName) (\(bundleId)) - 几乎最大化处理", level: .info)
-                
-                // 标记窗口正在被操作，防止操作过程中的事件触发新的处理
-                isOperatingWindow = true
-                
-                // 执行窗口操作
-                almostMaximizeWindow(window)
-                
-                // 设置冷却期，避免操作完窗口后立即被再次处理
-                cooldownEndTime = Date().addingTimeInterval(minProcessingInterval)
-                
-                // 延迟重置操作标志，给系统时间处理可能的事件
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    self?.isOperatingWindow = false
-                }
-            } else {
-                AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行几乎最大化操作", level: .debug)
-            }
+        case .center, .almostMaximize:
+            processWindowWithRule(app: app, bundleId: bundleId, appName: appName, rule: rule)
             
         case .ignore:
             AppLogger.shared.log("忽略应用: \(appName) (\(bundleId))", level: .debug)
             
         case .custom:
             AppLogger.shared.log("应用 \(appName) (\(bundleId)) 使用自定义规则，暂未实现", level: .warning)
+        }
+    }
+    
+    /// 处理需要调整位置的窗口
+    private func processWindowWithRule(app: NSRunningApplication, bundleId: String, appName: String, rule: WindowHandlingRule) {
+        // 获取窗口
+        guard let window = getFrontmostWindow(for: app) else {
+            AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行操作", level: .debug)
+            return
+        }
+        
+        // 获取窗口特征
+        guard let signature = getWindowSignature(window) else {
+            AppLogger.shared.log("无法获取窗口特征", level: .warning)
+            return
+        }
+        
+        // 记录处理信息
+        AppLogger.shared.log("处理应用: \(appName) (\(bundleId)), 规则: \(rule)", level: .info)
+        AppLogger.shared.log("窗口位置: (\(signature.position.x), \(signature.position.y)), 大小: \(signature.size.width) x \(signature.size.height)", level: .debug)
+        
+        // 标记窗口操作开始
+        isWindowOperationInProgress = true
+        
+        // 执行窗口操作
+        switch rule {
+        case .center:
+            centerWindow(window)
+        case .almostMaximize:
+            almostMaximizeWindow(window)
+        default:
+            break // 不会发生，因为调用方已过滤
+        }
+        
+        // 更新处理记录，仅记录bundleId和时间戳
+        lastProcessedWindowInfo = (bundleId: bundleId, timestamp: Date())
+        
+        // 延迟重置操作标志
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.isWindowOperationInProgress = false
         }
     }
     
