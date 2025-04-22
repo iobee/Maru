@@ -15,7 +15,7 @@ struct HiWindowGuyApp: App {
     @StateObject private var windowManager = WindowManager()
     
     var body: some Scene {
-        WindowGroup("HiWindowGuy", id: "mainWindow") {
+        Window("HiWindowGuy", id: "mainWindow") {
             ContentView(selectedTab: $selectedTab)
                 .environmentObject(appConfig)
                 .environmentObject(logger)
