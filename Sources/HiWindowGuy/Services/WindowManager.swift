@@ -678,36 +678,7 @@ class WindowManager: ObservableObject {
             AppLogger.shared.log("设置窗口位置或大小失败 - 位置: \(setPositionResult.rawValue), 大小: \(setSizeResult.rawValue)", level: .error)
         }
     }
-    
-    // 添加窗口动画支持
-    private func animateWindow(_ window: AXUIElement, to frame: CGRect, duration: TimeInterval = 0.3) {
-        var currentPosition: AnyObject?
-        var currentSize: AnyObject?
-        
-        AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &currentPosition)
-        AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &currentSize)
-        
-        guard let startPosition = currentPosition as? CGPoint,
-              let startSize = currentSize as? CGSize else { return }
-        
-        let frameCount = Int(duration * 60) // 60fps
-        let deltaX = (frame.origin.x - startPosition.x) / CGFloat(frameCount)
-        let deltaY = (frame.origin.y - startPosition.y) / CGFloat(frameCount)
-        let deltaWidth = (frame.width - startSize.width) / CGFloat(frameCount)
-        let deltaHeight = (frame.height - startSize.height) / CGFloat(frameCount)
-        
-        for i in 0...frameCount {
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration * Double(i) / Double(frameCount)) {
-                let currentX = startPosition.x + deltaX * CGFloat(i)
-                let currentY = startPosition.y + deltaY * CGFloat(i)
-                let currentWidth = startSize.width + deltaWidth * CGFloat(i)
-                let currentHeight = startSize.height + deltaHeight * CGFloat(i)
-                
-                AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, CGPoint(x: currentX, y: currentY) as CFTypeRef)
-                AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, CGSize(width: currentWidth, height: currentHeight) as CFTypeRef)
-            }
-        }
-    }
+       
 }
 
 // 用于表示窗口的简单结构
