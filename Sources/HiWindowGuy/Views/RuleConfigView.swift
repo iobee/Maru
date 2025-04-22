@@ -40,15 +40,30 @@ struct RuleConfigView: View {
         }
     }
     
-    // Extract title bar
-    private var titleBar: some View {
-        HStack {
-            Text("应用规则配置")
-                .font(.title2.bold())
-                .foregroundStyle(.primary)
+    // 页面标题区域
+    private var headerView: some View {
+        HStack(spacing: 0) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.blue)
+                .frame(width: 40, height: 40)
+                .background(Color.blue.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                
+            VStack(alignment: .leading, spacing: 4) {
+                Text("应用规则配置")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.primary)
+                    
+                Text("管理不同应用的窗口行为")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.leading, 12)
             
             Spacer()
             
+            // 排序菜单
             Menu {
                 ForEach(SortOption.allCases) { option in
                     Button {
@@ -62,36 +77,56 @@ struct RuleConfigView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Material.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Material.regularMaterial)
+                    )
             }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 24)
+        .padding(.horizontal, 30)
+        .padding(.top, 30)
+        .padding(.bottom, 20)
     }
     
-    // Extract empty state view
+    // 空状态视图
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 40))
+        VStack(spacing: 16) {
+            Image(systemName: "rectangle.on.rectangle.slash")
+                .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 4)
+                .padding(.bottom, 8)
             
             Text("没有找到匹配的应用规则")
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 
             Text("尝试使用不同的搜索关键词")
                 .font(.subheadline)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
+                
+            Button {
+                searchText = ""
+            } label: {
+                Text("清除搜索")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.blue)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 40)
     }
     
-    // Extract context menu for a rule
+    // 规则上下文菜单
     private func contextMenu(for rule: AppRule) -> some View {
         Group {
             Button {
@@ -128,21 +163,13 @@ struct RuleConfigView: View {
         }
     }
     
-    // 添加辅助方法来更新规则并刷新视图
-    private func updateRuleAndRefresh(for bundleId: String, rule: WindowHandlingRule) {
-        // 更新规则 - AppConfig 内部会刷新 refreshID
-        config.updateRule(for: bundleId, rule: rule)
-        // 强制刷新视图
-        forceRefresh()
-    }
-    
-    // Extract rules list view
+    // 规则列表视图
     private var rulesListView: some View {
         ScrollView {
             if filteredRules.isEmpty {
                 emptyStateView
             } else {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 14) {
                     ForEach(filteredRules, id: \.bundleId) { rule in
                         RuleRow(rule: rule)
                             .contentShape(Rectangle())
@@ -153,25 +180,24 @@ struct RuleConfigView: View {
                                 contextMenu(for: rule)
                             }
                             .animation(.easeOut(duration: 0.2), value: rule.rule)
-                            .padding(.horizontal)
-                            .transition(.opacity)
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 16)
             }
         }
-        .background(Material.ultraThinMaterial)
+        .background(Color.clear)
         .safeAreaInset(edge: .bottom) {
             bottomStatusBar
         }
     }
     
-    // Extract bottom status bar
+    // 底部状态栏
     private var bottomStatusBar: some View {
         HStack {
             Label("\(filteredRules.count) 个应用", systemImage: "app.badge")
                 .foregroundStyle(.secondary)
-                .font(.footnote)
+                .font(.footnote.bold())
             
             Spacer()
             
@@ -179,41 +205,24 @@ struct RuleConfigView: View {
                 .foregroundStyle(.secondary)
                 .font(.footnote)
         }
-        .padding()
-        .background(Material.thin)
+        .padding(.horizontal, 30)
+        .padding(.vertical, 14)
+        .background(
+            Rectangle()
+                .fill(Material.thin)
+                .shadow(color: .black.opacity(0.05), radius: 5, y: -2)
+        )
     }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 排序菜单工具栏
-            HStack {
-                Spacer()
-                
-                Menu {
-                    ForEach(SortOption.allCases) { option in
-                        Button {
-                            sortOption = option
-                        } label: {
-                            Label(option.rawValue, systemImage: sortOptionIcon(option))
-                        }
-                    }
-                } label: {
-                    Label("排序: \(sortOption.rawValue)", systemImage: "arrow.up.arrow.down")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Material.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-            .padding(.horizontal, 32)
-            .padding(.top, 24)
+            // 标题区域
+            headerView
             
             // 搜索栏
             SearchBar(text: $searchText, placeholder: "搜索应用名称或包ID")
-                .padding(.horizontal, 32)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 20)
             
             // 规则列表
             rulesListView
@@ -221,22 +230,7 @@ struct RuleConfigView: View {
         .background(Color.clear)
         .sheet(item: $selectedRule) { rule in
             RuleEditView(rule: rule, config: config, onSave: forceRefresh)
-                .frame(width: 500, height: 400)
-        }
-        .toolbar {
-            ToolbarItem {
-                Menu {
-                    ForEach(SortOption.allCases) { option in
-                        Button {
-                            sortOption = option
-                        } label: {
-                            Label(option.rawValue, systemImage: sortOptionIcon(option))
-                        }
-                    }
-                } label: {
-                    Label("排序", systemImage: "arrow.up.arrow.down")
-                }
-            }
+                .frame(width: 500, height: 440)
         }
         .id(refreshTrigger) // 使用 ID 修饰符强制刷新整个视图
         .onReceive(config.objectWillChange) { _ in
@@ -262,13 +256,21 @@ struct RuleConfigView: View {
     private func forceRefresh() {
         refreshTrigger = UUID()
     }
+    
+    // 更新规则并刷新
+    private func updateRuleAndRefresh(for bundleId: String, rule: WindowHandlingRule) {
+        // 更新规则 - AppConfig 内部会刷新 refreshID
+        config.updateRule(for: bundleId, rule: rule)
+        // 强制刷新视图
+        forceRefresh()
+    }
 }
 
 struct RuleRow: View {
     let rule: AppRule
     @Environment(\.colorScheme) private var colorScheme
     
-    // Extract rule tag view
+    // 规则标签视图
     private var ruleTagView: some View {
         HStack(spacing: 6) {
             Image(systemName: ruleIcon(for: rule.rule))
@@ -282,7 +284,7 @@ struct RuleRow: View {
         .clipShape(Capsule())
     }
 
-    // Extract usage statistics view
+    // 使用统计视图
     private var usageStatisticsView: some View {
         HStack(spacing: 8) {
             Label("\(rule.useCount)次", systemImage: "number")
@@ -349,12 +351,8 @@ struct RuleRow: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Material.regularMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
     }
     
     private func formattedRelativeDate(_ date: Date) -> String {
@@ -405,7 +403,7 @@ struct RuleEditView: View {
         self.onSave = onSave
     }
     
-    // Extract a method to create a single rule option button
+    // 规则选项按钮
     private func ruleOptionButton(for ruleOption: WindowHandlingRule) -> some View {
         Button {
             selectedRule = ruleOption
@@ -437,7 +435,7 @@ struct RuleEditView: View {
         .buttonStyle(.plain)
     }
     
-    // Simplify ruleSelectorSection to use the extracted method
+    // 规则选择区域
     private var ruleSelectorSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("窗口处理规则")
@@ -453,8 +451,10 @@ struct RuleEditView: View {
             }
         }
         .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.secondary.opacity(0.05))
+        )
     }
 
     var body: some View {
@@ -482,7 +482,7 @@ struct RuleEditView: View {
                 VStack(spacing: 24) {
                     // 应用信息
                     VStack(spacing: 24) {
-                        // 改进图标加载，防止失败导致空白
+                        // 应用图标
                         Group {
                             if let app = NSRunningApplication.runningApplications(withBundleIdentifier: rule.bundleId).first,
                                let bundleURL = app.bundleURL {
@@ -496,99 +496,92 @@ struct RuleEditView: View {
                                 Image(systemName: "app.fill")
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
-                                    .frame(width: 80, height: 80)
+                                    .frame(width: 60, height: 60)
+                                    .padding(10)
                                     .foregroundStyle(.secondary)
-                                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
                             }
                         }
                         
                         VStack(spacing: 8) {
                             Text(rule.appName)
                                 .font(.title2.bold())
-                                
+                                .multilineTextAlignment(.center)
+                            
                             Text(rule.bundleId)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.top, 20)
                     
-                    Divider()
-                        .padding(.horizontal)
-                    
-                    // Use the extracted rule selector section
+                    // 规则选择区域
                     ruleSelectorSection
-
-                    Divider()
-                        .padding(.horizontal)
                     
-                    // 统计信息
-                    HStack(spacing: 20) {
-                        VStack(alignment: .center, spacing: 8) {
-                            Text("\(rule.useCount)")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundStyle(.primary)
-                            
-                            Text("使用次数")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Material.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    // 用量统计
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("使用统计")
+                            .font(.headline)
                         
-                        VStack(alignment: .center, spacing: 8) {
-                            Text(formattedDate(rule.lastUsed))
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.center)
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("使用次数")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("\(rule.useCount)")
+                                    .font(.system(.title3, design: .rounded))
+                                    .fontWeight(.bold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             
-                            Text("最后使用")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            Divider()
+                                .padding(.vertical, 4)
+                            
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("最后使用")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text(formattedDate(rule.lastUsed))
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                         }
-                        .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Material.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.secondary.opacity(0.05))
+                        )
                     }
-                    .padding(.horizontal)
                 }
-                .padding(.vertical, 20)
+                .padding()
             }
             
-            // 底部按钮
+            // 底部按钮区域
             HStack {
-                Button("取消", role: .cancel) {
+                Button {
                     dismiss()
+                } label: {
+                    Text("取消")
+                        .frame(maxWidth: .infinity)
                 }
-                .keyboardShortcut(.escape)
-                
-                Spacer()
+                .buttonStyle(.bordered)
                 
                 Button {
                     config.updateRule(for: rule.bundleId, rule: selectedRule)
                     onSave()
                     dismiss()
                 } label: {
-                    Text("保存")
-                        .frame(width: 100)
+                    Text("保存修改")
+                        .frame(maxWidth: .infinity)
                 }
-                .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
             }
             .padding()
             .background(Material.bar)
         }
-    }
-    
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
     }
     
     private func ruleIcon(for rule: WindowHandlingRule) -> String {
@@ -615,5 +608,12 @@ struct RuleEditView: View {
         case .custom:
             return .orange
         }
+    }
+    
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 } 
