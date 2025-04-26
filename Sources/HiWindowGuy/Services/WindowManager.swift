@@ -2,6 +2,10 @@ import Cocoa
 import Combine
 import ApplicationServices
 
+// MARK: - 增加辅助功能相关常量定义
+// 系统没有公开kAXEnhancedUserInterfaceAttribute常量，所以我们需要自己定义
+let kAXEnhancedUserInterfaceAttribute = "AXEnhancedUserInterface" as CFString
+
 class WindowManager: ObservableObject {
     // 延迟时间（秒）
     private let debounceTime: TimeInterval = 0.3
@@ -305,10 +309,11 @@ class WindowManager: ObservableObject {
     /// 通过坐标范围查找屏幕
     private func findScreenByCoordinates(position: CGPoint, size: CGSize) -> NSScreen? {
         // 获取主屏幕尺寸，用于坐标系转换
-        guard let mainScreen = NSScreen.screens.first else {
+        if NSScreen.screens.isEmpty {
             AppLogger.shared.log("无法获取主屏幕", level: .error)
             return nil
         }
+        let mainScreen = NSScreen.screens.first!
         
         // 记录所有屏幕
         AppLogger.shared.log("系统有 \(NSScreen.screens.count) 个屏幕", level: .debug)
@@ -516,6 +521,153 @@ class WindowManager: ObservableObject {
         return CGRect(x: nsPoint.x, y: nsPoint.y, width: rect.width, height: rect.height)
     }
     
+    // MARK: - 窗口操作方法
+
+    /// 增强型设置窗口位置和大小，解决调整不完全问题
+    /// 参考Rectangle的实现，先设置大小、再设置位置、然后再次设置大小
+    /// - Parameters:
+    ///   - window: 目标窗口
+    ///   - frame: 目标位置和大小
+    ///   - adjustSizeFirst: 是否先调整大小，默认为true
+    private func enhancedSetFrame(_ window: AXUIElement, _ frame: CGRect, adjustSizeFirst: Bool = true) {
+        AppLogger.shared.log("开始增强型设置窗口位置和大小: \(frame)", level: .debug)
+        
+        // 为防止系统增强型UI干扰窗口调整，尝试暂时禁用它（如果有）
+        var appElement: AXUIElement?
+        var enhancedUI: Bool? = nil
+
+        // 获取应用的AXUIElement以操作enhancedUserInterface属性
+        if let pid = getPidForWindow(window) {
+            appElement = AXUIElementCreateApplication(pid)
+            
+            // 检查并禁用enhancedUserInterface
+            var value: AnyObject?
+            if AXUIElementCopyAttributeValue(appElement!, kAXEnhancedUserInterfaceAttribute as CFString, &value) == .success,
+               let boolValue = value as? Bool, boolValue == true {
+                enhancedUI = true
+                AppLogger.shared.log("暂时禁用应用的增强型UI", level: .debug)
+                AXUIElementSetAttributeValue(appElement!, kAXEnhancedUserInterfaceAttribute as CFString, false as CFTypeRef)
+            }
+        }
+        
+        // 记录窗口当前状态
+        var currentPosition: CGPoint? = nil
+        var currentSize: CGSize? = nil
+        
+        // 获取窗口当前位置
+        var positionRef: AnyObject?
+        if AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionRef) == .success,
+           let positionValue = positionRef {
+            var position = CGPoint.zero
+            if AXValueGetValue(positionValue as! AXValue, .cgPoint, &position) {
+                currentPosition = position
+            }
+        }
+        
+        // 获取窗口当前大小
+        var sizeRef: AnyObject?
+        if AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeRef) == .success,
+           let sizeValue = sizeRef {
+            var size = CGSize.zero
+            if AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) {
+                currentSize = size
+            }
+        }
+        
+        AppLogger.shared.log("窗口当前位置: \(currentPosition?.debugDescription ?? "未知"), 大小: \(currentSize?.debugDescription ?? "未知")", level: .debug)
+        
+        // 1. 如果需要，先调整大小
+        if adjustSizeFirst {
+            if let axSize = createAXValue(frame.size, type: .cgSize) {
+                let result = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, axSize)
+                AppLogger.shared.log("初始大小调整结果: \(result == .success ? "成功" : "失败(\(result.rawValue))")", level: .debug)
+            }
+        }
+        
+        // 2. 调整位置
+        if let axPosition = createAXValue(frame.origin, type: .cgPoint) {
+            let result = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, axPosition)
+            AppLogger.shared.log("位置调整结果: \(result == .success ? "成功" : "失败(\(result.rawValue))")", level: .debug)
+        }
+        
+        // 3. 再次调整大小以确保正确应用
+        if let axSize = createAXValue(frame.size, type: .cgSize) {
+            let result = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, axSize)
+            AppLogger.shared.log("最终大小调整结果: \(result == .success ? "成功" : "失败(\(result.rawValue))")", level: .debug)
+        }
+        
+        // 4. 验证调整结果
+        verifyWindowChange(window, expectedFrame: frame)
+        
+        // 如果增强型UI之前是开启的，恢复它
+        if let appElement = appElement, enhancedUI == true {
+            // 延迟恢复增强型UI，给窗口调整时间完成
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                AppLogger.shared.log("恢复应用的增强型UI", level: .debug)
+                AXUIElementSetAttributeValue(appElement, kAXEnhancedUserInterfaceAttribute as CFString, true as CFTypeRef)
+            }
+        }
+    }
+    
+    /// 创建AXValue，安全处理类型转换
+    private func createAXValue<T>(_ value: T, type: AXValueType) -> AXValue? {
+        switch type {
+        case .cgPoint:
+            guard let pointValue = value as? CGPoint else { return nil }
+            var copy = pointValue
+            return AXValueCreate(type, &copy)
+        case .cgSize:
+            guard let sizeValue = value as? CGSize else { return nil }
+            var copy = sizeValue
+            return AXValueCreate(type, &copy)
+        case .cgRect:
+            guard let rectValue = value as? CGRect else { return nil }
+            var copy = rectValue
+            return AXValueCreate(type, &copy)
+        default:
+            AppLogger.shared.log("不支持的AXValue类型", level: .warning)
+            return nil
+        }
+    }
+    
+    /// 获取窗口所属应用的进程ID
+    private func getPidForWindow(_ window: AXUIElement) -> pid_t? {
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(window, &pid) == .success else {
+            return nil
+        }
+        return pid
+    }
+    
+    /// 验证窗口变化是否成功应用
+    private func verifyWindowChange(_ window: AXUIElement, expectedFrame: CGRect) {
+        // 短暂延迟后检查窗口实际状态
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            guard let (actualPosition, actualSize) = self.getWindowPositionAndSize(window) else {
+                AppLogger.shared.log("无法获取窗口实际状态进行验证", level: .warning)
+                return
+            }
+            
+            let actualFrame = CGRect(origin: actualPosition, size: actualSize)
+            
+            // 检查位置和大小是否在可接受的误差范围内
+            let positionTolerance: CGFloat = 1.0 // 1像素的容差
+            let sizeTolerance: CGFloat = 1.0 // 1像素的容差
+            
+            let positionMatch = abs(actualFrame.origin.x - expectedFrame.origin.x) <= positionTolerance &&
+                               abs(actualFrame.origin.y - expectedFrame.origin.y) <= positionTolerance
+            
+            let sizeMatch = abs(actualFrame.size.width - expectedFrame.size.width) <= sizeTolerance &&
+                           abs(actualFrame.size.height - expectedFrame.size.height) <= sizeTolerance
+            
+            if positionMatch && sizeMatch {
+                AppLogger.shared.log("窗口调整验证成功，实际位置和大小符合预期", level: .debug)
+            } else {
+                AppLogger.shared.log("窗口调整验证警告 - 预期: \(expectedFrame), 实际: \(actualFrame)", level: .warning)
+            }
+        }
+    }
+    
     private func centerWindow(_ window: AXUIElement) {
         AppLogger.shared.log("开始居中窗口操作", level: .debug)
         
@@ -556,59 +708,15 @@ class WindowManager: ObservableObject {
         // 计算新位置 (NSScreen坐标系，原点在左下角，Y轴向上)
         let nsScreenX = screenFrame.origin.x + stageManagerSideMargin + (usableScreenWidth - windowSize.width) / 2
         let nsScreenY = screenFrame.origin.y + (screenFrame.height - statusBarHeight - windowSize.height) / 2
-        let nsPosition = CGPoint(x: nsScreenX, y: nsScreenY)
         
         // 将NSScreen坐标系转换为AXUIElement坐标系
-        let newPosition = convertToAXCoordinates(nsPosition, size: windowSize)
+        let newPosition = convertToAXCoordinates(CGPoint(x: nsScreenX, y: nsScreenY), size: windowSize)
         
-        AppLogger.shared.log("计算的新位置 - NSScreen坐标: \(nsPosition)", level: .debug)
-        AppLogger.shared.log("转换后的AX坐标: \(newPosition)", level: .debug)
+        // 创建目标框架
+        let targetFrame = CGRect(origin: newPosition, size: windowSize)
         
-        // 创建新位置的 AXValue
-        var axPosition = newPosition
-        guard let axPositionValue = AXValueCreate(.cgPoint, &axPosition) else {
-            AppLogger.shared.log("创建位置 AXValue 失败", level: .error)
-            return
-        }
-        
-        // 设置新位置
-        let setPositionResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, axPositionValue)
-        
-        if setPositionResult == .success {
-            AppLogger.shared.log("窗口已成功居中，新位置(AX坐标系): \(newPosition)", level: .info)
-        } else {
-            AppLogger.shared.log("设置窗口位置失败: \(setPositionResult.rawValue)", level: .error)
-        }
-    }
-    
-    // MARK: - 屏幕和状态栏相关方法
-    
-    /// 获取指定屏幕的状态栏高度
-    /// - Parameter screen: 目标屏幕
-    /// - Returns: 状态栏高度（像素）
-    private func getStatusBarHeight(for screen: NSScreen) -> CGFloat {
-        // 状态栏高度是屏幕总高度减去可见区域高度
-        let screenFrame = screen.frame
-        let visibleFrame = screen.visibleFrame
-        
-        let statusBarHeight = screenFrame.height - visibleFrame.height
-        
-        // 考虑多显示器情况: 只有主显示器会有状态栏，其他显示器状态栏高度可能为0
-        // 但也可能因为系统设置，多个显示器都有状态栏
-        if statusBarHeight > 0 {
-            AppLogger.shared.log("屏幕 \(screen.localizedName) 的状态栏高度: \(statusBarHeight)", level: .debug)
-        } else {
-            AppLogger.shared.log("屏幕 \(screen.localizedName) 无状态栏", level: .debug)
-        }
-        
-        return statusBarHeight
-    }
-    
-    /// 获取指定屏幕可用的内容区域（不包含状态栏）
-    /// - Parameter screen: 目标屏幕
-    /// - Returns: 可用内容区域的矩形
-    private func getContentArea(for screen: NSScreen) -> CGRect {
-        return screen.visibleFrame
+        // 使用增强型setFrame方法应用变更
+        enhancedSetFrame(window, targetFrame)
     }
     
     private func almostMaximizeWindow(_ window: AXUIElement) {
@@ -651,34 +759,108 @@ class WindowManager: ObservableObject {
         // 将矩形从NSScreen坐标系转换为AXUIElement坐标系
         let axRect = convertToAXRect(nsRect)
         
-        // 创建新位置的 AXValue (AXUIElement坐标系)
-        var newPosition = axRect.origin
-        guard let axPosition = AXValueCreate(.cgPoint, &newPosition) else {
-            AppLogger.shared.log("创建位置 AXValue 失败", level: .error)
-            return
-        }
+        // 使用增强型setFrame方法应用变更
+        enhancedSetFrame(window, axRect)
+    }
+    
+    // MARK: - 屏幕和状态栏相关方法
+    
+    /// 获取指定屏幕的状态栏高度
+    /// - Parameter screen: 目标屏幕
+    /// - Returns: 状态栏高度（像素）
+    private func getStatusBarHeight(for screen: NSScreen) -> CGFloat {
+        // 状态栏高度是屏幕总高度减去可见区域高度
+        let screenFrame = screen.frame
+        let visibleFrame = screen.visibleFrame
         
-        // 创建新大小的 AXValue
-        var newSize = axRect.size
-        guard let axSize = AXValueCreate(.cgSize, &newSize) else {
-            AppLogger.shared.log("创建大小 AXValue 失败", level: .error)
-            return
-        }
+        let statusBarHeight = screenFrame.height - visibleFrame.height
         
-        AppLogger.shared.log("NSScreen坐标系矩形: \(nsRect)", level: .debug)
-        AppLogger.shared.log("转换后的AX坐标系矩形: \(axRect)", level: .debug)
-        
-        // 设置新位置和大小
-        let setPositionResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, axPosition)
-        let setSizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, axSize)
-        
-        if setPositionResult == .success && setSizeResult == .success {
-            AppLogger.shared.log("窗口已成功几乎最大化，比例: \(scaleFactor)，新位置(AX坐标系): \(newPosition)，新大小: \(newSize)", level: .info)
+        // 考虑多显示器情况: 只有主显示器会有状态栏，其他显示器状态栏高度可能为0
+        // 但也可能因为系统设置，多个显示器都有状态栏
+        if statusBarHeight > 0 {
+            AppLogger.shared.log("屏幕 \(screen.localizedName) 的状态栏高度: \(statusBarHeight)", level: .debug)
         } else {
-            AppLogger.shared.log("设置窗口位置或大小失败 - 位置: \(setPositionResult.rawValue), 大小: \(setSizeResult.rawValue)", level: .error)
+            AppLogger.shared.log("屏幕 \(screen.localizedName) 无状态栏", level: .debug)
+        }
+        
+        return statusBarHeight
+    }
+    
+    /// 获取指定屏幕可用的内容区域（不包含状态栏）
+    /// - Parameter screen: 目标屏幕
+    /// - Returns: 可用内容区域的矩形
+    private func getContentArea(for screen: NSScreen) -> CGRect {
+        return screen.visibleFrame
+    }
+    
+    /// 测试函数：验证窗口调整优化
+    func testEnhancedWindowFrameUpdate() {
+        AppLogger.shared.log("开始测试窗口调整优化", level: .info)
+        
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              let window = getFrontmostWindow(for: app) else {
+            AppLogger.shared.log("无法获取当前窗口进行测试", level: .error)
+            return
+        }
+        
+        // 获取当前窗口信息
+        guard let (position, size) = getWindowPositionAndSize(window) else {
+            AppLogger.shared.log("无法获取窗口位置和大小", level: .error)
+            return
+        }
+        
+        let currentFrame = CGRect(origin: position, size: size)
+        AppLogger.shared.log("当前窗口位置和大小: \(currentFrame)", level: .info)
+        
+        // 获取窗口所在屏幕
+        let screen = getScreenForWindow(window)
+        let screenFrame = screen.frame
+        let statusBarHeight = getStatusBarHeight(for: screen)
+        
+        // 计算测试位置（屏幕中央）
+        let centerX = screenFrame.origin.x + (screenFrame.width - size.width) / 2
+        let centerY = screenFrame.origin.y + (screenFrame.height - statusBarHeight - size.height) / 2
+        let centerPosition = convertToAXCoordinates(CGPoint(x: centerX, y: centerY), size: size)
+        
+        // 创建测试框架（原始大小，居中位置）
+        let testFrame = CGRect(origin: centerPosition, size: size)
+        
+        // 使用增强型方法执行调整
+        enhancedSetFrame(window, testFrame)
+        
+        // 查询调整后的状态
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self, let (newPosition, newSize) = self.getWindowPositionAndSize(window) else {
+                return
+            }
+            
+            let resultFrame = CGRect(origin: newPosition, size: newSize)
+            AppLogger.shared.log("调整后窗口位置和大小: \(resultFrame)", level: .info)
+            
+            // 计算误差
+            let positionError = hypot(
+                abs(resultFrame.origin.x - testFrame.origin.x),
+                abs(resultFrame.origin.y - testFrame.origin.y)
+            )
+            
+            let sizeError = hypot(
+                abs(resultFrame.size.width - testFrame.size.width),
+                abs(resultFrame.size.height - testFrame.size.height)
+            )
+            
+            AppLogger.shared.log("位置误差: \(positionError)，大小误差: \(sizeError)", level: .info)
+            
+            // 评估结果
+            if positionError < 2.0 && sizeError < 2.0 {
+                AppLogger.shared.log("窗口调整优化测试结果：成功 ✅", level: .info)
+            } else {
+                AppLogger.shared.log("窗口调整优化测试结果：失败 ❌", level: .warning)
+            }
+            
+            // 恢复原始位置（如果需要的话）
+            self.enhancedSetFrame(window, currentFrame)
         }
     }
-       
 }
 
 // 用于表示窗口的简单结构

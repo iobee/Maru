@@ -49,14 +49,14 @@ struct LogViewer: View {
             Spacer()
             
             // 日志级别过滤器
-            Picker("日志级别", selection: $logLevelFilter) {
+                Picker("日志级别", selection: $logLevelFilter) {
                 Text("全部级别").tag(nil as LogLevel?)
-                ForEach(LogLevel.allCases) { level in
+                    ForEach(LogLevel.allCases) { level in
                     Label(level.rawValue, systemImage: level.icon)
                         .tag(level as LogLevel?)
+                    }
                 }
-            }
-            .pickerStyle(MenuPickerStyle())
+                .pickerStyle(MenuPickerStyle())
             .frame(width: 130)
             .padding(.horizontal, 8)
             
@@ -137,7 +137,7 @@ struct LogViewer: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    
+                
                 Button {
                     logLevelFilter = nil
                 } label: {
@@ -183,7 +183,7 @@ struct LogViewer: View {
                         ForEach(filteredLogs) { logEntry in
                             LogEntryRow(entry: logEntry)
                         }
-                    }
+            }
                     .padding(.horizontal, 30)
                     .padding(.bottom, 16)
                 }
@@ -214,9 +214,9 @@ struct LogViewer: View {
             
             Spacer()
             
-            Button {
+                Button {
                 exportLogs()
-            } label: {
+                } label: {
                 Label("导出日志", systemImage: "square.and.arrow.up")
                     .font(.footnote.bold())
                     .foregroundStyle(.primary)
@@ -226,7 +226,7 @@ struct LogViewer: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Material.thin)
                     )
-            }
+                }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 30)
@@ -327,10 +327,10 @@ struct LogEntryRow: View {
                     isExpanded.toggle()
                 } label: {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                .font(.caption)
+                .foregroundColor(.secondary)
                         .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
+                .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -346,7 +346,7 @@ struct LogEntryRow: View {
                     Label(entry.level.rawValue, systemImage: "tag")
                         .font(.caption)
                         .foregroundColor(logLevelColor(entry.level))
-                        .padding(.horizontal, 8)
+        .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
@@ -389,7 +389,7 @@ struct LogFileSelector: View {
         VStack(spacing: 0) {
             // 标题栏
             HStack {
-                Text("选择历史日志文件")
+            Text("选择历史日志文件")
                     .font(.title3.bold())
                 
                 Spacer()
@@ -403,7 +403,7 @@ struct LogFileSelector: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding()
+                .padding()
             .background(Material.bar)
                 
             // 文件列表
@@ -428,15 +428,15 @@ struct LogFileSelector: View {
             } else {
                 ScrollView {
                     VStack(spacing: 12) {
-                        ForEach(logFiles, id: \.self) { file in
-                            LogFileRow(file: file)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedFile = file
-                                    isPresented = false
+                    ForEach(logFiles, id: \.self) { file in
+                        LogFileRow(file: file)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedFile = file
+                                isPresented = false
                                 }
                                 .padding(.horizontal)
-                        }
+                            }
                     }
                     .padding(.vertical, 12)
                 }

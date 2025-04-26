@@ -84,7 +84,7 @@ struct ContentView: View {
             
             // 导航菜单
             List(selection: $selectedSection) {
-                ForEach(NavigationSection.allCases) { section in
+                    ForEach(NavigationSection.allCases) { section in
                     navigationLink(for: section)
                         .listRowBackground(selectedSection == section.rawValue ? 
                                           AnyView(
@@ -119,18 +119,18 @@ struct ContentView: View {
                 Color(NSColor.controlBackgroundColor).opacity(0.7) : 
                 Color(NSColor.controlBackgroundColor).opacity(0.5)
         )
-        .onChange(of: selectedSection) { newValue in
-            // 根据选择的部分更新标签
-            switch newValue {
-            case NavigationSection.home.rawValue:
-                selectedTab = .home
-            case NavigationSection.rules.rawValue:
-                selectedTab = .rules
-            case NavigationSection.logs.rawValue:
-                selectedTab = .logs
-            default:
-                break
-            }
+            .onChange(of: selectedSection) { newValue in
+                // 根据选择的部分更新标签
+                switch newValue {
+                case NavigationSection.home.rawValue:
+                    selectedTab = .home
+                case NavigationSection.rules.rawValue:
+                    selectedTab = .rules
+                case NavigationSection.logs.rawValue:
+                    selectedTab = .logs
+                default:
+                    break
+                }
         }
     }
     
@@ -152,21 +152,21 @@ struct ContentView: View {
         .padding(.horizontal, 12)
         .contentShape(Rectangle())
         .tag(section.rawValue)
-    }
-    
-    // 主内容区域
+            }
+            
+            // 主内容区域
     private var mainContentView: some View {
-        Group {
-            switch selectedTab {
-            case .home:
-                homeView
-            case .rules:
-                RuleConfigView()
-            case .logs:
-                LogViewer()
+            Group {
+                switch selectedTab {
+                case .home:
+                    homeView
+                case .rules:
+                    RuleConfigView()
+                case .logs:
+                    LogViewer()
+                }
             }
         }
-    }
     
     // 主页内容
     private var homeView: some View {
@@ -182,7 +182,7 @@ struct ContentView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                         
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("窗口管理")
+                    Text("窗口管理")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.primary)
                             
@@ -206,7 +206,7 @@ struct ContentView: View {
                 statsView
                 
                 Spacer()
-            }
+                }
             .padding(30)
         }
         .background(Color.clear)
@@ -219,28 +219,28 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("窗口管理")
                         .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Text("自动调整窗口大小和位置")
-                        .font(.subheadline)
+                                .fontWeight(.semibold)
+                            
+                            Text("自动调整窗口大小和位置")
+                                .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
-                .padding(.leading, 4)
-                
-                Spacer()
-                
-                Toggle("", isOn: $isRunning)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .scaleEffect(1.1)
-                    .onChange(of: isRunning) { newValue in
-                        if newValue {
-                            appLogger.log("窗口管理已启用", level: .info)
-                        } else {
-                            appLogger.log("窗口管理已停用", level: .info)
                         }
+                .padding(.leading, 4)
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $isRunning)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    .scaleEffect(1.1)
+                            .onChange(of: isRunning) { newValue in
+                                if newValue {
+                                    appLogger.log("窗口管理已启用", level: .info)
+                                } else {
+                                    appLogger.log("窗口管理已停用", level: .info)
+                                }
+                            }
                     }
-            }
         }
         .padding(24)
         .background(
@@ -253,97 +253,97 @@ struct ContentView: View {
     // 窗口缩放设置卡片
     private var scaleFactorCard: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack {
+                        HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("窗口缩放比例")
+                                Text("窗口缩放比例")
                         .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Text("控制「几乎最大化」时窗口的大小")
-                        .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                
+                                Text("控制「几乎最大化」时窗口的大小")
+                                    .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
+                            }
                 .padding(.leading, 4)
-                
-                Spacer()
-                
-                Text("\(Int(appConfig.windowScaleFactor * 100))%")
+                            
+                            Spacer()
+                            
+                            Text("\(Int(appConfig.windowScaleFactor * 100))%")
                     .font(.system(.headline, design: .rounded))
                     .foregroundStyle(.blue)
-                    .monospacedDigit()
+                                .monospacedDigit()
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.blue.opacity(0.1))
                     )
-            }
-            
+                        }
+                        
             VStack(spacing: 10) {
                 HStack {
                     Image(systemName: "rectangle.compress.vertical")
                         .foregroundStyle(.secondary)
                     
-                    Slider(
-                        value: $appConfig.windowScaleFactor,
-                        in: 0.7...0.97,
-                        step: 0.01
-                    )
+                            Slider(
+                                value: $appConfig.windowScaleFactor,
+                                in: 0.7...0.97,
+                                step: 0.01
+                            )
                     .tint(.blue)
                     
                     Image(systemName: "rectangle.expand.vertical")
                         .foregroundStyle(.secondary)
                 }
-                
-                HStack {
-                    Text("更紧凑")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("更宽敞")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 4)
-            }
-        }
+                            
+                            HStack {
+                                Text("更紧凑")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Spacer()
+                                
+                                Text("更宽敞")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                    }
         .padding(24)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Material.regularMaterial)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
         )
-    }
-    
+                }
+                
     // 统计数据视图
     private var statsView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("应用统计")
-                .font(.headline)
+                    Text("应用统计")
+                        .font(.headline)
                 .fontWeight(.semibold)
                 .padding(.leading, 4)
-            
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                statCard(title: "已记录应用", count: appConfig.appRules.count, icon: "app.badge", color: .purple)
-                
-                statCard(title: "居中处理", 
-                        count: appConfig.appRules.filter { $0.rule == .center }.count,
-                        icon: "rectangle.center.inset.filled", 
-                        color: .blue)
-                
-                statCard(title: "几乎最大化", 
-                        count: appConfig.appRules.filter { $0.rule == .almostMaximize }.count,
-                        icon: "rectangle.inset.filled", 
-                        color: .green)
-                
-                statCard(title: "忽略处理", 
-                        count: appConfig.appRules.filter { $0.rule == .ignore }.count,
-                        icon: "eye.slash.fill", 
-                        color: .gray)
-            }
-        }
+                    
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                        statCard(title: "已记录应用", count: appConfig.appRules.count, icon: "app.badge", color: .purple)
+                        
+                        statCard(title: "居中处理", 
+                                count: appConfig.appRules.filter { $0.rule == .center }.count,
+                                icon: "rectangle.center.inset.filled", 
+                                color: .blue)
+                        
+                        statCard(title: "几乎最大化", 
+                                count: appConfig.appRules.filter { $0.rule == .almostMaximize }.count,
+                                icon: "rectangle.inset.filled", 
+                                color: .green)
+                        
+                        statCard(title: "忽略处理", 
+                                count: appConfig.appRules.filter { $0.rule == .ignore }.count,
+                                icon: "eye.slash.fill", 
+                                color: .gray)
+                    }
+                }
         .padding(24)
         .background(
             RoundedRectangle(cornerRadius: 16)

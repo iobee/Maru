@@ -51,9 +51,9 @@ struct RuleConfigView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 
             VStack(alignment: .leading, spacing: 4) {
-                Text("应用规则配置")
+            Text("应用规则配置")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.primary)
+                .foregroundStyle(.primary)
                     
                 Text("管理不同应用的窗口行为")
                     .font(.subheadline)
@@ -506,7 +506,7 @@ struct RuleEditView: View {
                             Text(rule.appName)
                                 .font(.title2.bold())
                                 .multilineTextAlignment(.center)
-                            
+                                
                             Text(rule.bundleId)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -517,7 +517,7 @@ struct RuleEditView: View {
                     
                     // 规则选择区域
                     ruleSelectorSection
-                    
+
                     // 用量统计
                     VStack(alignment: .leading, spacing: 12) {
                         Text("使用统计")
@@ -525,28 +525,28 @@ struct RuleEditView: View {
                         
                         HStack(spacing: 16) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("使用次数")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            Text("使用次数")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                                 
                                 Text("\(rule.useCount)")
                                     .font(.system(.title3, design: .rounded))
                                     .fontWeight(.bold)
-                            }
+                        }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             
                             Divider()
                                 .padding(.vertical, 4)
-                            
+                        
                             VStack(alignment: .trailing, spacing: 4) {
-                                Text("最后使用")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            Text("最后使用")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                                 
                                 Text(formattedDate(rule.lastUsed))
                                     .font(.callout)
                                     .fontWeight(.semibold)
-                            }
+                        }
                             .frame(maxWidth: .infinity, alignment: .trailing)
                         }
                         .padding()
@@ -555,7 +555,7 @@ struct RuleEditView: View {
                                 .fill(Color.secondary.opacity(0.05))
                         )
                     }
-                }
+                    }
                 .padding()
             }
             
