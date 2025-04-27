@@ -67,3 +67,4 @@ Temporary Items
 .build/*
 build/HiWindowGuy.dmg
 build
+*.dmg

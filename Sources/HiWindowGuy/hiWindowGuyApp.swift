@@ -36,7 +36,7 @@ struct HiWindowGuyApp: App {
                     }
                 }
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 600)
         .windowResizability(.contentSize)
         .commands {
@@ -122,9 +122,8 @@ struct HiWindowGuyApp: App {
                 // 设置窗口特性
                 window.isOpaque = false
                 window.titlebarAppearsTransparent = true
-                
-                // 窗口级别保持为普通级别，这样在Stage Manager中会正常工作
-                // window.level = .normal
+                window.titleVisibility = .hidden
+                window.styleMask.insert(.fullSizeContentView)
                 
                 logger.log("配置窗口: \(window.title)", level: .info)
             }
@@ -134,6 +133,10 @@ struct HiWindowGuyApp: App {
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
             if let window = notification.object as? NSWindow, window.title == "HiWindowGuy" {
                 window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
+                window.isOpaque = false
+                window.titlebarAppearsTransparent = true
+                window.titleVisibility = .hidden
+                window.styleMask.insert(.fullSizeContentView)
                 logger.log("配置新窗口: \(window.title)", level: .info)
             }
         }
