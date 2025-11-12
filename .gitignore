@@ -69,3 +69,6 @@ build/HiWindowGuy.dmg
 build
 *.dmg
 Release/*
+launch_test.log
+run.sh
+test_launch.sh
