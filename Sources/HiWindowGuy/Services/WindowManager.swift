@@ -24,21 +24,29 @@ class WindowManager: ObservableObject {
     private var isWindowOperationInProgress = false
 
     init() {
-        requestAccessibilityPermission()
+        // Don't request permissions during init - wait for app to launch
     }
     
     deinit {
         stopMonitoring()
     }
     
-    // 请求辅助功能权限
-    private func requestAccessibilityPermission() {
+    // 检查并请求辅助功能权限
+    func checkAccessibilityPermission() -> Bool {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
         let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
         
         if !accessEnabled {
             AppLogger.shared.log("需要辅助功能权限来管理窗口", level: .warning)
-            // 显示权限请求对话框
+            return false
+        }
+        return true
+    }
+    
+    // 显示权限请求对话框（在主线程安全调用）
+    func showAccessibilityPermissionAlert() {
+        DispatchQueue.main.async {
+            AppLogger.shared.log("显示辅助功能权限提示", level: .info)
             let alert = NSAlert()
             alert.messageText = "需要辅助功能权限"
             alert.informativeText = "请在系统偏好设置中启用辅助功能权限以允许窗口管理。"
@@ -53,6 +61,12 @@ class WindowManager: ObservableObject {
     }
     
     func startMonitoring() {
+        // 检查辅助功能权限
+        if !checkAccessibilityPermission() {
+            showAccessibilityPermissionAlert()
+            return
+        }
+        
         // 先停止当前监控（如果有的话）
         stopMonitoring()
         

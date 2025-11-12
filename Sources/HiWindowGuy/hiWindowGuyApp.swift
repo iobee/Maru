@@ -25,6 +25,11 @@ struct HiWindowGuyApp: App {
                     DispatchQueue.main.async {
                         configureWindow()
                         
+                        // 检查辅助功能权限（仅提示一次）
+                        if !windowManager.checkAccessibilityPermission() {
+                            windowManager.showAccessibilityPermissionAlert()
+                        }
+                        
                         // 根据当前配置决定是否启用窗口监控
                         if isWindowManagementEnabled {
                             logger.log("根据配置启用窗口管理", level: .info)
