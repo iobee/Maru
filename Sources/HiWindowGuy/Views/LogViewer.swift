@@ -24,6 +24,10 @@ struct LogViewer: View {
         
         return logs.reversed() // 反转数组，最新日志在顶部
     }
+
+    private var logTextContent: String {
+        filteredLogs.map(\.formatted).joined(separator: "\n")
+    }
     
     // 页面标题区域
     private var headerView: some View {
@@ -174,16 +178,21 @@ struct LogViewer: View {
                 .padding(.horizontal, 30)
                 .padding(.bottom, 20)
             
-            // 日志列表
+            // 日志文本
             if filteredLogs.isEmpty {
                 emptyStateView
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(filteredLogs) { logEntry in
-                            LogEntryRow(entry: logEntry)
-                        }
-            }
+                    Text(logTextContent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Material.regularMaterial)
+                        )
                     .padding(.horizontal, 30)
                     .padding(.bottom, 16)
                 }
