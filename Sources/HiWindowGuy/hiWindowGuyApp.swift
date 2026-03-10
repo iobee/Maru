@@ -9,6 +9,7 @@ import OSLog
 struct HiWindowGuyApp: App {
     @StateObject private var appConfig = AppConfig.shared
     @StateObject private var logger = AppLogger.shared
+    @StateObject private var updaterManager = UpdaterManager()
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
     @State private var selectedTab: NavigationTab = .home
@@ -19,6 +20,7 @@ struct HiWindowGuyApp: App {
             ContentView(selectedTab: $selectedTab)
                 .environmentObject(appConfig)
                 .environmentObject(logger)
+                .environmentObject(updaterManager)
                 .background(Color(NSColor.windowBackgroundColor))
                 .onAppear {
                     // 在下一个运行循环中配置窗口
@@ -38,6 +40,8 @@ struct HiWindowGuyApp: App {
                             logger.log("根据配置停用窗口管理", level: .info)
                             windowManager.stopMonitoring()
                         }
+
+                        updaterManager.start()
                     }
                 }
         }
@@ -53,6 +57,11 @@ struct HiWindowGuyApp: App {
             }
             
             CommandGroup(after: .appSettings) {
+                Button("检查更新…") {
+                    updaterManager.checkForUpdates()
+                }
+                .disabled(!updaterManager.canCheckForUpdates)
+
                 Button("窗口规则设置") {
                     openWindow(id: "mainWindow")
                     NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
@@ -95,6 +104,11 @@ struct HiWindowGuyApp: App {
                 openWindow(id: "mainWindow")
                 NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
             }.keyboardShortcut("r")
+
+            Button("检查更新…") {
+                updaterManager.checkForUpdates()
+            }
+            .disabled(!updaterManager.canCheckForUpdates)
             
             Divider()
             
