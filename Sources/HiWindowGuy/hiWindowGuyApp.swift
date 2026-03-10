@@ -86,7 +86,7 @@ struct HiWindowGuyApp: App {
             }
         }
         
-        MenuBarExtra("窗口管理", systemImage: "window.vertical.closed") {
+        MenuBarExtra {
             Button("显示主窗口") {
                 openWindow(id: "mainWindow")
             }.keyboardShortcut("m")
@@ -114,6 +114,8 @@ struct HiWindowGuyApp: App {
             Button("退出") {
                 NSApp.terminate(nil)
             }.keyboardShortcut("q")
+        } label: {
+            Image(nsImage: AppIconProvider.makeMenuBarIcon())
         }
     }
     
@@ -165,6 +167,8 @@ struct HiWindowGuyApp: App {
     }
     
     init() {
+        NSApplication.shared.applicationIconImage = AppIconProvider.makeAppIcon(size: 512)
+
         // 设置未捕获异常处理
         NSSetUncaughtExceptionHandler { exception in
             AppLogger.shared.log("未捕获的异常: \(exception)", level: .error)
