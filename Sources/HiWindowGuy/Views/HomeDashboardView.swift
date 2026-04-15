@@ -17,10 +17,6 @@ struct HomeDashboardView: View {
             Toggle("启用窗口管理", isOn: $isWindowManagementEnabled)
                 .toggleStyle(.switch)
 
-            Text("当前窗口缩放比例：\(Int(appConfig.windowScaleFactor * 100))%")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
             Spacer()
         }
         .padding(30)

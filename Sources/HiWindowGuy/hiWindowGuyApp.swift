@@ -7,18 +7,20 @@ import OSLog
 
 @main
 struct HiWindowGuyApp: App {
+    private static let sharedWindowManager = WindowManager()
+
     @StateObject private var appConfig = AppConfig.shared
     @StateObject private var logger = AppLogger.shared
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
     @State private var selectedTab: NavigationTab = .home
-    @StateObject private var windowManager = WindowManager()
+    private let windowManager = HiWindowGuyApp.sharedWindowManager
     
     var body: some Scene {
         Window("HiWindowGuy", id: "mainWindow") {
             ContentView(
                 selectedTab: $selectedTab,
-                isWindowManagementEnabled: $isWindowManagementEnabled
+                isWindowManagementEnabled: windowManagementBinding
             )
                 .environmentObject(appConfig)
                 .environmentObject(logger)
@@ -32,15 +34,7 @@ struct HiWindowGuyApp: App {
                         if !windowManager.checkAccessibilityPermission() {
                             windowManager.showAccessibilityPermissionAlert()
                         }
-
-                        applyWindowManagementState(
-                            isWindowManagementEnabled,
-                            source: "启动同步"
-                        )
                     }
-                }
-                .onChange(of: isWindowManagementEnabled) { newValue in
-                    applyWindowManagementState(newValue, source: "状态变更")
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -61,7 +55,7 @@ struct HiWindowGuyApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 
-                Toggle("启用窗口管理", isOn: $isWindowManagementEnabled)
+                Toggle("启用窗口管理", isOn: windowManagementBinding)
                     .keyboardShortcut("e", modifiers: [.command, .option])
             }
             
@@ -91,7 +85,7 @@ struct HiWindowGuyApp: App {
             
             Divider()
             
-            Toggle("启用窗口管理", isOn: $isWindowManagementEnabled)
+            Toggle("启用窗口管理", isOn: windowManagementBinding)
             
             Divider()
             
@@ -133,13 +127,27 @@ struct HiWindowGuyApp: App {
         }
     }
 
-    private func applyWindowManagementState(_ isEnabled: Bool, source: String) {
+    private var windowManagementBinding: Binding<Bool> {
+        Binding(
+            get: { isWindowManagementEnabled },
+            set: { newValue in
+                guard newValue != isWindowManagementEnabled else {
+                    return
+                }
+
+                isWindowManagementEnabled = newValue
+                Self.applyWindowManagementState(newValue, source: "状态变更")
+            }
+        )
+    }
+
+    private static func applyWindowManagementState(_ isEnabled: Bool, source: String) {
         if isEnabled {
-            logger.log("\(source): 启用窗口管理", level: .info)
-            windowManager.startMonitoring()
+            AppLogger.shared.log("\(source): 启用窗口管理", level: .info)
+            sharedWindowManager.startMonitoring()
         } else {
-            logger.log("\(source): 停用窗口管理", level: .info)
-            windowManager.stopMonitoring()
+            AppLogger.shared.log("\(source): 停用窗口管理", level: .info)
+            sharedWindowManager.stopMonitoring()
         }
     }
     
@@ -174,6 +182,7 @@ struct HiWindowGuyApp: App {
         // 应用启动完成的记录（原来在 AppDelegate 中的逻辑）
         NotificationCenter.default.addObserver(forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main) { _ in
             AppLogger.shared.log("应用启动完成", level: .info)
+            Self.applyWindowManagementState(true, source: "启动同步")
         }
         
         // 应用退出的记录（原来在 AppDelegate 中的逻辑）

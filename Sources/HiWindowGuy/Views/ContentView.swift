@@ -3,7 +3,6 @@ import SwiftUI
 struct ContentView: View {
     @Binding var selectedTab: NavigationTab
     @Binding var isWindowManagementEnabled: Bool
-    @State private var selectedSection = 0
     @Environment(\.colorScheme) private var colorScheme
     
     // 定义导航项
@@ -48,10 +47,10 @@ struct ContentView: View {
                 Color(NSColor.windowBackgroundColor)
         )
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showRulesConfig"))) { _ in
-            selectedSection = NavigationSection.rules.rawValue
+            selectedTab = .rules
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showLogs"))) { _ in
-            selectedSection = NavigationSection.logs.rawValue
+            selectedTab = .logs
         }
     }
     
@@ -75,15 +74,17 @@ struct ContentView: View {
                 .padding(.horizontal, 20)
             
             // 导航菜单
-            List(selection: $selectedSection) {
-                    ForEach(NavigationSection.allCases) { section in
+            List(selection: selectedSectionBinding) {
+                ForEach(NavigationSection.allCases) { section in
                     navigationLink(for: section)
-                        .listRowBackground(selectedSection == section.rawValue ? 
-                                          AnyView(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.blue.opacity(0.2))
-                                          ) : 
-                                          AnyView(Color.clear))
+                        .listRowBackground(
+                            currentSection == section ?
+                                AnyView(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.blue.opacity(0.2))
+                                ) :
+                                AnyView(Color.clear)
+                        )
                 }
             }
             .listStyle(.sidebar)
@@ -111,19 +112,6 @@ struct ContentView: View {
                 Color(NSColor.controlBackgroundColor).opacity(0.7) : 
                 Color(NSColor.controlBackgroundColor).opacity(0.5)
         )
-            .onChange(of: selectedSection) { newValue in
-                // 根据选择的部分更新标签
-                switch newValue {
-                case NavigationSection.home.rawValue:
-                    selectedTab = .home
-                case NavigationSection.rules.rawValue:
-                    selectedTab = .rules
-                case NavigationSection.logs.rawValue:
-                    selectedTab = .logs
-                default:
-                    break
-                }
-        }
     }
     
     // 导航链接项
@@ -131,12 +119,12 @@ struct ContentView: View {
         HStack(spacing: 12) {
             Image(systemName: section.icon)
                 .font(.system(size: 14))
-                .foregroundStyle(selectedSection == section.rawValue ? .blue : .secondary)
+                .foregroundStyle(currentSection == section ? .blue : .secondary)
                 .frame(width: 20, height: 20)
             
             Text(section.title)
                 .font(.subheadline)
-                .foregroundStyle(selectedSection == section.rawValue ? .primary : .secondary)
+                .foregroundStyle(currentSection == section ? .primary : .secondary)
             
             Spacer()
         }
@@ -159,4 +147,45 @@ struct ContentView: View {
                 }
             }
         }
+
+    private var currentSection: NavigationSection {
+        NavigationSection(tab: selectedTab)
+    }
+
+    private var selectedSectionBinding: Binding<Int> {
+        Binding(
+            get: { currentSection.rawValue },
+            set: { newValue in
+                guard let section = NavigationSection(rawValue: newValue) else {
+                    return
+                }
+
+                selectedTab = section.tab
+            }
+        )
+    }
+}
+
+private extension ContentView.NavigationSection {
+    init(tab: NavigationTab) {
+        switch tab {
+        case .home:
+            self = .home
+        case .rules:
+            self = .rules
+        case .logs:
+            self = .logs
+        }
+    }
+
+    var tab: NavigationTab {
+        switch self {
+        case .home:
+            return .home
+        case .rules:
+            return .rules
+        case .logs:
+            return .logs
+        }
+    }
 }
