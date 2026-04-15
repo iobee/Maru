@@ -16,7 +16,10 @@ struct HiWindowGuyApp: App {
     
     var body: some Scene {
         Window("HiWindowGuy", id: "mainWindow") {
-            ContentView(selectedTab: $selectedTab)
+            ContentView(
+                selectedTab: $selectedTab,
+                isWindowManagementEnabled: $isWindowManagementEnabled
+            )
                 .environmentObject(appConfig)
                 .environmentObject(logger)
                 .background(Color(NSColor.windowBackgroundColor))
@@ -29,16 +32,15 @@ struct HiWindowGuyApp: App {
                         if !windowManager.checkAccessibilityPermission() {
                             windowManager.showAccessibilityPermissionAlert()
                         }
-                        
-                        // 根据当前配置决定是否启用窗口监控
-                        if isWindowManagementEnabled {
-                            logger.log("根据配置启用窗口管理", level: .info)
-                            windowManager.startMonitoring()
-                        } else {
-                            logger.log("根据配置停用窗口管理", level: .info)
-                            windowManager.stopMonitoring()
-                        }
+
+                        applyWindowManagementState(
+                            isWindowManagementEnabled,
+                            source: "启动同步"
+                        )
                     }
+                }
+                .onChange(of: isWindowManagementEnabled) { newValue in
+                    applyWindowManagementState(newValue, source: "状态变更")
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -61,15 +63,6 @@ struct HiWindowGuyApp: App {
                 
                 Toggle("启用窗口管理", isOn: $isWindowManagementEnabled)
                     .keyboardShortcut("e", modifiers: [.command, .option])
-                    .onChange(of: isWindowManagementEnabled) { newValue in
-                        if newValue {
-                            logger.log("从菜单栏启用窗口管理", level: .info)
-                            windowManager.startMonitoring()
-                        } else {
-                            logger.log("从菜单栏停用窗口管理", level: .info)
-                            windowManager.stopMonitoring()
-                        }
-                    }
             }
             
             CommandMenu("窗口管理") {
@@ -99,15 +92,6 @@ struct HiWindowGuyApp: App {
             Divider()
             
             Toggle("启用窗口管理", isOn: $isWindowManagementEnabled)
-                .onChange(of: isWindowManagementEnabled) { newValue in
-                    if newValue {
-                        logger.log("窗口管理已启用", level: .info)
-                        windowManager.startMonitoring()
-                    } else {
-                        logger.log("窗口管理已停用", level: .info)
-                        windowManager.stopMonitoring()
-                    }
-                }
             
             Divider()
             
@@ -146,6 +130,16 @@ struct HiWindowGuyApp: App {
                 window.styleMask.insert(.fullSizeContentView)
                 logger.log("配置新窗口: \(window.title)", level: .info)
             }
+        }
+    }
+
+    private func applyWindowManagementState(_ isEnabled: Bool, source: String) {
+        if isEnabled {
+            logger.log("\(source): 启用窗口管理", level: .info)
+            windowManager.startMonitoring()
+        } else {
+            logger.log("\(source): 停用窗口管理", level: .info)
+            windowManager.stopMonitoring()
         }
     }
     

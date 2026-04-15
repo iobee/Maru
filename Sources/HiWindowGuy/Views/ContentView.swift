@@ -1,15 +1,9 @@
 import SwiftUI
-import Foundation
-import AppKit
-import OSLog
 
 struct ContentView: View {
     @Binding var selectedTab: NavigationTab
-    @EnvironmentObject var appConfig: AppConfig
-    @State private var isRunning = true
+    @Binding var isWindowManagementEnabled: Bool
     @State private var selectedSection = 0
-    @EnvironmentObject var appLogger: AppLogger
-    @StateObject private var windowManager = WindowManager()
     @Environment(\.colorScheme) private var colorScheme
     
     // 定义导航项
@@ -38,15 +32,13 @@ struct ContentView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // 侧边栏导航
-                sidebarView
-                    .frame(width: 220)
-                
-                // 主内容区域
-                mainContentView
-            }
+        HStack(spacing: 0) {
+            // 侧边栏导航
+            sidebarView
+                .frame(width: 220)
+            
+            // 主内容区域
+            mainContentView
         }
         .frame(minWidth: 800, idealWidth: 900, maxWidth: .infinity, 
                minHeight: 500, idealHeight: 600, maxHeight: .infinity)
@@ -103,9 +95,9 @@ struct ContentView: View {
             // 底部状态指示器
             HStack {
                 Circle()
-                    .fill(isRunning ? Color.green : Color.red)
+                    .fill(isWindowManagementEnabled ? Color.green : Color.red)
                     .frame(width: 10, height: 10)
-                Text(isRunning ? "已启用" : "已停用")
+                Text(isWindowManagementEnabled ? "已启用" : "已停用")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
@@ -159,7 +151,7 @@ struct ContentView: View {
             Group {
                 switch selectedTab {
                 case .home:
-                    homeView
+                    HomeDashboardView(isWindowManagementEnabled: $isWindowManagementEnabled)
                 case .rules:
                     RuleConfigView()
                 case .logs:
@@ -167,218 +159,4 @@ struct ContentView: View {
                 }
             }
         }
-    
-    // 主页内容
-    private var homeView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 30) {
-                // 标题部分
-                HStack(spacing: 0) {
-                    Image(systemName: "house.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.blue)
-                        .frame(width: 40, height: 40)
-                        .background(Color.blue.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        
-                    VStack(alignment: .leading, spacing: 4) {
-                    Text("窗口管理")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(.primary)
-                            
-                        Text("管理和控制窗口尺寸和位置")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.leading, 12)
-                    
-                    Spacer()
-                }
-                .padding(.bottom, 10)
-                
-                // 设置卡片
-                settingsCard
-                
-                // 窗口缩放设置卡片
-                scaleFactorCard
-                
-                // 统计卡片
-                statsView
-                
-                Spacer()
-                }
-            .padding(30)
-        }
-        .background(Color.clear)
-    }
-    
-    // 开关设置卡片
-    private var settingsCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("窗口管理")
-                        .font(.headline)
-                                .fontWeight(.semibold)
-                            
-                            Text("自动调整窗口大小和位置")
-                                .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        }
-                .padding(.leading, 4)
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $isRunning)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    .scaleEffect(1.1)
-                            .onChange(of: isRunning) { newValue in
-                                if newValue {
-                                    appLogger.log("窗口管理已启用", level: .info)
-                                } else {
-                                    appLogger.log("窗口管理已停用", level: .info)
-                                }
-                            }
-                    }
-        }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Material.regularMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-        )
-    }
-    
-    // 窗口缩放设置卡片
-    private var scaleFactorCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
-                        HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                                Text("窗口缩放比例")
-                        .font(.headline)
-                                    .fontWeight(.semibold)
-                                
-                                Text("控制「几乎最大化」时窗口的大小")
-                                    .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                            }
-                .padding(.leading, 4)
-                            
-                            Spacer()
-                            
-                            Text("\(Int(appConfig.windowScaleFactor * 100))%")
-                    .font(.system(.headline, design: .rounded))
-                    .foregroundStyle(.blue)
-                                .monospacedDigit()
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.blue.opacity(0.1))
-                    )
-                        }
-                        
-            VStack(spacing: 10) {
-                HStack {
-                    Image(systemName: "rectangle.compress.vertical")
-                        .foregroundStyle(.secondary)
-                    
-                            Slider(
-                                value: $appConfig.windowScaleFactor,
-                                in: 0.7...0.97,
-                                step: 0.01
-                            )
-                    .tint(.blue)
-                    
-                    Image(systemName: "rectangle.expand.vertical")
-                        .foregroundStyle(.secondary)
-                }
-                            
-                            HStack {
-                                Text("更紧凑")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Spacer()
-                                
-                                Text("更宽敞")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 4)
-                        }
-                    }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Material.regularMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-        )
-                }
-                
-    // 统计数据视图
-    private var statsView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-                    Text("应用统计")
-                        .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.leading, 4)
-                    
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        statCard(title: "已记录应用", count: appConfig.appRules.count, icon: "app.badge", color: .purple)
-                        
-                        statCard(title: "居中处理", 
-                                count: appConfig.appRules.filter { $0.rule == .center }.count,
-                                icon: "rectangle.center.inset.filled", 
-                                color: .blue)
-                        
-                        statCard(title: "几乎最大化", 
-                                count: appConfig.appRules.filter { $0.rule == .almostMaximize }.count,
-                                icon: "rectangle.inset.filled", 
-                                color: .green)
-                        
-                        statCard(title: "忽略处理", 
-                                count: appConfig.appRules.filter { $0.rule == .ignore }.count,
-                                icon: "eye.slash.fill", 
-                                color: .gray)
-                    }
-                }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Material.regularMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-        )
-    }
-    
-    // 统计卡片
-    private func statCard(title: String, count: Int, icon: String, color: Color) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(color)
-                .frame(width: 38, height: 38)
-                .background(color.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
-                Text("\(count)")
-                    .font(.system(.title3, design: .rounded))
-                    .fontWeight(.bold)
-                    .foregroundStyle(color)
-            }
-            
-            Spacer()
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Material.ultraThinMaterial)
-        )
-    }
-} 
+}
