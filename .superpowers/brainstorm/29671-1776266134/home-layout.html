@@ -1,0 +1,335 @@
+<style>
+  .intro {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 18px;
+    margin-bottom: 24px;
+  }
+  .panel {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.03);
+    padding: 18px 20px;
+  }
+  .panel p {
+    color: rgba(255,255,255,0.76);
+    line-height: 1.7;
+    margin: 0;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #b7f7d8;
+    background: rgba(31, 143, 88, 0.18);
+    border: 1px solid rgba(63, 185, 80, 0.22);
+  }
+  .preview {
+    height: 290px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+      radial-gradient(circle at top left, rgba(103,170,255,0.12), transparent 36%),
+      linear-gradient(180deg, #111416 0%, #0d1012 100%);
+  }
+  .chrome {
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.2);
+  }
+  .canvas {
+    display: grid;
+    grid-template-columns: 82px 1fr;
+    min-height: 264px;
+  }
+  .sidebar {
+    border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .side-item {
+    height: 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.1);
+  }
+  .side-item.active {
+    background: linear-gradient(90deg, rgba(121,194,255,0.9), rgba(82,142,255,0.95));
+  }
+  .main {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .glass {
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .solid {
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.04);
+  }
+  .hero {
+    height: 86px;
+    padding: 14px;
+  }
+  .hero-lines {
+    width: 60%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    margin-bottom: 10px;
+  }
+  .hero-lines.small {
+    width: 36%;
+    opacity: 0.8;
+  }
+  .switch {
+    width: 54px;
+    height: 30px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2476ff, #7ab1ff);
+    margin-left: auto;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .box {
+    height: 56px;
+    border-radius: 16px;
+  }
+  .slider {
+    height: 92px;
+    padding: 14px;
+    position: relative;
+  }
+  .track {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 48px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+  }
+  .fill {
+    width: 76%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4ba1ff, #78b7ff);
+  }
+  .knob {
+    position: absolute;
+    right: 22%;
+    top: 39px;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #e7efff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  .summary {
+    height: 56px;
+    padding: 0 14px;
+    display: grid;
+    align-items: center;
+  }
+  .summary-strip {
+    height: 56px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .summary-chip {
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+  }
+  .split {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 12px;
+  }
+  .column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card-body p {
+    min-height: 44px;
+  }
+</style>
+
+<h2>首页结构方向</h2>
+<p class="subtitle">目标固定为：主控制面板优先，统计仅作为低优先级摘要。现在只选“版式”，不纠结具体视觉细节。</p>
+
+<div class="intro">
+  <div class="panel">
+    <div class="label">推荐方向</div>
+    <h3>我建议选 A</h3>
+    <p>A 最像一个成熟的 macOS 控制面板：开关是主角，缩放是第二主角，统计退成摘要，不会再像一页网页 dashboard。</p>
+    <div class="badge">Recommended</div>
+  </div>
+  <div class="panel">
+    <div class="label">判断标准</div>
+    <p>不要只看“哪张更丰富”，而要看哪张更像你每天会打开的工具。这个首页应该让人 2 秒内明白当前状态，并且愿意停下来改设置。</p>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="preview">
+        <div class="chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="canvas">
+          <div class="sidebar">
+            <div class="side-item active"></div>
+            <div class="side-item"></div>
+            <div class="side-item"></div>
+          </div>
+          <div class="main">
+            <div class="glass hero">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="flex:1;">
+                  <div class="hero-lines"></div>
+                  <div class="hero-lines small"></div>
+                </div>
+                <div class="switch"></div>
+              </div>
+            </div>
+            <div class="solid slider">
+              <div class="hero-lines" style="width:42%;margin-bottom:14px;"></div>
+              <div class="track"><div class="fill"></div></div>
+              <div class="knob"></div>
+            </div>
+            <div class="solid summary-strip">
+              <div class="summary-chip"></div>
+              <div class="summary-chip"></div>
+              <div class="summary-chip"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Hero Control</h3>
+      <p>顶部一个明确的主控制卡，下面是缩放控制，再下面是一条淡化统计摘要。主次最清楚。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>最专业</li><li>最符合工具定位</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>会比现在更克制</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="preview">
+        <div class="chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="canvas">
+          <div class="sidebar">
+            <div class="side-item active"></div>
+            <div class="side-item"></div>
+            <div class="side-item"></div>
+          </div>
+          <div class="main">
+            <div class="solid summary" style="height:52px;"></div>
+            <div class="glass hero" style="height:76px;">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="flex:1;">
+                  <div class="hero-lines"></div>
+                  <div class="hero-lines small"></div>
+                </div>
+                <div class="switch"></div>
+              </div>
+            </div>
+            <div class="solid slider"></div>
+            <div class="row">
+              <div class="box solid"></div>
+              <div class="box solid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Command Stack</h3>
+      <p>信息按模块一层层往下排，摘要先出现，控制区随后展开。更温和，但主角没有 A 那么强。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>更完整</li><li>适合后续扩展</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>控制感稍弱</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="preview">
+        <div class="chrome"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="canvas">
+          <div class="sidebar">
+            <div class="side-item active"></div>
+            <div class="side-item"></div>
+            <div class="side-item"></div>
+          </div>
+          <div class="main">
+            <div class="split">
+              <div class="glass hero" style="height:160px;">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                  <div style="flex:1;">
+                    <div class="hero-lines" style="width:74%;"></div>
+                    <div class="hero-lines small" style="width:44%;"></div>
+                  </div>
+                  <div class="switch"></div>
+                </div>
+              </div>
+              <div class="column">
+                <div class="solid slider" style="height:102px;"></div>
+                <div class="solid box"></div>
+              </div>
+            </div>
+            <div class="solid summary-strip">
+              <div class="summary-chip"></div>
+              <div class="summary-chip"></div>
+              <div class="summary-chip"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Split Control</h3>
+      <p>更像专业软件首页，左右分栏更强。但对当前内容量来说略微有点“架子太大”。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>成熟感强</li><li>可视平衡好</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>对当前功能略显过度设计</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
