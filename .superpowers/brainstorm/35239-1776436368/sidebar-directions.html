@@ -1,0 +1,283 @@
+<style>
+  .intro {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+  .panel {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.03);
+    padding: 18px 20px;
+  }
+  .panel p {
+    margin: 0;
+    color: rgba(255,255,255,0.76);
+    line-height: 1.7;
+  }
+  .tag {
+    display: inline-flex;
+    margin-top: 12px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #dcecff;
+    background: rgba(43, 117, 255, 0.16);
+    border: 1px solid rgba(87, 157, 255, 0.18);
+  }
+  .sidebar-shot {
+    min-height: 345px;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, #18191b 0%, #121315 100%);
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+  }
+  .shot-top {
+    padding: 18px 18px 14px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: rgba(255,255,255,0.9);
+  }
+  .brand-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    border: 2px solid #3391ff;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .brand-icon::before,
+  .brand-icon::after {
+    content: "";
+    position: absolute;
+    background: #3391ff;
+  }
+  .brand-icon::before {
+    left: 50%;
+    top: 2px;
+    width: 2px;
+    height: 16px;
+    transform: translateX(-50%);
+  }
+  .brand-icon::after {
+    top: 50%;
+    left: 2px;
+    height: 2px;
+    width: 16px;
+    transform: translateY(-50%);
+  }
+  .brand-name {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .separator {
+    height: 1px;
+    margin: 0 18px 10px;
+    background: rgba(255,255,255,0.10);
+  }
+  .nav-list {
+    padding: 0 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .item {
+    height: 52px;
+    border-radius: 16px;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    color: rgba(255,255,255,0.66);
+    background: transparent;
+  }
+  .glyph {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.12);
+    opacity: 0.9;
+  }
+  .label {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .footer {
+    padding: 0 18px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.52);
+    font-size: 13px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #36d27e;
+  }
+
+  .shot-a .brand-name {
+    font-size: 15px;
+    font-weight: 680;
+  }
+  .shot-a .separator {
+    margin-bottom: 12px;
+  }
+  .shot-a .item.active {
+    background: rgba(71, 140, 255, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(106, 168, 255, 0.18);
+    color: rgba(255,255,255,0.94);
+  }
+  .shot-a .item.active .glyph {
+    background: linear-gradient(180deg, #4da4ff, #2d7eff);
+  }
+
+  .shot-b .shot-top {
+    padding-top: 22px;
+  }
+  .shot-b .item {
+    height: 48px;
+    border-radius: 999px;
+  }
+  .shot-b .item.active {
+    background: linear-gradient(90deg, rgba(48, 126, 255, 0.95), rgba(33, 103, 222, 0.92));
+    color: white;
+  }
+  .shot-b .item.active .glyph {
+    background: rgba(255,255,255,0.18);
+  }
+
+  .shot-c {
+    background: linear-gradient(180deg, #17181a 0%, #111214 100%);
+  }
+  .shot-c .brand {
+    gap: 10px;
+  }
+  .shot-c .brand-name {
+    font-size: 14px;
+    font-weight: 620;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+  .shot-c .separator {
+    opacity: 0.5;
+  }
+  .shot-c .item {
+    height: 44px;
+    border-radius: 12px;
+    padding-left: 10px;
+    grid-template-columns: 28px 1fr;
+  }
+  .shot-c .item.active {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.92);
+  }
+  .shot-c .item.active::before {
+    content: "";
+    width: 3px;
+    height: 20px;
+    border-radius: 999px;
+    background: #4c98ff;
+    position: absolute;
+    margin-left: -10px;
+  }
+</style>
+
+<h2>左侧栏方向</h2>
+<p class="subtitle">你已经认可首页主体风格，所以这一轮只判断左栏该往哪种气质收。我的判断是：现在的问题主要不是“颜色不对”，而是选中态太像网页按钮，品牌区也偏重。</p>
+
+<div class="intro">
+  <div class="panel">
+    <div class="label">当前症结</div>
+    <p>左栏现在最出戏的点，是那块大号亮蓝选中胶囊。它和右侧主内容的克制感不在一个语言系统里，看起来更像网页导航，而不是 macOS 工具的侧边栏。</p>
+    <div class="tag">推荐优先看 A</div>
+  </div>
+  <div class="panel">
+    <div class="label">这一轮只判断一件事</div>
+    <p>你更想让左栏成为“安静的系统导航”，还是“稍微有产品感的品牌导航”。先定这个，后面我再收紧字重、间距、选中态细节。</p>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="sidebar-shot shot-a">
+        <div class="shot-top">
+          <div class="brand">
+            <div class="brand-icon"></div>
+            <div class="brand-name">Hi Window Guy</div>
+          </div>
+        </div>
+        <div class="separator"></div>
+        <div class="nav-list">
+          <div class="item active"><div class="glyph"></div><div class="label">常规</div></div>
+          <div class="item"><div class="glyph"></div><div class="label">应用规则</div></div>
+          <div class="item"><div class="glyph"></div><div class="label">日志</div></div>
+        </div>
+        <div class="footer"><div class="status-dot"></div><span>已启用</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Native Quiet</h3>
+      <p>更像成熟 macOS 工具。选中态变轻，品牌区收敛，导航本身退到背景。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="sidebar-shot shot-b">
+        <div class="shot-top">
+          <div class="brand">
+            <div class="brand-icon"></div>
+            <div class="brand-name">Hi Window Guy</div>
+          </div>
+        </div>
+        <div class="separator"></div>
+        <div class="nav-list">
+          <div class="item active"><div class="glyph"></div><div class="label">常规</div></div>
+          <div class="item"><div class="glyph"></div><div class="label">应用规则</div></div>
+          <div class="item"><div class="glyph"></div><div class="label">日志</div></div>
+        </div>
+        <div class="footer"><div class="status-dot"></div><span>已启用</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Product Rail</h3>
+      <p>保留一点产品感，但把现在的大蓝块收紧成更干净的胶囊导航。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="sidebar-shot shot-c">
+        <div class="shot-top">
+          <div class="brand">
+            <div class="brand-icon"></div>
+            <div class="brand-name">Window Guy</div>
+          </div>
+        </div>
+        <div class="separator"></div>
+        <div class="nav-list">
+          <div class="item active"><div class="glyph"></div><div class="label">常规</div></div>
+          <div class="item"><div class="glyph"></div><div class="label">应用规则</div></div>
+          <div class="item"><div class="glyph"></div><div class="label">日志</div></div>
+        </div>
+        <div class="footer"><div class="status-dot"></div><span>已启用</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Minimal Panel</h3>
+      <p>更冷、更硬，像专业工具栏。完成度高，但会比首页主体更“技术向”。</p>
+    </div>
+  </div>
+</div>
