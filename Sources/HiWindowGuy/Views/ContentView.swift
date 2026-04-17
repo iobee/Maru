@@ -34,7 +34,7 @@ struct ContentView: View {
         HStack(spacing: 0) {
             // 侧边栏导航
             sidebarView
-                .frame(width: 220)
+                .frame(width: sidebarWidth)
             
             // 主内容区域
             mainContentView
@@ -56,85 +56,149 @@ struct ContentView: View {
     
     // 侧边栏视图
     private var sidebarView: some View {
-        VStack(spacing: 0) {
-            // 应用标题和图标
-            HStack {
-                Image(systemName: "window.vertical.closed")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.blue)
-                Text("Hi Window Guy")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Spacer()
+        ZStack(alignment: .topLeading) {
+            sidebarContainerBackground
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                sidebarBrandHeader
+                sidebarDivider
+                sidebarNavigationContent
+                Spacer(minLength: 0)
+                sidebarStatusFooter
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
-            
-            Divider()
-                .padding(.horizontal, 20)
-            
-            // 导航菜单
-            List(selection: selectedSectionBinding) {
-                ForEach(NavigationSection.allCases) { section in
-                    navigationLink(for: section)
-                        .listRowBackground(
-                            currentSection == section ?
-                                AnyView(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.blue.opacity(0.2))
-                                ) :
-                                AnyView(Color.clear)
-                        )
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            
-            Spacer()
-            
-            // 底部状态指示器
-            HStack {
-                Circle()
-                    .fill(isWindowManagementEnabled ? Color.green : Color.red)
-                    .frame(width: 10, height: 10)
-                Text(isWindowManagementEnabled ? "已启用" : "已停用")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.top, sidebarTopPadding)
+            .padding(.bottom, sidebarBottomPadding)
+            .padding(.horizontal, sidebarHorizontalPadding)
         }
-        .background(
-            colorScheme == .dark ? 
-                Color(NSColor.controlBackgroundColor).opacity(0.7) : 
-                Color(NSColor.controlBackgroundColor).opacity(0.5)
-        )
     }
     
-    // 导航链接项
-    private func navigationLink(for section: NavigationSection) -> some View {
+    private var sidebarBrandHeader: some View {
         HStack(spacing: 12) {
-            Image(systemName: section.icon)
-                .font(.system(size: 14))
-                .foregroundStyle(currentSection == section ? .blue : .secondary)
-                .frame(width: 20, height: 20)
-            
-            Text(section.title)
-                .font(.subheadline)
-                .foregroundStyle(currentSection == section ? .primary : .secondary)
-            
-            Spacer()
+            sidebarBrandIcon
+
+            Text("Hi Window Guy")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .contentShape(Rectangle())
-        .tag(section.rawValue)
+        .padding(.vertical, 10)
+    }
+
+    private var sidebarDivider: some View {
+        Divider()
+            .overlay(Color.white.opacity(0.08))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+    }
+
+    private var sidebarNavigationContent: some View {
+        VStack(spacing: 6) {
+            ForEach(NavigationSection.allCases) { section in
+                sidebarRow(for: section)
             }
-            
-            // 主内容区域
+        }
+        .padding(.top, 8)
+    }
+
+    private var sidebarStatusFooter: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(isWindowManagementEnabled ? Color.green : Color.secondary.opacity(0.5))
+                .frame(width: 8, height: 8)
+
+            Text(isWindowManagementEnabled ? "已启用" : "已停用")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 14)
+    }
+
+    private var sidebarBrandIcon: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.12))
+            .overlay(
+                Image(systemName: "window.vertical.closed")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            )
+            .frame(width: 38, height: 38)
+    }
+
+    private var sidebarContainerBackground: some View {
+        SidebarVisualEffectBackground()
+            .overlay(
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    Rectangle()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.16))
+                        .frame(width: 1)
+                }
+            )
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.16 : 0.06),
+                radius: 14,
+                x: 0,
+                y: 0
+            )
+    }
+
+    private func sidebarRow(for section: NavigationSection) -> some View {
+        Button {
+            selectedSectionBinding.wrappedValue = section.rawValue
+        } label: {
+            HStack(spacing: 12) {
+                sidebarRowIcon(for: section)
+
+                Text(section.title)
+                    .font(.system(size: 15, weight: currentSection == section ? .semibold : .medium))
+                    .foregroundStyle(currentSection == section ? Color.white : Color.primary)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 46, maxHeight: 46, alignment: .leading)
+            .background(sidebarSelectionBackground(for: section))
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sidebarRowIcon(for section: NavigationSection) -> some View {
+        Image(systemName: section.icon)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(currentSection == section ? Color.white : Color.secondary)
+            .frame(width: 24, height: 24)
+            .background(sidebarRowIconPlate(for: section))
+    }
+
+    private func sidebarRowIconPlate(for section: NavigationSection) -> some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(currentSection == section ? Color.white.opacity(0.18) : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.45))
+    }
+
+    private func sidebarSelectionBackground(for section: NavigationSection) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(currentSection == section ? Color(nsColor: .systemBlue) : Color.clear)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.white.opacity(currentSection == section ? 0.12 : 0), lineWidth: 0.8)
+            )
+    }
+
+    private var sidebarWidth: CGFloat { 248 }
+    private var sidebarHorizontalPadding: CGFloat { 14 }
+    private var sidebarTopPadding: CGFloat { 20 }
+    private var sidebarBottomPadding: CGFloat { 14 }
+
+    // 主内容区域
     private var mainContentView: some View {
             Group {
                 switch selectedTab {
