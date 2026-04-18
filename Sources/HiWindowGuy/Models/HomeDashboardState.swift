@@ -28,19 +28,22 @@ struct HomeDashboardState {
     let windowScaleFactor: Double
     let manualCenterShortcut: ShortcutBinding?
     let manualAlmostMaximizeShortcut: ShortcutBinding?
+    let manualMoveToNextDisplayShortcut: ShortcutBinding?
 
     init(
         appRules: [AppRule],
         isEnabled: Bool,
         windowScaleFactor: Double,
         manualCenterShortcut: ShortcutBinding? = nil,
-        manualAlmostMaximizeShortcut: ShortcutBinding? = nil
+        manualAlmostMaximizeShortcut: ShortcutBinding? = nil,
+        manualMoveToNextDisplayShortcut: ShortcutBinding? = nil
     ) {
         self.appRules = appRules
         self.isEnabled = isEnabled
         self.windowScaleFactor = windowScaleFactor
         self.manualCenterShortcut = manualCenterShortcut
         self.manualAlmostMaximizeShortcut = manualAlmostMaximizeShortcut
+        self.manualMoveToNextDisplayShortcut = manualMoveToNextDisplayShortcut
     }
 
     var statusTitle: String {
@@ -117,6 +120,12 @@ struct HomeDashboardState {
                 title: ManualWindowAction.almostMaximize.label,
                 currentBinding: manualAlmostMaximizeShortcut,
                 defaultBinding: ManualWindowAction.almostMaximize.defaultShortcut
+            ),
+            ManualShortcutItem(
+                action: .moveToNextDisplay,
+                title: ManualWindowAction.moveToNextDisplay.label,
+                currentBinding: manualMoveToNextDisplayShortcut,
+                defaultBinding: ManualWindowAction.moveToNextDisplay.defaultShortcut
             )
         ]
     }
@@ -127,6 +136,8 @@ struct HomeDashboardState {
             return manualShortcutItems[0]
         case .almostMaximize:
             return manualShortcutItems[1]
+        case .moveToNextDisplay:
+            return manualShortcutItems[2]
         }
     }
 

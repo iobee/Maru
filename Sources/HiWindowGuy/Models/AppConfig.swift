@@ -39,6 +39,7 @@ class AppConfig: ObservableObject {
     // 手动窗口快捷键
     @Published private(set) var manualCenterShortcut: ShortcutBinding? = ManualWindowAction.center.defaultShortcut
     @Published private(set) var manualAlmostMaximizeShortcut: ShortcutBinding? = ManualWindowAction.almostMaximize.defaultShortcut
+    @Published private(set) var manualMoveToNextDisplayShortcut: ShortcutBinding? = ManualWindowAction.moveToNextDisplay.defaultShortcut
     
     // 窗口缩放比例 (0.0-1.0)，控制几乎最大化时窗口的大小
     @Published var windowScaleFactor: Double = 0.92 {
@@ -94,7 +95,8 @@ class AppConfig: ObservableObject {
                 "windowScaleFactor": windowScaleFactor,
                 "logLevel": logLevel.rawValue,
                 "manualCenterShortcut": manualCenterShortcut?.asJSONObject() ?? NSNull(),
-                "manualAlmostMaximizeShortcut": manualAlmostMaximizeShortcut?.asJSONObject() ?? NSNull()
+                "manualAlmostMaximizeShortcut": manualAlmostMaximizeShortcut?.asJSONObject() ?? NSNull(),
+                "manualMoveToNextDisplayShortcut": manualMoveToNextDisplayShortcut?.asJSONObject() ?? NSNull()
             ]
             
             // 转换为JSON
@@ -134,12 +136,18 @@ class AppConfig: ObservableObject {
                         from: configData["manualAlmostMaximizeShortcut"],
                         defaultShortcut: ManualWindowAction.almostMaximize.defaultShortcut
                     )
+                    let loadedMoveToNextDisplayShortcut = Self.loadManualShortcut(
+                        from: configData["manualMoveToNextDisplayShortcut"],
+                        defaultShortcut: ManualWindowAction.moveToNextDisplay.defaultShortcut
+                    )
                     let normalizedShortcuts = Self.normalizedManualShortcuts(
                         center: loadedCenterShortcut,
-                        almostMaximize: loadedAlmostMaximizeShortcut
+                        almostMaximize: loadedAlmostMaximizeShortcut,
+                        moveToNextDisplay: loadedMoveToNextDisplayShortcut
                     )
                     manualCenterShortcut = normalizedShortcuts.center
                     manualAlmostMaximizeShortcut = normalizedShortcuts.almostMaximize
+                    manualMoveToNextDisplayShortcut = normalizedShortcuts.moveToNextDisplay
                     
                     AppLogger.shared.log("一般配置已加载", level: .debug)
                 }
@@ -190,14 +198,35 @@ class AppConfig: ObservableObject {
 
     private static func normalizedManualShortcuts(
         center: ShortcutBinding?,
-        almostMaximize: ShortcutBinding?
-    ) -> (center: ShortcutBinding?, almostMaximize: ShortcutBinding?) {
-        guard let center, let almostMaximize, center == almostMaximize else {
-            return (center, almostMaximize)
+        almostMaximize: ShortcutBinding?,
+        moveToNextDisplay: ShortcutBinding?
+    ) -> (center: ShortcutBinding?, almostMaximize: ShortcutBinding?, moveToNextDisplay: ShortcutBinding?) {
+        let normalizedCenter = center
+        var normalizedAlmostMaximize = almostMaximize
+        var normalizedMoveToNextDisplay = moveToNextDisplay
+
+        if let centerBinding = normalizedCenter,
+           let almostMaximizeBinding = normalizedAlmostMaximize,
+           centerBinding == almostMaximizeBinding {
+            AppLogger.shared.log("加载的快捷键存在重复，已保留居中快捷键并清除几乎最大化快捷键", level: .warning)
+            normalizedAlmostMaximize = nil
         }
 
-        AppLogger.shared.log("加载的快捷键存在重复，已保留居中快捷键并清除几乎最大化快捷键", level: .warning)
-        return (center, nil)
+        if let centerBinding = normalizedCenter,
+           let moveBinding = normalizedMoveToNextDisplay,
+           centerBinding == moveBinding {
+            AppLogger.shared.log("加载的快捷键存在重复，已保留居中快捷键并清除下一显示器快捷键", level: .warning)
+            normalizedMoveToNextDisplay = nil
+        }
+
+        if let almostMaximizeBinding = normalizedAlmostMaximize,
+           let moveBinding = normalizedMoveToNextDisplay,
+           almostMaximizeBinding == moveBinding {
+            AppLogger.shared.log("加载的快捷键存在重复，已保留几乎最大化快捷键并清除下一显示器快捷键", level: .warning)
+            normalizedMoveToNextDisplay = nil
+        }
+
+        return (normalizedCenter, normalizedAlmostMaximize, normalizedMoveToNextDisplay)
     }
     
     // 保存配置
@@ -340,29 +369,58 @@ class AppConfig: ObservableObject {
     }
 
     @discardableResult
-    func updateManualShortcuts(center: ShortcutBinding?, almostMaximize: ShortcutBinding?) -> Bool {
-        guard Self.supportsManualShortcut(center), Self.supportsManualShortcut(almostMaximize) else {
+    func updateManualShortcuts(center: ShortcutBinding?, almostMaximize: ShortcutBinding?, moveToNextDisplay: ShortcutBinding?) -> Bool {
+        guard Self.supportsManualShortcut(center),
+              Self.supportsManualShortcut(almostMaximize),
+              Self.supportsManualShortcut(moveToNextDisplay) else {
             AppLogger.shared.log("快捷键包含不支持的按键，已拒绝保存", level: .warning)
             return false
         }
 
-        if let center, let almostMaximize, center == almostMaximize {
+        let assignedBindings = [center, almostMaximize, moveToNextDisplay].compactMap { $0 }
+        if hasDuplicateShortcutBinding(in: assignedBindings) {
             AppLogger.shared.log("快捷键重复，已拒绝保存", level: .warning)
             return false
         }
 
         manualCenterShortcut = center
         manualAlmostMaximizeShortcut = almostMaximize
+        manualMoveToNextDisplayShortcut = moveToNextDisplay
         saveGeneralConfig()
         return true
     }
 
+    private func hasDuplicateShortcutBinding(in bindings: [ShortcutBinding]) -> Bool {
+        for (index, binding) in bindings.enumerated() {
+            if bindings.dropFirst(index + 1).contains(binding) {
+                return true
+            }
+        }
+        return false
+    }
+
     func updateManualCenterShortcut(_ binding: ShortcutBinding?) -> Bool {
-        updateManualShortcuts(center: binding, almostMaximize: manualAlmostMaximizeShortcut)
+        updateManualShortcuts(
+            center: binding,
+            almostMaximize: manualAlmostMaximizeShortcut,
+            moveToNextDisplay: manualMoveToNextDisplayShortcut
+        )
     }
 
     func updateManualAlmostMaximizeShortcut(_ binding: ShortcutBinding?) -> Bool {
-        updateManualShortcuts(center: manualCenterShortcut, almostMaximize: binding)
+        updateManualShortcuts(
+            center: manualCenterShortcut,
+            almostMaximize: binding,
+            moveToNextDisplay: manualMoveToNextDisplayShortcut
+        )
+    }
+
+    func updateManualMoveToNextDisplayShortcut(_ binding: ShortcutBinding?) -> Bool {
+        updateManualShortcuts(
+            center: manualCenterShortcut,
+            almostMaximize: manualAlmostMaximizeShortcut,
+            moveToNextDisplay: binding
+        )
     }
 
     func manualShortcut(for action: ManualWindowAction) -> ShortcutBinding? {
@@ -371,6 +429,8 @@ class AppConfig: ObservableObject {
             return manualCenterShortcut
         case .almostMaximize:
             return manualAlmostMaximizeShortcut
+        case .moveToNextDisplay:
+            return manualMoveToNextDisplayShortcut
         }
     }
 
@@ -381,6 +441,8 @@ class AppConfig: ObservableObject {
             return updateManualCenterShortcut(binding)
         case .almostMaximize:
             return updateManualAlmostMaximizeShortcut(binding)
+        case .moveToNextDisplay:
+            return updateManualMoveToNextDisplayShortcut(binding)
         }
     }
 
@@ -400,11 +462,19 @@ class AppConfig: ObservableObject {
         _ = updateManualAlmostMaximizeShortcut(nil)
     }
 
+    func clearManualMoveToNextDisplayShortcut() {
+        _ = updateManualMoveToNextDisplayShortcut(nil)
+    }
+
     func resetManualCenterShortcut() {
         _ = updateManualCenterShortcut(ManualWindowAction.center.defaultShortcut)
     }
 
     func resetManualAlmostMaximizeShortcut() {
         _ = updateManualAlmostMaximizeShortcut(ManualWindowAction.almostMaximize.defaultShortcut)
+    }
+
+    func resetManualMoveToNextDisplayShortcut() {
+        _ = updateManualMoveToNextDisplayShortcut(ManualWindowAction.moveToNextDisplay.defaultShortcut)
     }
 }
