@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AppKit
 
 // 窗口处理规则枚举
 enum WindowHandlingRule: String, Codable, CaseIterable, Identifiable {
@@ -34,26 +35,38 @@ class AppConfig: ObservableObject {
     
     // 日志级别
     @Published var logLevel: LogLevel = .info
+
+    // 手动窗口快捷键
+    @Published private(set) var manualCenterShortcut: ShortcutBinding? = ManualWindowAction.center.defaultShortcut
+    @Published private(set) var manualAlmostMaximizeShortcut: ShortcutBinding? = ManualWindowAction.almostMaximize.defaultShortcut
     
     // 窗口缩放比例 (0.0-1.0)，控制几乎最大化时窗口的大小
     @Published var windowScaleFactor: Double = 0.92 {
         didSet {
             // 当值变化时保存配置
-            saveGeneralConfig()
+            if !isLoadingGeneralConfig {
+                saveGeneralConfig()
+            }
         }
     }
     
     // 配置文件路径
     private let configFilePath: URL
     private let generalConfigFilePath: URL
+    private var isLoadingGeneralConfig = false
     
     // 单例实例
     static let shared = AppConfig()
     
-    private init() {
+    init(storageDirectoryURL: URL? = nil) {
         // 获取应用支持目录
-        let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appDir = appSupportDir.appendingPathComponent("HiWindowGuy")
+        let appDir: URL
+        if let storageDirectoryURL {
+            appDir = storageDirectoryURL
+        } else {
+            let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            appDir = appSupportDir.appendingPathComponent("HiWindowGuy")
+        }
         
         // 创建应用目录（如果不存在）
         try? FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
@@ -68,18 +81,20 @@ class AppConfig: ObservableObject {
         
         // 设置默认规则（如果尚未设置）
         setupDefaultRules()
+
+        // 确保一般配置文件包含当前默认值和快捷键字段
+        saveGeneralConfig()
     }
     
     // 保存一般配置
     func saveGeneralConfig() {
         do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            
             // 创建配置数据结构
             let configData: [String: Any] = [
                 "windowScaleFactor": windowScaleFactor,
-                "logLevel": logLevel.rawValue
+                "logLevel": logLevel.rawValue,
+                "manualCenterShortcut": manualCenterShortcut?.asJSONObject() ?? NSNull(),
+                "manualAlmostMaximizeShortcut": manualAlmostMaximizeShortcut?.asJSONObject() ?? NSNull()
             ]
             
             // 转换为JSON
@@ -97,6 +112,9 @@ class AppConfig: ObservableObject {
             if FileManager.default.fileExists(atPath: generalConfigFilePath.path) {
                 let data = try Data(contentsOf: generalConfigFilePath)
                 if let configData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                    isLoadingGeneralConfig = true
+                    defer { isLoadingGeneralConfig = false }
+
                     // 加载窗口缩放比例
                     if let scaleFactor = configData["windowScaleFactor"] as? Double {
                         windowScaleFactor = scaleFactor
@@ -107,6 +125,21 @@ class AppConfig: ObservableObject {
                        let level = LogLevel(rawValue: rawLogLevel) {
                         logLevel = level
                     }
+
+                    let loadedCenterShortcut = Self.loadManualShortcut(
+                        from: configData["manualCenterShortcut"],
+                        defaultShortcut: ManualWindowAction.center.defaultShortcut
+                    )
+                    let loadedAlmostMaximizeShortcut = Self.loadManualShortcut(
+                        from: configData["manualAlmostMaximizeShortcut"],
+                        defaultShortcut: ManualWindowAction.almostMaximize.defaultShortcut
+                    )
+                    let normalizedShortcuts = Self.normalizedManualShortcuts(
+                        center: loadedCenterShortcut,
+                        almostMaximize: loadedAlmostMaximizeShortcut
+                    )
+                    manualCenterShortcut = normalizedShortcuts.center
+                    manualAlmostMaximizeShortcut = normalizedShortcuts.almostMaximize
                     
                     AppLogger.shared.log("一般配置已加载", level: .debug)
                 }
@@ -114,6 +147,57 @@ class AppConfig: ObservableObject {
         } catch {
             AppLogger.shared.log("加载一般配置失败: \(error.localizedDescription)", level: .error)
         }
+    }
+
+    private static func shortcutBinding(from value: Any?) -> ShortcutBinding? {
+        guard let object = value as? [String: Any] else {
+            return nil
+        }
+        return ShortcutBinding(jsonObject: object)
+    }
+
+    private static func loadManualShortcut(from value: Any?, defaultShortcut: ShortcutBinding) -> ShortcutBinding? {
+        guard let value else {
+            return defaultShortcut
+        }
+
+        guard !(value is NSNull) else {
+            return nil
+        }
+
+        guard let shortcut = shortcutBinding(from: value), supportsManualShortcut(shortcut) else {
+            return defaultShortcut
+        }
+
+        return shortcut
+    }
+
+    private static let supportedManualShortcutKeys: Set<String> = [
+        "a", "s", "d", "f", "h", "g", "z", "x", "c", "v", "b",
+        "q", "w", "e", "r", "y", "t",
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+        "=", "-", "]", "[", "o", "u", "i", "p", "l", "j", "'",
+        "k", ";", "\\", ",", "/", "n", "m", ".", "`", " "
+    ]
+
+    static func supportsManualShortcut(_ binding: ShortcutBinding?) -> Bool {
+        guard let binding else {
+            return true
+        }
+
+        return supportedManualShortcutKeys.contains(binding.key)
+    }
+
+    private static func normalizedManualShortcuts(
+        center: ShortcutBinding?,
+        almostMaximize: ShortcutBinding?
+    ) -> (center: ShortcutBinding?, almostMaximize: ShortcutBinding?) {
+        guard let center, let almostMaximize, center == almostMaximize else {
+            return (center, almostMaximize)
+        }
+
+        AppLogger.shared.log("加载的快捷键存在重复，已保留居中快捷键并清除几乎最大化快捷键", level: .warning)
+        return (center, nil)
     }
     
     // 保存配置
@@ -254,4 +338,73 @@ class AppConfig: ObservableObject {
         // 默认使用几乎最大化规则
         return .almostMaximize
     }
-} 
+
+    @discardableResult
+    func updateManualShortcuts(center: ShortcutBinding?, almostMaximize: ShortcutBinding?) -> Bool {
+        guard Self.supportsManualShortcut(center), Self.supportsManualShortcut(almostMaximize) else {
+            AppLogger.shared.log("快捷键包含不支持的按键，已拒绝保存", level: .warning)
+            return false
+        }
+
+        if let center, let almostMaximize, center == almostMaximize {
+            AppLogger.shared.log("快捷键重复，已拒绝保存", level: .warning)
+            return false
+        }
+
+        manualCenterShortcut = center
+        manualAlmostMaximizeShortcut = almostMaximize
+        saveGeneralConfig()
+        return true
+    }
+
+    func updateManualCenterShortcut(_ binding: ShortcutBinding?) -> Bool {
+        updateManualShortcuts(center: binding, almostMaximize: manualAlmostMaximizeShortcut)
+    }
+
+    func updateManualAlmostMaximizeShortcut(_ binding: ShortcutBinding?) -> Bool {
+        updateManualShortcuts(center: manualCenterShortcut, almostMaximize: binding)
+    }
+
+    func manualShortcut(for action: ManualWindowAction) -> ShortcutBinding? {
+        switch action {
+        case .center:
+            return manualCenterShortcut
+        case .almostMaximize:
+            return manualAlmostMaximizeShortcut
+        }
+    }
+
+    @discardableResult
+    func updateManualShortcut(for action: ManualWindowAction, binding: ShortcutBinding?) -> Bool {
+        switch action {
+        case .center:
+            return updateManualCenterShortcut(binding)
+        case .almostMaximize:
+            return updateManualAlmostMaximizeShortcut(binding)
+        }
+    }
+
+    func clearManualShortcut(for action: ManualWindowAction) {
+        _ = updateManualShortcut(for: action, binding: nil)
+    }
+
+    func resetManualShortcut(for action: ManualWindowAction) {
+        _ = updateManualShortcut(for: action, binding: action.defaultShortcut)
+    }
+
+    func clearManualCenterShortcut() {
+        _ = updateManualCenterShortcut(nil)
+    }
+
+    func clearManualAlmostMaximizeShortcut() {
+        _ = updateManualAlmostMaximizeShortcut(nil)
+    }
+
+    func resetManualCenterShortcut() {
+        _ = updateManualCenterShortcut(ManualWindowAction.center.defaultShortcut)
+    }
+
+    func resetManualAlmostMaximizeShortcut() {
+        _ = updateManualAlmostMaximizeShortcut(ManualWindowAction.almostMaximize.defaultShortcut)
+    }
+}

@@ -6,9 +6,42 @@ struct HomeDashboardState {
         let count: Int
     }
 
+    struct ManualShortcutItem: Identifiable, Equatable {
+        let action: ManualWindowAction
+        let title: String
+        let currentBinding: ShortcutBinding?
+        let defaultBinding: ShortcutBinding
+
+        var id: ManualWindowAction { action }
+
+        var currentBindingText: String {
+            currentBinding?.displayText ?? "未设置"
+        }
+
+        var defaultBindingText: String {
+            defaultBinding.displayText
+        }
+    }
+
     let appRules: [AppRule]
     let isEnabled: Bool
     let windowScaleFactor: Double
+    let manualCenterShortcut: ShortcutBinding?
+    let manualAlmostMaximizeShortcut: ShortcutBinding?
+
+    init(
+        appRules: [AppRule],
+        isEnabled: Bool,
+        windowScaleFactor: Double,
+        manualCenterShortcut: ShortcutBinding? = nil,
+        manualAlmostMaximizeShortcut: ShortcutBinding? = nil
+    ) {
+        self.appRules = appRules
+        self.isEnabled = isEnabled
+        self.windowScaleFactor = windowScaleFactor
+        self.manualCenterShortcut = manualCenterShortcut
+        self.manualAlmostMaximizeShortcut = manualAlmostMaximizeShortcut
+    }
 
     var statusTitle: String {
         isEnabled ? "已启用" : "已停用"
@@ -69,6 +102,32 @@ struct HomeDashboardState {
             SummaryItem(title: "几乎最大化", count: count(for: .almostMaximize)),
             SummaryItem(title: "忽略", count: count(for: .ignore))
         ]
+    }
+
+    var manualShortcutItems: [ManualShortcutItem] {
+        [
+            ManualShortcutItem(
+                action: .center,
+                title: ManualWindowAction.center.label,
+                currentBinding: manualCenterShortcut,
+                defaultBinding: ManualWindowAction.center.defaultShortcut
+            ),
+            ManualShortcutItem(
+                action: .almostMaximize,
+                title: ManualWindowAction.almostMaximize.label,
+                currentBinding: manualAlmostMaximizeShortcut,
+                defaultBinding: ManualWindowAction.almostMaximize.defaultShortcut
+            )
+        ]
+    }
+
+    func shortcutItem(for action: ManualWindowAction) -> ManualShortcutItem {
+        switch action {
+        case .center:
+            return manualShortcutItems[0]
+        case .almostMaximize:
+            return manualShortcutItems[1]
+        }
     }
 
     private var ruleOverview: String {

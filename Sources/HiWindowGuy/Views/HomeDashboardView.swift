@@ -151,14 +151,18 @@ private extension HomeDashboardView {
     }
 
     var scaleCardBackground: some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
+        standardCardBackground(cornerRadius: 22)
+    }
+
+    func standardCardBackground(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(Color(nsColor: .controlBackgroundColor))
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.blue.opacity(0.04))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(Color.blue.opacity(0.10), lineWidth: 1)
             )
     }

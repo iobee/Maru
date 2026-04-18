@@ -11,6 +11,7 @@ struct HiWindowGuyApp: App {
 
     @StateObject private var appConfig = AppConfig.shared
     @StateObject private var logger = AppLogger.shared
+    private let globalHotkeyManager: GlobalHotkeyManager
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
     @State private var selectedTab: NavigationTab = .home
@@ -40,6 +41,12 @@ struct HiWindowGuyApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 600)
         .windowResizability(.contentSize)
+        .onChange(of: appConfig.manualCenterShortcut) { _ in
+            refreshGlobalHotKeyRegistrations()
+        }
+        .onChange(of: appConfig.manualAlmostMaximizeShortcut) { _ in
+            refreshGlobalHotKeyRegistrations()
+        }
         .commands {
             // 添加自定义命令到标准菜单栏
             CommandGroup(replacing: .appInfo) {
@@ -70,6 +77,11 @@ struct HiWindowGuyApp: App {
                     NotificationCenter.default.post(name: Notification.Name("showLogs"), object: nil)
                 }
                 .keyboardShortcut("l", modifiers: [.command, .option])
+
+                Divider()
+
+                manualWindowActionButton(for: .center)
+                manualWindowActionButton(for: .almostMaximize)
             }
         }
         
@@ -82,6 +94,11 @@ struct HiWindowGuyApp: App {
                 openWindow(id: "mainWindow")
                 NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
             }.keyboardShortcut("r")
+
+            Divider()
+
+            manualWindowActionButton(for: .center)
+            manualWindowActionButton(for: .almostMaximize)
             
             Divider()
             
@@ -167,9 +184,44 @@ struct HiWindowGuyApp: App {
         NSApp.orderFrontStandardAboutPanel(options: options)
         logger.log("显示关于面板", level: .info)
     }
+
+    private func manualWindowActionButton(for action: ManualWindowAction) -> some View {
+        Button(Self.manualWindowMenuTitle(for: action)) {
+            dispatchManualWindowAction(action)
+        }
+    }
+
+    private func refreshGlobalHotKeyRegistrations() {
+        globalHotkeyManager.registerCurrentBindings(
+            center: appConfig.manualCenterShortcut,
+            almostMaximize: appConfig.manualAlmostMaximizeShortcut
+        )
+    }
+
+    private func dispatchManualWindowAction(_ action: ManualWindowAction) {
+        Self.dispatchManualWindowAction(action)
+    }
+
+    private static func dispatchManualWindowAction(_ action: ManualWindowAction) {
+        AppLogger.shared.log("手动窗口操作已请求: \(action.rawValue)", level: .info)
+        NotificationCenter.default.post(
+            name: Notification.Name("manualWindowActionRequested"),
+            object: action
+        )
+    }
+
+    private static func manualWindowMenuTitle(for action: ManualWindowAction) -> String {
+        switch action {
+        case .center:
+            return "窗口居中"
+        case .almostMaximize:
+            return "几乎最大化"
+        }
+    }
     
     init() {
         NSApplication.shared.applicationIconImage = AppIconProvider.makeAppIcon(size: 512)
+        globalHotkeyManager = GlobalHotkeyManager(actionHandler: Self.dispatchManualWindowAction)
 
         // 设置未捕获异常处理
         NSSetUncaughtExceptionHandler { exception in
@@ -178,6 +230,8 @@ struct HiWindowGuyApp: App {
         
         // 记录应用启动
         AppLogger.shared.log("====== 应用开始启动 ======", level: .info)
+
+        refreshGlobalHotKeyRegistrations()
         
         // 应用启动完成的记录（原来在 AppDelegate 中的逻辑）
         NotificationCenter.default.addObserver(forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main) { _ in

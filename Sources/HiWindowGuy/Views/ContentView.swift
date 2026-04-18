@@ -8,24 +8,30 @@ struct ContentView: View {
     // 定义导航项
     enum NavigationSection: Int, CaseIterable, Identifiable {
         case home = 0
+        case manualControl
         case rules
         case logs
+        case about
         
         var id: Int { self.rawValue }
         
         var title: String {
             switch self {
             case .home: return "常规"
+            case .manualControl: return "手动控制"
             case .rules: return "应用规则"
             case .logs: return "日志"
+            case .about: return "关于"
             }
         }
         
         var icon: String {
             switch self {
             case .home: return "house.fill"
+            case .manualControl: return "keyboard.fill"
             case .rules: return "gearshape.fill"
             case .logs: return "doc.text.fill"
+            case .about: return "info.circle.fill"
             }
         }
     }
@@ -204,10 +210,14 @@ struct ContentView: View {
                 switch selectedTab {
                 case .home:
                     HomeDashboardView(isWindowManagementEnabled: $isWindowManagementEnabled)
+                case .manualControl:
+                    ManualControlView()
                 case .rules:
                     RuleConfigView()
                 case .logs:
                     LogViewer()
+                case .about:
+                    AboutView()
                 }
             }
         }
@@ -235,10 +245,14 @@ private extension ContentView.NavigationSection {
         switch tab {
         case .home:
             self = .home
+        case .manualControl:
+            self = .manualControl
         case .rules:
             self = .rules
         case .logs:
             self = .logs
+        case .about:
+            self = .about
         }
     }
 
@@ -246,10 +260,14 @@ private extension ContentView.NavigationSection {
         switch self {
         case .home:
             return .home
+        case .manualControl:
+            return .manualControl
         case .rules:
             return .rules
         case .logs:
             return .logs
+        case .about:
+            return .about
         }
     }
 }
