@@ -3,11 +3,13 @@ import SwiftUI
 struct HomeDashboardView: View {
     @Binding var isWindowManagementEnabled: Bool
     @EnvironmentObject private var appConfig: AppConfig
+    @EnvironmentObject private var stageManagerSettings: StageManagerSettings
 
     private var state: HomeDashboardState {
         HomeDashboardState(
             appRules: appConfig.appRules,
             isEnabled: isWindowManagementEnabled,
+            isStageManagerEnabled: stageManagerSettings.isEnabled,
             windowScaleFactor: appConfig.windowScaleFactor
         )
     }
@@ -16,6 +18,7 @@ struct HomeDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 dashboardHeader
+                stageManagerControlCard
                 heroControlCard
                 scaleControlCard
             }
@@ -25,10 +28,22 @@ struct HomeDashboardView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.clear)
+        .onAppear {
+            stageManagerSettings.reload()
+        }
     }
 }
 
 private extension HomeDashboardView {
+    var stageManagerBinding: Binding<Bool> {
+        Binding(
+            get: { stageManagerSettings.isEnabled },
+            set: { newValue in
+                stageManagerSettings.setEnabled(newValue)
+            }
+        )
+    }
+
     var dashboardHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(state.headerTitle)
@@ -40,6 +55,51 @@ private extension HomeDashboardView {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    var stageManagerControlCard: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    stageManagerStatusBadge
+
+                    Text(state.stageManagerTitle)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+
+                    Text(state.stageManagerDescription)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 16)
+
+                Toggle("", isOn: stageManagerBinding)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(state.stageManagerToggleTitle)
+                    .font(.headline)
+
+                Text(state.stageManagerToggleSubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let errorMessage = stageManagerSettings.lastErrorMessage {
+                Text("\(state.stageManagerErrorPrefix)\(errorMessage)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(stageManagerCardBackground)
     }
 
     var heroControlCard: some View {
@@ -152,6 +212,32 @@ private extension HomeDashboardView {
 
     var scaleCardBackground: some View {
         standardCardBackground(cornerRadius: 22)
+    }
+
+    var stageManagerCardBackground: some View {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.blue.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.blue.opacity(0.16), lineWidth: 1)
+            )
+    }
+
+    var stageManagerStatusBadge: some View {
+        Label(state.stageManagerStatusTitle, systemImage: stageManagerSettings.isEnabled ? "rectangle.stack.badge.person.crop.fill" : "rectangle.stack")
+            .font(.subheadline)
+            .fontWeight(.medium)
+            .foregroundStyle(.blue)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                Capsule()
+                    .fill(Color.blue.opacity(0.10))
+            )
     }
 
     func standardCardBackground(cornerRadius: CGFloat) -> some View {

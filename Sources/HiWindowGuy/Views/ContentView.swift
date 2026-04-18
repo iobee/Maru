@@ -62,28 +62,21 @@ struct ContentView: View {
     
     // 侧边栏视图
     private var sidebarView: some View {
-        VStack(spacing: 0) {
-            sidebarBrandHeader
-            sidebarDivider
-            sidebarNavigationContent
-            Spacer()
-            sidebarStatusFooter
-        }
-        .padding(.vertical, sidebarVerticalPadding)
-        .padding(.horizontal, sidebarHorizontalPadding)
-        .background(sidebarContainerBackground)
-        .onChange(of: selectedSection) { newValue in
-            // 根据选择的部分更新标签
-            switch newValue {
-            case NavigationSection.home.rawValue:
-                selectedTab = .home
-            case NavigationSection.rules.rawValue:
-                selectedTab = .rules
-            case NavigationSection.logs.rawValue:
-                selectedTab = .logs
-            default:
-                break
+        ZStack(alignment: .topLeading) {
+            sidebarContainerBackground
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                sidebarBrandHeader
+                sidebarDivider
+                sidebarNavigationContent
+                Spacer(minLength: 0)
+                sidebarStatusFooter
             }
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.top, sidebarTopPadding)
+            .padding(.bottom, sidebarBottomPadding)
+            .padding(.horizontal, sidebarHorizontalPadding)
         }
     }
 
@@ -136,47 +129,22 @@ struct ContentView: View {
     }
 
     private var sidebarContainerBackground: some View {
-        let fillColor = colorScheme == .dark
-            ? Color(NSColor.controlBackgroundColor).opacity(0.88)
-            : Color(NSColor.controlBackgroundColor).opacity(0.72)
-
-        return RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(fillColor)
+        SidebarVisualEffectBackground()
             .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(
-                        Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.06),
-                        lineWidth: 1
-                    )
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    Rectangle()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.16))
+                        .frame(width: 1)
+                }
             )
             .shadow(
-                color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.08),
-                radius: 18,
+                color: Color.black.opacity(colorScheme == .dark ? 0.16 : 0.06),
+                radius: 14,
                 x: 0,
-                y: 8
+                y: 0
             )
-    }
-
-    // 导航链接项
-    private func navigationLink(for section: NavigationSection) -> some View {
-        HStack(spacing: 12) {
-            sidebarBrandIcon
-
-            Text("Hi Window Guy")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-    }
-
-    private var sidebarDivider: some View {
-        Divider()
-            .overlay(Color.white.opacity(0.08))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
     }
 
     private var sidebarNavigationContent: some View {
@@ -202,36 +170,6 @@ struct ContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.top, 14)
-    }
-
-    private var sidebarBrandIcon: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.12))
-            .overlay(
-                Image(systemName: "window.vertical.closed")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-            )
-            .frame(width: 38, height: 38)
-    }
-
-    private var sidebarContainerBackground: some View {
-        SidebarVisualEffectBackground()
-            .overlay(
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    Rectangle()
-                        .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.16))
-                        .frame(width: 1)
-                }
-            )
-            .shadow(
-                color: Color.black.opacity(colorScheme == .dark ? 0.16 : 0.06),
-                radius: 14,
-                x: 0,
-                y: 0
-            )
     }
 
     private func sidebarRow(for section: NavigationSection) -> some View {

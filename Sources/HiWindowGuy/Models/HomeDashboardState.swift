@@ -25,6 +25,7 @@ struct HomeDashboardState {
 
     let appRules: [AppRule]
     let isEnabled: Bool
+    let isStageManagerEnabled: Bool
     let windowScaleFactor: Double
     let manualCenterShortcut: ShortcutBinding?
     let manualAlmostMaximizeShortcut: ShortcutBinding?
@@ -33,6 +34,7 @@ struct HomeDashboardState {
     init(
         appRules: [AppRule],
         isEnabled: Bool,
+        isStageManagerEnabled: Bool = false,
         windowScaleFactor: Double,
         manualCenterShortcut: ShortcutBinding? = nil,
         manualAlmostMaximizeShortcut: ShortcutBinding? = nil,
@@ -40,6 +42,7 @@ struct HomeDashboardState {
     ) {
         self.appRules = appRules
         self.isEnabled = isEnabled
+        self.isStageManagerEnabled = isStageManagerEnabled
         self.windowScaleFactor = windowScaleFactor
         self.manualCenterShortcut = manualCenterShortcut
         self.manualAlmostMaximizeShortcut = manualAlmostMaximizeShortcut
@@ -84,6 +87,34 @@ struct HomeDashboardState {
 
     var scaleTitle: String {
         "几乎最大化缩放"
+    }
+
+    var stageManagerTitle: String {
+        "Stage Manager（推荐）"
+    }
+
+    var stageManagerStatusTitle: String {
+        isStageManagerEnabled ? "已开启" : "未开启"
+    }
+
+    var stageManagerDescription: String {
+        isStageManagerEnabled
+            ? "macOS 系统级窗口分组已开启，可直接配合 HiWindowGuy 的自动布局使用。"
+            : "直接切换 macOS 的 Stage Manager，让系统分组与自动窗口布局协同工作。"
+    }
+
+    var stageManagerToggleTitle: String {
+        isStageManagerEnabled ? "保持推荐工作区模式" : "开启推荐工作区模式"
+    }
+
+    var stageManagerToggleSubtitle: String {
+        isStageManagerEnabled
+            ? "HiWindowGuy 会继续按应用规则整理窗口，Stage Manager 负责保留清晰的系统分组。"
+            : "建议与 HiWindowGuy 一起开启，在专注单个任务时更容易保持桌面整洁。"
+    }
+
+    var stageManagerErrorPrefix: String {
+        "系统设置同步失败："
     }
 
     var scaleDescription: String {

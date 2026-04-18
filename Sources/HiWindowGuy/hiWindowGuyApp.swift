@@ -11,6 +11,7 @@ struct HiWindowGuyApp: App {
 
     @StateObject private var appConfig = AppConfig.shared
     @StateObject private var logger = AppLogger.shared
+    @StateObject private var stageManagerSettings = StageManagerSettings()
     private let globalHotkeyManager: GlobalHotkeyManager
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
@@ -25,6 +26,7 @@ struct HiWindowGuyApp: App {
             )
                 .environmentObject(appConfig)
                 .environmentObject(logger)
+                .environmentObject(stageManagerSettings)
                 .background(Color(NSColor.windowBackgroundColor))
                 .onAppear {
                     // 在下一个运行循环中配置窗口
@@ -123,15 +125,7 @@ struct HiWindowGuyApp: App {
         // 查找应用窗口
         for window in NSApplication.shared.windows {
             if window.title == "HiWindowGuy" {
-                // 设置窗口的可收集性，使其在Stage Manager中正常工作
-                window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
-                
-                // 设置窗口特性
-                window.isOpaque = false
-                window.titlebarAppearsTransparent = true
-                window.titleVisibility = .hidden
-                window.styleMask.insert(.fullSizeContentView)
-                
+                MainWindowChrome.applyProductStandard(to: window)
                 logger.log("配置窗口: \(window.title)", level: .info)
             }
         }
@@ -139,11 +133,7 @@ struct HiWindowGuyApp: App {
         // 注册窗口创建通知，以便在新窗口创建时也进行配置
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
             if let window = notification.object as? NSWindow, window.title == "HiWindowGuy" {
-                window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenPrimary]
-                window.isOpaque = false
-                window.titlebarAppearsTransparent = true
-                window.titleVisibility = .hidden
-                window.styleMask.insert(.fullSizeContentView)
+                MainWindowChrome.applyProductStandard(to: window)
                 logger.log("配置新窗口: \(window.title)", level: .info)
             }
         }

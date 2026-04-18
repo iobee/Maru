@@ -25,4 +25,13 @@ final class HomeDashboardStateTests: XCTestCase {
         XCTAssertEqual(enabledState.statusTitle, "已启用")
         XCTAssertEqual(disabledState.statusTitle, "已停用")
     }
+
+    func testStageManagerCardUsesRecommendedCopyAndStatus() {
+        let enabledState = HomeDashboardState(appRules: [], isEnabled: true, isStageManagerEnabled: true, windowScaleFactor: 0.92)
+        let disabledState = HomeDashboardState(appRules: [], isEnabled: true, isStageManagerEnabled: false, windowScaleFactor: 0.92)
+
+        XCTAssertEqual(enabledState.stageManagerTitle, "Stage Manager（推荐）")
+        XCTAssertEqual(enabledState.stageManagerStatusTitle, "已开启")
+        XCTAssertEqual(disabledState.stageManagerStatusTitle, "未开启")
+    }
 }
