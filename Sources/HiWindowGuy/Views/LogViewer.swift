@@ -2,210 +2,50 @@ import SwiftUI
 
 struct LogViewer: View {
     @ObservedObject private var logger = AppLogger.shared
-    @State private var logLevelFilter: LogLevel? = .info // 默认显示Info及以上级别
-    @State private var searchText = ""
+    @State private var logLevelFilter: LogLevel? = .info
     @State private var selectedLogFile: URL?
     @State private var showingFileSelector = false
     @State private var logFiles: [URL] = []
     @Environment(\.colorScheme) private var colorScheme
-    
+
     private var filteredLogs: [LogEntry] {
         var logs = logger.logs
-        
-        // 过滤日志级别
+
         if let level = logLevelFilter {
             logs = logs.filter { $0.level.priority >= level.priority }
         }
-        
-        // 搜索过滤
-        if !searchText.isEmpty {
-            logs = logs.filter { $0.message.localizedCaseInsensitiveContains(searchText) || $0.sourceFile.localizedCaseInsensitiveContains(searchText) }
-        }
-        
-        return logs.reversed() // 反转数组，最新日志在顶部
+
+        return logs.reversed()
     }
 
     private var logTextContent: String {
         filteredLogs.map(\.formatted).joined(separator: "\n")
     }
-    
-    // 页面标题区域
-    private var headerView: some View {
-        HStack(spacing: 0) {
-            Image(systemName: "doc.text.fill")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.blue)
-                .frame(width: 40, height: 40)
-                .background(Color.blue.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                
-            VStack(alignment: .leading, spacing: 4) {
-                Text("应用日志")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.primary)
-                    
-                Text("查看和管理应用运行日志")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.leading, 12)
-            
-            Spacer()
-            
-            // 日志级别过滤器
-                Picker("日志级别", selection: $logLevelFilter) {
-                Text("全部级别").tag(nil as LogLevel?)
-                    ForEach(LogLevel.allCases) { level in
-                    Label(level.rawValue, systemImage: level.icon)
-                        .tag(level as LogLevel?)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-            .frame(width: 130)
-            .padding(.horizontal, 8)
-            
-            // 历史日志按钮
-            Button {
-                showingFileSelector = true
-                loadLogFiles()
-            } label: {
-                Label("历史日志", systemImage: "folder")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Material.regularMaterial)
-                    )
-            }
-            .buttonStyle(.plain)
-            
-            // 清空日志按钮
-            Button {
-                confirmClearLogs()
-            } label: {
-                Label("清空", systemImage: "trash")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Material.regularMaterial)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.leading, 8)
+
+    private var subtitleText: String {
+        if filteredLogs.isEmpty {
+            return "查看运行日志、导出当前内容，或载入历史日志文件。"
         }
-        .padding(.horizontal, 30)
-        .padding(.top, 30)
-        .padding(.bottom, 20)
+
+        return "当前显示 \(filteredLogs.count) 条日志记录，可按级别筛选并导出。"
     }
-    
-    // 空状态视图
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 8)
-            
-            Text("没有找到匹配的日志记录")
-                .font(.headline)
-                .foregroundStyle(.primary)
-                
-            if !searchText.isEmpty {
-                Text("尝试使用不同的搜索关键词或调整日志级别")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    
-                Button {
-                    searchText = ""
-                } label: {
-                    Text("清除搜索")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.blue.opacity(0.1))
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-            } else if logLevelFilter != nil {
-                Text("尝试调整日志级别过滤器或加载历史日志")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Button {
-                    logLevelFilter = nil
-                } label: {
-                    Text("显示全部日志级别")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.blue.opacity(0.1))
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-            } else {
-                Text("应用运行期间的日志将显示在这里")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 40)
-    }
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // 标题区域
-            headerView
-            
-            // 搜索栏
-            SearchBar(text: $searchText, placeholder: "搜索日志内容或文件名")
-                .padding(.horizontal, 30)
-                .padding(.bottom, 20)
-            
-            // 日志文本
-            if filteredLogs.isEmpty {
-                emptyStateView
-            } else {
-                ScrollView {
-                    Text(logTextContent)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Material.regularMaterial)
-                        )
-                    .padding(.horizontal, 30)
-                    .padding(.bottom, 16)
-                }
-                .background(Color.clear)
-                .safeAreaInset(edge: .bottom) {
-                    bottomStatusBar
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                pageHeader
+                toolRow
+                logSurface
             }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 34)
+            .padding(.vertical, 30)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.clear)
         .sheet(isPresented: $showingFileSelector) {
             LogFileSelector(logFiles: logFiles, selectedFile: $selectedLogFile, isPresented: $showingFileSelector)
-                .frame(minWidth: 450, idealWidth: 500, maxWidth: 600, minHeight: 350, idealHeight: 450, maxHeight: 550)
+                .frame(minWidth: 480, idealWidth: 540, maxWidth: 620, minHeight: 380, idealHeight: 480, maxHeight: 580)
         }
         .onChange(of: selectedLogFile) { file in
             if let file = file {
@@ -213,40 +53,215 @@ struct LogViewer: View {
             }
         }
     }
-    
-    // 底部状态栏
-    private var bottomStatusBar: some View {
-        HStack {
-            Label("\(filteredLogs.count) 条日志", systemImage: "doc.text")
+
+    private var pageHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("日志")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+
+            Text(subtitleText)
+                .font(.body)
                 .foregroundStyle(.secondary)
-                .font(.footnote.bold())
-            
-            Spacer()
-            
-                Button {
-                exportLogs()
-                } label: {
-                Label("导出日志", systemImage: "square.and.arrow.up")
-                    .font(.footnote.bold())
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var toolRow: some View {
+        HStack(spacing: 12) {
+            filterMenu
+
+            Spacer(minLength: 16)
+
+            Button {
+                showingFileSelector = true
+                loadLogFiles()
+            } label: {
+                Label("历史日志", systemImage: "folder")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
                     .foregroundStyle(.primary)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Material.thin)
-                    )
-                }
+                    .padding(.vertical, 9)
+                    .background(toolButtonBackground)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                confirmClearLogs()
+            } label: {
+                Label("清空", systemImage: "trash")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(toolButtonBackground)
+            }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 30)
+        .padding(.horizontal, 18)
         .padding(.vertical, 14)
-        .background(
-            Rectangle()
-                .fill(Material.thin)
-                .shadow(color: .black.opacity(0.05), radius: 5, y: -2)
-        )
+        .background(secondarySurfaceBackground(cornerRadius: 18))
     }
-    
+
+    private var filterMenu: some View {
+        Menu {
+            Button {
+                logLevelFilter = nil
+            } label: {
+                Label("全部级别", systemImage: logLevelFilter == nil ? "checkmark" : "line.3.horizontal.decrease.circle")
+            }
+
+            ForEach(LogLevel.allCases) { level in
+                Button {
+                    logLevelFilter = level
+                } label: {
+                    Label(level.rawValue, systemImage: logLevelFilter == level ? "checkmark" : level.icon)
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 12, weight: .semibold))
+
+                Text("级别：\(logLevelFilter?.rawValue ?? "全部")")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(toolButtonBackground)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var logSurface: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if filteredLogs.isEmpty {
+                emptyStateView
+            } else {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    Text(logTextContent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                        .padding(20)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider()
+                .overlay(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12))
+
+            bottomStatusBar
+        }
+        .background(primarySurfaceBackground(cornerRadius: 22))
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 34))
+                .foregroundStyle(.secondary)
+
+            Text("当前没有可显示的日志")
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            if logLevelFilter != nil {
+                Text("试试切换到更低日志级别，或者载入历史日志文件。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    logLevelFilter = nil
+                } label: {
+                    Text("显示全部级别")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.blue)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.blue.opacity(0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text("应用运行期间产生的日志会集中显示在这里。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 52)
+    }
+
+    private var bottomStatusBar: some View {
+        HStack(spacing: 12) {
+            Label("\(filteredLogs.count) 条日志", systemImage: "doc.text")
+                .font(.footnote)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 16)
+
+            Button {
+                exportLogs()
+            } label: {
+                Label("导出日志", systemImage: "square.and.arrow.up")
+                    .font(.footnote)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(toolButtonBackground)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+    }
+
+    private var toolButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.55))
+    }
+
+    private func primarySurfaceBackground(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.blue.opacity(0.035))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.blue.opacity(0.10), lineWidth: 1)
+            )
+    }
+
+    private func secondarySurfaceBackground(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.02 : 0.38))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12), lineWidth: 1)
+            )
+    }
+
     private func confirmClearLogs() {
         let alert = NSAlert()
         alert.messageText = "确认清除当前日志吗？"
@@ -254,43 +269,43 @@ struct LogViewer: View {
         alert.addButton(withTitle: "确认清除")
         alert.addButton(withTitle: "取消")
         alert.alertStyle = .warning
-        
+
         if alert.runModal() == .alertFirstButtonReturn {
             logger.clearLogs()
         }
     }
-    
+
     private func loadLogFiles() {
         logFiles = AppLogger.shared.getLogFiles()
     }
-    
+
     private func loadLogsFromFile(_ file: URL) {
         let entries = AppLogger.shared.loadLogFile(file)
         DispatchQueue.main.async {
             AppLogger.shared.logs = entries
         }
     }
-    
+
     private func exportLogs() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
         let timestamp = formatter.string(from: Date())
-        
+
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("hiwindowguy_logs_\(timestamp).log")
-        
+
         var logContent = ""
-        for entry in filteredLogs.reversed() { // 导出时保持时间顺序
+        for entry in filteredLogs.reversed() {
             logContent += entry.formatted + "\n"
         }
-        
+
         do {
             try logContent.write(to: fileURL, atomically: true, encoding: .utf8)
-            
+
             let panel = NSSavePanel()
             panel.nameFieldStringValue = fileURL.lastPathComponent
             panel.allowedContentTypes = [.log, .text]
             panel.canCreateDirectories = true
-            
+
             panel.begin { response in
                 if response == .OK, let url = panel.url {
                     do {
@@ -307,215 +322,161 @@ struct LogViewer: View {
     }
 }
 
-struct LogEntryRow: View {
-    let entry: LogEntry
-    @State private var isExpanded = false
-    @Environment(\.colorScheme) private var colorScheme
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: entry.level.icon)
-                    .foregroundColor(logLevelColor(entry.level))
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 24, height: 24)
-                    .background(logLevelColor(entry.level).opacity(0.1))
-                    .clipShape(Circle())
-                
-                Text(entry.formattedTimestamp)
-                    .font(.caption.monospacedDigit())
-                    .foregroundColor(.secondary)
-                
-                Text(entry.message)
-                    .lineLimit(isExpanded ? nil : 1)
-                    .font(.callout)
-                
-                Spacer()
-                
-                Button {
-                    isExpanded.toggle()
-                } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                        .frame(width: 24, height: 24)
-                .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            
-            if isExpanded {
-                HStack(spacing: 16) {
-                    Label("\(entry.sourceFile):\(entry.sourceLine)", systemImage: "doc.text")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Label(entry.level.rawValue, systemImage: "tag")
-                        .font(.caption)
-                        .foregroundColor(logLevelColor(entry.level))
-        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(logLevelColor(entry.level).opacity(0.1))
-                        )
-                }
-                .padding(.leading, 28)
-            }
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Material.regularMaterial)
-                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        )
-        .animation(.easeInOut(duration: 0.2), value: isExpanded)
-    }
-    
-    private func logLevelColor(_ level: LogLevel) -> Color {
-        switch level {
-        case .debug:
-            return .secondary
-        case .info:
-            return .blue
-        case .warning:
-            return .orange
-        case .error:
-            return .red
-        }
-    }
-}
-
 struct LogFileSelector: View {
     let logFiles: [URL]
     @Binding var selectedFile: URL?
     @Binding var isPresented: Bool
     @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏
-            HStack {
-            Text("选择历史日志文件")
-                    .font(.title3.bold())
-                
-                Spacer()
-                
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-                .padding()
-            .background(Material.bar)
-                
-            // 文件列表
+            header
+
             if logFiles.isEmpty {
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     Image(systemName: "folder")
-                        .font(.system(size: 48))
+                        .font(.system(size: 34))
                         .foregroundStyle(.secondary)
-                        .padding(.bottom, 8)
-                    
-                    Text("没有发现日志文件")
+
+                    Text("没有发现历史日志")
                         .font(.headline)
-                        .foregroundStyle(.primary)
-                        
-                    Text("运行应用后生成的日志文件将显示在这里")
+
+                    Text("运行应用后生成的日志文件会显示在这里。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding()
+                .padding(24)
             } else {
                 ScrollView {
                     VStack(spacing: 12) {
-                    ForEach(logFiles, id: \.self) { file in
-                        LogFileRow(file: file)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedFile = file
-                                isPresented = false
+                        ForEach(logFiles, id: \.self) { file in
+                            LogFileRow(file: file)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedFile = file
+                                    isPresented = false
                                 }
-                                .padding(.horizontal)
-                            }
+                        }
                     }
-                    .padding(.vertical, 12)
+                    .padding(24)
                 }
             }
-            
-            // 底部按钮
-            HStack {
-                Button {
-                    isPresented = false
-                } label: {
-                    Text("取消")
-                        .frame(width: 100)
-                }
-                .buttonStyle(.bordered)
-                
-                Spacer()
-                
-                Text("\(logFiles.count) 个日志文件")
-                    .font(.footnote)
+
+            footer
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("历史日志")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+
+                Text("选择一个日志文件载入当前查看器。")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            .padding()
-            .background(Material.bar)
+
+            Spacer(minLength: 16)
+
+            Button {
+                isPresented = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 18)
+        .background(
+            Rectangle()
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .overlay(Rectangle().fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.10)))
+        )
+    }
+
+    private var footer: some View {
+        HStack {
+            Button {
+                isPresented = false
+            } label: {
+                Text("取消")
+                    .frame(width: 100)
+            }
+            .buttonStyle(.bordered)
+
+            Spacer(minLength: 16)
+
+            Text("\(logFiles.count) 个日志文件")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 18)
+        .background(
+            Rectangle()
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .overlay(Rectangle().fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.10)))
+        )
     }
 }
 
 struct LogFileRow: View {
     let file: URL
     @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "doc.text.fill")
-                .foregroundColor(.blue)
-                .font(.title3)
-                .frame(width: 36, height: 36)
-                .background(Color.blue.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.blue.opacity(0.10))
+
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.blue)
+            }
+            .frame(width: 40, height: 40)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(file.lastPathComponent)
                     .font(.headline)
                     .lineLimit(1)
-                
-                Text("创建于: \(formattedDate(for: file))")
+
+                Text("创建于：\(formattedDate(for: file))")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
-            
-            Spacer()
-            
+
+            Spacer(minLength: 16)
+
             Text(formattedFileSize(for: file))
-                .font(.caption.bold())
-                .foregroundColor(.secondary)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.vertical, 6)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.secondary.opacity(0.1))
+                    Capsule()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.45))
                 )
         }
-        .padding(12)
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Material.regularMaterial)
-                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12), lineWidth: 1)
+                )
         )
     }
-    
+
     private func formattedDate(for file: URL) -> String {
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
@@ -530,7 +491,7 @@ struct LogFileRow: View {
         }
         return "未知日期"
     }
-    
+
     private func formattedFileSize(for file: URL) -> String {
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
@@ -545,4 +506,4 @@ struct LogFileRow: View {
         }
         return "未知大小"
     }
-} 
+}

@@ -23,6 +23,11 @@ let package = Package(
             resources: [
                 .process("HiWindowGuy/Assets.xcassets")
             ]
+        ),
+        .testTarget(
+            name: "HiWindowGuyTests",
+            dependencies: ["HiWindowGuy"],
+            path: "Tests"
         )
     ]
-) 
+)

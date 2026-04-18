@@ -53,6 +53,29 @@ Sources/HiWindowGuy/
 └── Assets.xcassets/              # App icons and resources
 ```
 
+## UI Design Standard
+
+All main-window UI work must follow the project-level design standard in `docs/PRODUCT-UI-DESIGN-STANDARD.md`.
+
+### UI Source of Truth
+
+For any work that changes files under `Sources/HiWindowGuy/Views/`, agents must read `docs/PRODUCT-UI-DESIGN-STANDARD.md` first and align the design before implementing.
+
+Priority order:
+1. `docs/PRODUCT-UI-DESIGN-STANDARD.md` - product-level UI source of truth
+2. `docs/superpowers/specs/2026-04-15-homepage-control-panel-design.md` - homepage-specific supplement
+3. `docs/superpowers/specs/2026-04-17-sidebar-apple-cues-design.md` - sidebar-specific supplement
+
+If a page-level spec conflicts with the product-level standard, the product-level standard wins.
+
+### Required UI Constraints
+
+- Keep the app visually aligned with a macOS utility console, not a web dashboard
+- Use restrained sidebar glass and stable dark content surfaces
+- Treat blue as the only primary accent color
+- Do not introduce large glass content panels, colorful stats cards, or decorative gradients unless the design standard is updated first
+- When adding a new page, decide whether it is a control page or a tool list page before designing the UI
+
 ## Core Architecture
 
 ### 1. Application Entry Point (`hiWindowGuyApp.swift`)

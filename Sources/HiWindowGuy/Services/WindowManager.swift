@@ -13,6 +13,7 @@ class WindowManager: ObservableObject {
     @Published private(set) var isMonitoring = false
     
     private var workspaceNotificationObserver: NSObjectProtocol?
+    private var manualWindowActionObserver: NSObjectProtocol?
     private var debounceTimer: Timer?
     
     // 简化防重机制
@@ -93,6 +94,26 @@ class WindowManager: ObservableObject {
                 self.debounceWindowManagement(for: app)
             }
         }
+
+        manualWindowActionObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name("manualWindowActionRequested"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+            guard let action = notification.object as? ManualWindowAction else {
+                AppLogger.shared.log("收到手动窗口操作通知，但缺少有效动作对象", level: .warning)
+                return
+            }
+
+            let triggerSource = (notification.userInfo?["triggerSource"] as? String) ?? "NotificationCenter.manualWindowActionRequested"
+            switch action {
+            case .center:
+                self.performManualCenter(triggerSource: triggerSource)
+            case .almostMaximize:
+                self.performManualAlmostMaximize(triggerSource: triggerSource)
+            }
+        }
         
         // 延迟处理当前活动窗口，避免启动时的混乱
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -111,6 +132,11 @@ class WindowManager: ObservableObject {
         if let observer = workspaceNotificationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             workspaceNotificationObserver = nil
+        }
+
+        if let observer = manualWindowActionObserver {
+            NotificationCenter.default.removeObserver(observer)
+            manualWindowActionObserver = nil
         }
         
         debounceTimer?.invalidate()
@@ -190,19 +216,159 @@ class WindowManager: ObservableObject {
         // 执行窗口操作
         switch rule {
         case .center:
-            centerWindow(window)
+            centerWindow(window, completion: { [weak self] success in
+                self?.handleWindowOperationCompletion(success: success, bundleId: bundleId, triggerSource: "automatic", actionLabel: rule == .center ? "居中" : "几乎最大化", appIdentity: "\(appName) (\(bundleId), pid: \(app.processIdentifier))")
+            })
         case .almostMaximize:
-            almostMaximizeWindow(window)
+            almostMaximizeWindow(window, completion: { [weak self] success in
+                self?.handleWindowOperationCompletion(success: success, bundleId: bundleId, triggerSource: "automatic", actionLabel: rule == .center ? "居中" : "几乎最大化", appIdentity: "\(appName) (\(bundleId), pid: \(app.processIdentifier))")
+            })
         default:
             break // 不会发生，因为调用方已过滤
         }
-        
-        // 更新处理记录，仅记录bundleId和时间戳
-        lastProcessedWindowInfo = (bundleId: bundleId, timestamp: Date())
-        
-        // 延迟重置操作标志
+    }
+
+    func performManualCenter(triggerSource: String) {
+        performManualWindowAction(.center, triggerSource: triggerSource)
+    }
+
+    func performManualAlmostMaximize(triggerSource: String) {
+        performManualWindowAction(.almostMaximize, triggerSource: triggerSource)
+    }
+    
+    private func performManualWindowAction(_ action: ManualWindowAction, triggerSource: String) {
+        guard checkAccessibilityPermission() else {
+            showAccessibilityPermissionAlert()
+            return
+        }
+
+        guard !isWindowOperationInProgress else {
+            AppLogger.shared.log("手动窗口操作被跳过: 当前已有窗口操作进行中, 来源=\(triggerSource), 动作=\(action.label)", level: .debug)
+            return
+        }
+
+        guard let app = NSWorkspace.shared.frontmostApplication else {
+            AppLogger.shared.log("手动窗口操作失败: 无法获取前台应用, 来源=\(triggerSource), 动作=\(action.label)", level: .warning)
+            showManualWindowNotFoundAlert(triggerSource: triggerSource, appIdentity: nil, action: action)
+            return
+        }
+
+        let appIdentity = describeApplication(app)
+        AppLogger.shared.log("手动窗口操作请求: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity)", level: .info)
+
+        guard let window = resolveManualTargetWindow(for: app, triggerSource: triggerSource, action: action) else {
+            showManualWindowNotFoundAlert(triggerSource: triggerSource, appIdentity: appIdentity, action: action)
+            return
+        }
+
+        // 只有在手动操作真正要执行窗口变更时，才取消排队中的自动处理
+        debounceTimer?.invalidate()
+        debounceTimer = nil
+
+        isWindowOperationInProgress = true
+
+        switch action {
+        case .center:
+            centerWindow(window, completion: { [weak self] success in
+                self?.handleWindowOperationCompletion(success: success, bundleId: app.bundleIdentifier, triggerSource: triggerSource, actionLabel: action.label, appIdentity: appIdentity)
+            })
+        case .almostMaximize:
+            almostMaximizeWindow(window, completion: { [weak self] success in
+                self?.handleWindowOperationCompletion(success: success, bundleId: app.bundleIdentifier, triggerSource: triggerSource, actionLabel: action.label, appIdentity: appIdentity)
+            })
+        }
+    }
+
+    private func handleWindowOperationCompletion(success: Bool, bundleId: String?, triggerSource: String, actionLabel: String, appIdentity: String) {
+        if success, let bundleId {
+            lastProcessedWindowInfo = (bundleId: bundleId, timestamp: Date())
+            AppLogger.shared.log("窗口操作成功并已写入冷却: 来源=\(triggerSource), 动作=\(actionLabel), 应用=\(appIdentity)", level: .info)
+        } else {
+            AppLogger.shared.log("窗口操作未成功，未写入冷却: 来源=\(triggerSource), 动作=\(actionLabel), 应用=\(appIdentity)", level: .warning)
+        }
+
+        AppLogger.shared.log("手动窗口操作完成: 来源=\(triggerSource), 动作=\(actionLabel), 应用=\(appIdentity)", level: .info)
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.isWindowOperationInProgress = false
+        }
+    }
+
+    private func resolveManualTargetWindow(for app: NSRunningApplication, triggerSource: String, action: ManualWindowAction) -> AXUIElement? {
+        let appIdentity = describeApplication(app)
+        let appRef = AXUIElementCreateApplication(app.processIdentifier)
+
+        var focusedWindowRef: AnyObject?
+        if AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedWindowRef) == .success,
+           let focusedWindowRef {
+            let focusedWindow = focusedWindowRef as! AXUIElement
+            if isStandardManualWindow(focusedWindow) {
+                AppLogger.shared.log("手动目标解析成功: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 使用 AXFocusedWindow", level: .info)
+                return focusedWindow
+            } else {
+                AppLogger.shared.log("手动目标解析: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), AXFocusedWindow 不可操作，尝试同应用窗口列表", level: .debug)
+            }
+        } else {
+            AppLogger.shared.log("手动目标解析: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 未获取到 AXFocusedWindow，尝试同应用窗口列表", level: .debug)
+        }
+
+        var windowsRef: AnyObject?
+        guard AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let windowArray = windowsRef as? [AXUIElement] else {
+            AppLogger.shared.log("手动目标解析失败: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 无法获取窗口列表", level: .warning)
+            return nil
+        }
+
+        for window in windowArray {
+            guard isStandardManualWindow(window) else { continue }
+
+            AppLogger.shared.log("手动目标解析成功: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 使用同应用第一个非最小化标准窗口", level: .info)
+            return window
+        }
+
+        AppLogger.shared.log("手动目标解析失败: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 未找到可操作窗口", level: .warning)
+        return nil
+    }
+
+    private func isStandardManualWindow(_ window: AXUIElement) -> Bool {
+        guard !isWindowMinimized(window) else {
+            return false
+        }
+
+        var subroleRef: AnyObject?
+        if AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subroleRef) == .success,
+           let subrole = subroleRef as? String {
+            return subrole == (kAXStandardWindowSubrole as String)
+        }
+
+        return false
+    }
+
+    private func isWindowMinimized(_ window: AXUIElement) -> Bool {
+        var minimizedRef: AnyObject?
+        guard AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimizedRef) == .success else {
+            return false
+        }
+
+        return (minimizedRef as? Bool) == true
+    }
+
+    private func describeApplication(_ app: NSRunningApplication) -> String {
+        let appName = app.localizedName ?? "未知"
+        let bundleId = app.bundleIdentifier ?? "未知BundleID"
+        return "\(appName) (\(bundleId), pid: \(app.processIdentifier))"
+    }
+
+    private func showManualWindowNotFoundAlert(triggerSource: String, appIdentity: String?, action: ManualWindowAction) {
+        DispatchQueue.main.async {
+            AppLogger.shared.log("手动窗口操作未找到可操作窗口: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity ?? "未知应用")", level: .warning)
+
+            let alert = NSAlert()
+            alert.messageText = "无法找到可操作的窗口"
+            alert.informativeText = "当前前台应用没有活动的标准窗口，或该窗口不支持窗口管理。"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
         }
     }
     
@@ -565,7 +731,7 @@ class WindowManager: ObservableObject {
         AppLogger.shared.log("通过边界匹配未找到屏幕，尝试使用重叠区域匹配", level: .debug)
         
         // 获取主屏幕
-        guard let mainScreen = NSScreen.screens.first else {
+        guard NSScreen.screens.first != nil else {
             AppLogger.shared.log("无法获取主屏幕", level: .error)
             return nil
         }
@@ -708,7 +874,7 @@ class WindowManager: ObservableObject {
     ///   - window: 目标窗口
     ///   - frame: 目标位置和大小
     ///   - adjustSizeFirst: 是否先调整大小，默认为true
-    private func enhancedSetFrame(_ window: AXUIElement, _ frame: CGRect, adjustSizeFirst: Bool = true) {
+    private func enhancedSetFrame(_ window: AXUIElement, _ frame: CGRect, adjustSizeFirst: Bool = true, completion: ((Bool) -> Void)? = nil) {
         AppLogger.shared.log("开始增强型设置窗口位置和大小: \(frame)", level: .debug)
         
         // 为防止系统增强型UI干扰窗口调整，尝试暂时禁用它（如果有）
@@ -776,7 +942,7 @@ class WindowManager: ObservableObject {
         }
         
         // 4. 验证调整结果
-        verifyWindowChange(window, expectedFrame: frame)
+        verifyWindowChange(window, expectedFrame: frame, completion: completion)
         
         // 如果增强型UI之前是开启的，恢复它
         if let appElement = appElement, enhancedUI == true {
@@ -819,11 +985,12 @@ class WindowManager: ObservableObject {
     }
     
     /// 验证窗口变化是否成功应用
-    private func verifyWindowChange(_ window: AXUIElement, expectedFrame: CGRect) {
+    private func verifyWindowChange(_ window: AXUIElement, expectedFrame: CGRect, completion: ((Bool) -> Void)? = nil) {
         // 短暂延迟后检查窗口实际状态
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             guard let (actualPosition, actualSize) = self.getWindowPositionAndSize(window) else {
                 AppLogger.shared.log("无法获取窗口实际状态进行验证", level: .warning)
+                completion?(false)
                 return
             }
             
@@ -841,13 +1008,15 @@ class WindowManager: ObservableObject {
             
             if positionMatch && sizeMatch {
                 AppLogger.shared.log("窗口调整验证成功，实际位置和大小符合预期", level: .debug)
+                completion?(true)
             } else {
                 AppLogger.shared.log("窗口调整验证警告 - 预期: \(expectedFrame), 实际: \(actualFrame)", level: .warning)
+                completion?(false)
             }
         }
     }
     
-    private func centerWindow(_ window: AXUIElement) {
+    private func centerWindow(_ window: AXUIElement, completion: ((Bool) -> Void)? = nil) {
         AppLogger.shared.log("开始居中窗口操作", level: .debug)
         
         // 直接获取窗口所在的屏幕
@@ -865,17 +1034,22 @@ class WindowManager: ObservableObject {
         
         if sizeResult != .success {
             AppLogger.shared.log("获取窗口大小失败: \(sizeResult.rawValue)", level: .warning)
+            completion?(false)
             return
         }
         
         // 转换 AXValue 到 CGSize
         var windowSize = CGSize.zero
-        guard let sizeValue = sizeRef else { return }
+        guard let sizeValue = sizeRef else {
+            completion?(false)
+            return
+        }
         if AXValueGetType(sizeValue as! AXValue) == .cgSize,
            AXValueGetValue(sizeValue as! AXValue, .cgSize, &windowSize) {
             AppLogger.shared.log("当前窗口大小: \(windowSize)", level: .debug)
         } else {
             AppLogger.shared.log("无法转换窗口大小", level: .warning)
+            completion?(false)
             return
         }
         
@@ -895,10 +1069,10 @@ class WindowManager: ObservableObject {
         let targetFrame = CGRect(origin: newPosition, size: windowSize)
         
         // 使用增强型setFrame方法应用变更
-        enhancedSetFrame(window, targetFrame)
+        enhancedSetFrame(window, targetFrame, completion: completion)
     }
     
-    private func almostMaximizeWindow(_ window: AXUIElement) {
+    private func almostMaximizeWindow(_ window: AXUIElement, completion: ((Bool) -> Void)? = nil) {
         AppLogger.shared.log("开始几乎最大化窗口操作", level: .debug)
         
         // 直接获取窗口所在的屏幕
@@ -939,7 +1113,7 @@ class WindowManager: ObservableObject {
         let axRect = convertToAXRect(nsRect)
         
         // 使用增强型setFrame方法应用变更
-        enhancedSetFrame(window, axRect)
+        enhancedSetFrame(window, axRect, completion: completion)
     }
     
     // MARK: - 屏幕和状态栏相关方法

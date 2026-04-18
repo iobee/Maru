@@ -1,52 +1,49 @@
 import SwiftUI
-import Foundation
-import AppKit
-import OSLog
 
 struct ContentView: View {
     @Binding var selectedTab: NavigationTab
-    @EnvironmentObject var appConfig: AppConfig
-    @State private var isRunning = true
-    @State private var selectedSection = 0
-    @EnvironmentObject var appLogger: AppLogger
-    @StateObject private var windowManager = WindowManager()
+    @Binding var isWindowManagementEnabled: Bool
     @Environment(\.colorScheme) private var colorScheme
     
     // 定义导航项
     enum NavigationSection: Int, CaseIterable, Identifiable {
         case home = 0
+        case manualControl
         case rules
         case logs
+        case about
         
         var id: Int { self.rawValue }
         
         var title: String {
             switch self {
             case .home: return "常规"
+            case .manualControl: return "手动控制"
             case .rules: return "应用规则"
             case .logs: return "日志"
+            case .about: return "关于"
             }
         }
         
         var icon: String {
             switch self {
             case .home: return "house.fill"
+            case .manualControl: return "keyboard.fill"
             case .rules: return "gearshape.fill"
             case .logs: return "doc.text.fill"
+            case .about: return "info.circle.fill"
             }
         }
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // 侧边栏导航
-                sidebarView
-                    .frame(width: 220)
-                
-                // 主内容区域
-                mainContentView
-            }
+        HStack(spacing: 0) {
+            // 侧边栏导航
+            sidebarView
+                .frame(width: sidebarWidth)
+            
+            // 主内容区域
+            mainContentView
         }
         .frame(minWidth: 800, idealWidth: 900, maxWidth: .infinity, 
                minHeight: 500, idealHeight: 600, maxHeight: .infinity)
@@ -56,10 +53,10 @@ struct ContentView: View {
                 Color(NSColor.windowBackgroundColor)
         )
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showRulesConfig"))) { _ in
-            selectedSection = NavigationSection.rules.rawValue
+            selectedTab = .rules
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("showLogs"))) { _ in
-            selectedSection = NavigationSection.logs.rawValue
+            selectedTab = .logs
         }
     }
     
@@ -163,248 +160,192 @@ struct ContentView: View {
     // 导航链接项
     private func navigationLink(for section: NavigationSection) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: section.icon)
-                .font(.system(size: 14))
-                .foregroundStyle(selectedSection == section.rawValue ? .blue : .secondary)
-                .frame(width: 20, height: 20)
-            
-            Text(section.title)
-                .font(.subheadline)
-                .foregroundStyle(selectedSection == section.rawValue ? .primary : .secondary)
-            
-            Spacer()
+            sidebarBrandIcon
+
+            Text("Hi Window Guy")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .contentShape(Rectangle())
-        .tag(section.rawValue)
+        .padding(.vertical, 10)
+    }
+
+    private var sidebarDivider: some View {
+        Divider()
+            .overlay(Color.white.opacity(0.08))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+    }
+
+    private var sidebarNavigationContent: some View {
+        VStack(spacing: 6) {
+            ForEach(NavigationSection.allCases) { section in
+                sidebarRow(for: section)
             }
-            
-            // 主内容区域
+        }
+        .padding(.top, 8)
+    }
+
+    private var sidebarStatusFooter: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(isWindowManagementEnabled ? Color.green : Color.secondary.opacity(0.5))
+                .frame(width: 8, height: 8)
+
+            Text(isWindowManagementEnabled ? "已启用" : "已停用")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 14)
+    }
+
+    private var sidebarBrandIcon: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.12))
+            .overlay(
+                Image(systemName: "window.vertical.closed")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            )
+            .frame(width: 38, height: 38)
+    }
+
+    private var sidebarContainerBackground: some View {
+        SidebarVisualEffectBackground()
+            .overlay(
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    Rectangle()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.16))
+                        .frame(width: 1)
+                }
+            )
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.16 : 0.06),
+                radius: 14,
+                x: 0,
+                y: 0
+            )
+    }
+
+    private func sidebarRow(for section: NavigationSection) -> some View {
+        Button {
+            selectedSectionBinding.wrappedValue = section.rawValue
+        } label: {
+            HStack(spacing: 12) {
+                sidebarRowIcon(for: section)
+
+                Text(section.title)
+                    .font(.system(size: 15, weight: currentSection == section ? .semibold : .medium))
+                    .foregroundStyle(currentSection == section ? Color.white : Color.primary)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 46, maxHeight: 46, alignment: .leading)
+            .background(sidebarSelectionBackground(for: section))
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sidebarRowIcon(for section: NavigationSection) -> some View {
+        Image(systemName: section.icon)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(currentSection == section ? Color.white : Color.secondary)
+            .frame(width: 24, height: 24)
+            .background(sidebarRowIconPlate(for: section))
+    }
+
+    private func sidebarRowIconPlate(for section: NavigationSection) -> some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(currentSection == section ? Color.white.opacity(0.18) : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.45))
+    }
+
+    private func sidebarSelectionBackground(for section: NavigationSection) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(currentSection == section ? Color(nsColor: .systemBlue) : Color.clear)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.white.opacity(currentSection == section ? 0.12 : 0), lineWidth: 0.8)
+            )
+    }
+
+    private var sidebarWidth: CGFloat { 248 }
+    private var sidebarHorizontalPadding: CGFloat { 14 }
+    private var sidebarTopPadding: CGFloat { 20 }
+    private var sidebarBottomPadding: CGFloat { 14 }
+
+    // 主内容区域
     private var mainContentView: some View {
             Group {
                 switch selectedTab {
                 case .home:
-                    homeView
+                    HomeDashboardView(isWindowManagementEnabled: $isWindowManagementEnabled)
+                case .manualControl:
+                    ManualControlView()
                 case .rules:
                     RuleConfigView()
                 case .logs:
                     LogViewer()
+                case .about:
+                    AboutView()
                 }
             }
         }
-    
-    // 主页内容
-    private var homeView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 30) {
-                // 标题部分
-                HStack(spacing: 0) {
-                    Image(systemName: "house.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.blue)
-                        .frame(width: 40, height: 40)
-                        .background(Color.blue.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        
-                    VStack(alignment: .leading, spacing: 4) {
-                    Text("窗口管理")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(.primary)
-                            
-                        Text("管理和控制窗口尺寸和位置")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.leading, 12)
-                    
-                    Spacer()
-                }
-                .padding(.bottom, 10)
-                
-                // 设置卡片
-                settingsCard
-                
-                // 窗口缩放设置卡片
-                scaleFactorCard
-                
-                // 统计卡片
-                statsView
-                
-                Spacer()
-                }
-            .padding(30)
-        }
-        .background(Color.clear)
+
+    private var currentSection: NavigationSection {
+        NavigationSection(tab: selectedTab)
     }
-    
-    // 开关设置卡片
-    private var settingsCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("窗口管理")
-                        .font(.headline)
-                                .fontWeight(.semibold)
-                            
-                            Text("自动调整窗口大小和位置")
-                                .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        }
-                .padding(.leading, 4)
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $isRunning)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    .scaleEffect(1.1)
-                            .onChange(of: isRunning) { newValue in
-                                if newValue {
-                                    appLogger.log("窗口管理已启用", level: .info)
-                                } else {
-                                    appLogger.log("窗口管理已停用", level: .info)
-                                }
-                            }
-                    }
-        }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Material.regularMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-        )
-    }
-    
-    // 窗口缩放设置卡片
-    private var scaleFactorCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
-                        HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                                Text("窗口缩放比例")
-                        .font(.headline)
-                                    .fontWeight(.semibold)
-                                
-                                Text("控制「几乎最大化」时窗口的大小")
-                                    .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                            }
-                .padding(.leading, 4)
-                            
-                            Spacer()
-                            
-                            Text("\(Int(appConfig.windowScaleFactor * 100))%")
-                    .font(.system(.headline, design: .rounded))
-                    .foregroundStyle(.blue)
-                                .monospacedDigit()
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.blue.opacity(0.1))
-                    )
-                        }
-                        
-            VStack(spacing: 10) {
-                HStack {
-                    Image(systemName: "rectangle.compress.vertical")
-                        .foregroundStyle(.secondary)
-                    
-                            Slider(
-                                value: $appConfig.windowScaleFactor,
-                                in: 0.7...0.97,
-                                step: 0.01
-                            )
-                    .tint(.blue)
-                    
-                    Image(systemName: "rectangle.expand.vertical")
-                        .foregroundStyle(.secondary)
+
+    private var selectedSectionBinding: Binding<Int> {
+        Binding(
+            get: { currentSection.rawValue },
+            set: { newValue in
+                guard let section = NavigationSection(rawValue: newValue) else {
+                    return
                 }
-                            
-                            HStack {
-                                Text("更紧凑")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Spacer()
-                                
-                                Text("更宽敞")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 4)
-                        }
-                    }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Material.regularMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-        )
-                }
-                
-    // 统计数据视图
-    private var statsView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-                    Text("应用统计")
-                        .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.leading, 4)
-                    
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        statCard(title: "已记录应用", count: appConfig.appRules.count, icon: "app.badge", color: .purple)
-                        
-                        statCard(title: "居中处理", 
-                                count: appConfig.appRules.filter { $0.rule == .center }.count,
-                                icon: "rectangle.center.inset.filled", 
-                                color: .blue)
-                        
-                        statCard(title: "几乎最大化", 
-                                count: appConfig.appRules.filter { $0.rule == .almostMaximize }.count,
-                                icon: "rectangle.inset.filled", 
-                                color: .green)
-                        
-                        statCard(title: "忽略处理", 
-                                count: appConfig.appRules.filter { $0.rule == .ignore }.count,
-                                icon: "eye.slash.fill", 
-                                color: .gray)
-                    }
-                }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Material.regularMaterial)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-        )
-    }
-    
-    // 统计卡片
-    private func statCard(title: String, count: Int, icon: String, color: Color) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(color)
-                .frame(width: 38, height: 38)
-                .background(color.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
-                Text("\(count)")
-                    .font(.system(.title3, design: .rounded))
-                    .fontWeight(.bold)
-                    .foregroundStyle(color)
+
+                selectedTab = section.tab
             }
-            
-            Spacer()
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Material.ultraThinMaterial)
         )
+    }
+}
+
+private extension ContentView.NavigationSection {
+    init(tab: NavigationTab) {
+        switch tab {
+        case .home:
+            self = .home
+        case .manualControl:
+            self = .manualControl
+        case .rules:
+            self = .rules
+        case .logs:
+            self = .logs
+        case .about:
+            self = .about
+        }
+    }
+
+    var tab: NavigationTab {
+        switch self {
+        case .home:
+            return .home
+        case .manualControl:
+            return .manualControl
+        case .rules:
+            return .rules
+        case .logs:
+            return .logs
+        case .about:
+            return .about
+        }
     }
 } 
