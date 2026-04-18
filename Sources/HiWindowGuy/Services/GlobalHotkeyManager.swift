@@ -20,9 +20,10 @@ final class GlobalHotkeyManager {
         removeEventHandler()
     }
 
-    func registerCurrentBindings(center: ShortcutBinding?, almostMaximize: ShortcutBinding?) {
+    func registerCurrentBindings(center: ShortcutBinding?, almostMaximize: ShortcutBinding?, moveToNextDisplay: ShortcutBinding?) {
         register(binding: center, for: .center)
         register(binding: almostMaximize, for: .almostMaximize)
+        register(binding: moveToNextDisplay, for: .moveToNextDisplay)
     }
 
     private func installEventHandler() {
@@ -173,6 +174,8 @@ final class GlobalHotkeyManager {
             return 1
         case .almostMaximize:
             return 2
+        case .moveToNextDisplay:
+            return 3
         }
     }
 

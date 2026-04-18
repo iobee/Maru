@@ -47,6 +47,9 @@ struct HiWindowGuyApp: App {
         .onChange(of: appConfig.manualAlmostMaximizeShortcut) { _ in
             refreshGlobalHotKeyRegistrations()
         }
+        .onChange(of: appConfig.manualMoveToNextDisplayShortcut) { _ in
+            refreshGlobalHotKeyRegistrations()
+        }
         .commands {
             // 添加自定义命令到标准菜单栏
             CommandGroup(replacing: .appInfo) {
@@ -82,6 +85,7 @@ struct HiWindowGuyApp: App {
 
                 manualWindowActionButton(for: .center)
                 manualWindowActionButton(for: .almostMaximize)
+                manualWindowActionButton(for: .moveToNextDisplay)
             }
         }
         
@@ -99,6 +103,7 @@ struct HiWindowGuyApp: App {
 
             manualWindowActionButton(for: .center)
             manualWindowActionButton(for: .almostMaximize)
+            manualWindowActionButton(for: .moveToNextDisplay)
             
             Divider()
             
@@ -194,7 +199,8 @@ struct HiWindowGuyApp: App {
     private func refreshGlobalHotKeyRegistrations() {
         globalHotkeyManager.registerCurrentBindings(
             center: appConfig.manualCenterShortcut,
-            almostMaximize: appConfig.manualAlmostMaximizeShortcut
+            almostMaximize: appConfig.manualAlmostMaximizeShortcut,
+            moveToNextDisplay: appConfig.manualMoveToNextDisplayShortcut
         )
     }
 
@@ -216,6 +222,8 @@ struct HiWindowGuyApp: App {
             return "窗口居中"
         case .almostMaximize:
             return "几乎最大化"
+        case .moveToNextDisplay:
+            return "移到下一个显示器并铺满"
         }
     }
     

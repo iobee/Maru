@@ -33,6 +33,7 @@ final class AppConfigShortcutTests: XCTestCase {
 
         XCTAssertEqual(config.manualCenterShortcut?.displayText, "Ctrl+Cmd+C")
         XCTAssertEqual(config.manualAlmostMaximizeShortcut?.displayText, "Ctrl+Cmd+M")
+        XCTAssertEqual(config.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
     }
 
     func testClearingOneBindingLeavesTheOtherIntact() throws {
@@ -42,6 +43,7 @@ final class AppConfigShortcutTests: XCTestCase {
 
         XCTAssertNil(config.manualCenterShortcut)
         XCTAssertEqual(config.manualAlmostMaximizeShortcut?.displayText, "Ctrl+Cmd+M")
+        XCTAssertEqual(config.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
     }
 
     func testClearedShortcutPersistsAcrossReload() throws {
@@ -50,11 +52,13 @@ final class AppConfigShortcutTests: XCTestCase {
         config.clearManualCenterShortcut()
         XCTAssertNil(config.manualCenterShortcut)
         XCTAssertEqual(config.manualAlmostMaximizeShortcut?.displayText, "Ctrl+Cmd+M")
+        XCTAssertEqual(config.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
 
         let reloadedConfig = AppConfig(storageDirectoryURL: directoryURL)
 
         XCTAssertNil(reloadedConfig.manualCenterShortcut)
         XCTAssertEqual(reloadedConfig.manualAlmostMaximizeShortcut?.displayText, "Ctrl+Cmd+M")
+        XCTAssertEqual(reloadedConfig.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
     }
 
     func testResettingRestoresDefaultBinding() throws {
@@ -81,6 +85,7 @@ final class AppConfigShortcutTests: XCTestCase {
 
         XCTAssertEqual(config.manualCenterShortcut?.displayText, "Ctrl+Cmd+C")
         XCTAssertEqual(config.manualAlmostMaximizeShortcut?.displayText, "Ctrl+Cmd+M")
+        XCTAssertEqual(config.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
     }
 
     func testMalformedShortcutPayloadFallsBackToDefaults() throws {
@@ -102,6 +107,7 @@ final class AppConfigShortcutTests: XCTestCase {
 
         XCTAssertEqual(config.manualCenterShortcut?.displayText, "Ctrl+Cmd+C")
         XCTAssertEqual(config.manualAlmostMaximizeShortcut?.displayText, "Ctrl+Cmd+M")
+        XCTAssertEqual(config.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
     }
 
     func testDuplicateBindingsAreRejectedByConfigValidation() throws {
@@ -118,5 +124,18 @@ final class AppConfigShortcutTests: XCTestCase {
         let stored = try readGeneralConfig(at: directoryURL)
         XCTAssertEqual(stored["manualCenterShortcut"] as? [String: Any] != nil, true)
         XCTAssertEqual(stored["manualAlmostMaximizeShortcut"] as? [String: Any] != nil, true)
+        XCTAssertEqual(stored["manualMoveToNextDisplayShortcut"] as? [String: Any] != nil, true)
+    }
+
+    func testThirdBindingRejectsDuplicatesAgainstExistingBindings() throws {
+        let (config, directoryURL) = try makeConfig()
+        let beforeData = try Data(contentsOf: directoryURL.appendingPathComponent("general.json"))
+        let duplicateBinding = ShortcutBinding(key: "m", modifierFlags: [.control, .command])
+
+        XCTAssertFalse(config.updateManualMoveToNextDisplayShortcut(duplicateBinding))
+        XCTAssertEqual(config.manualMoveToNextDisplayShortcut?.displayText, "Ctrl+Cmd+N")
+
+        let afterData = try Data(contentsOf: directoryURL.appendingPathComponent("general.json"))
+        XCTAssertEqual(afterData, beforeData)
     }
 }

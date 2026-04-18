@@ -112,6 +112,8 @@ class WindowManager: ObservableObject {
                 self.performManualCenter(triggerSource: triggerSource)
             case .almostMaximize:
                 self.performManualAlmostMaximize(triggerSource: triggerSource)
+            case .moveToNextDisplay:
+                self.performManualMoveToNextDisplay(triggerSource: triggerSource)
             }
         }
         
@@ -235,6 +237,10 @@ class WindowManager: ObservableObject {
     func performManualAlmostMaximize(triggerSource: String) {
         performManualWindowAction(.almostMaximize, triggerSource: triggerSource)
     }
+
+    func performManualMoveToNextDisplay(triggerSource: String) {
+        performManualWindowAction(.moveToNextDisplay, triggerSource: triggerSource)
+    }
     
     private func performManualWindowAction(_ action: ManualWindowAction, triggerSource: String) {
         guard checkAccessibilityPermission() else {
@@ -274,6 +280,10 @@ class WindowManager: ObservableObject {
             })
         case .almostMaximize:
             almostMaximizeWindow(window, completion: { [weak self] success in
+                self?.handleWindowOperationCompletion(success: success, bundleId: app.bundleIdentifier, triggerSource: triggerSource, actionLabel: action.label, appIdentity: appIdentity)
+            })
+        case .moveToNextDisplay:
+            moveWindowToNextDisplayAndAlmostMaximize(window, completion: { [weak self] success in
                 self?.handleWindowOperationCompletion(success: success, bundleId: app.bundleIdentifier, triggerSource: triggerSource, actionLabel: action.label, appIdentity: appIdentity)
             })
         }
@@ -1071,49 +1081,57 @@ class WindowManager: ObservableObject {
         // 使用增强型setFrame方法应用变更
         enhancedSetFrame(window, targetFrame, completion: completion)
     }
-    
+
     private func almostMaximizeWindow(_ window: AXUIElement, completion: ((Bool) -> Void)? = nil) {
         AppLogger.shared.log("开始几乎最大化窗口操作", level: .debug)
         
         // 直接获取窗口所在的屏幕
         let currentScreen = getScreenForWindow(window)
         AppLogger.shared.log("使用屏幕: \(currentScreen.localizedName), frame: \(currentScreen.frame)", level: .debug)
-        
-        // 使用 frame，但需要考虑状态栏高度
-        let screenFrame = currentScreen.frame
-        
-        // 获取状态栏高度
-        let statusBarHeight = getStatusBarHeight(for: currentScreen)
+        almostMaximizeWindow(window, on: currentScreen, completion: completion)
+    }
+
+    private func moveWindowToNextDisplayAndAlmostMaximize(_ window: AXUIElement, completion: ((Bool) -> Void)? = nil) {
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else {
+            AppLogger.shared.log("移动到下一个显示器失败: 未检测到可用屏幕", level: .warning)
+            completion?(false)
+            return
+        }
+
+        let currentScreen = getScreenForWindow(window)
+        let currentIndex = screens.firstIndex(where: { $0 == currentScreen }) ?? 0
+        let nextIndex = (currentIndex + 1) % screens.count
+        let targetScreen = screens[nextIndex]
+
+        AppLogger.shared.log("准备将窗口移动到下一个显示器并铺满: 当前=\(currentScreen.localizedName), 目标=\(targetScreen.localizedName)", level: .info)
+        almostMaximizeWindow(window, on: targetScreen, completion: completion)
+    }
+
+    private func almostMaximizeWindow(_ window: AXUIElement, on screen: NSScreen, completion: ((Bool) -> Void)? = nil) {
+        let axRect = almostMaximizedAXRect(for: screen)
+        enhancedSetFrame(window, axRect, completion: completion)
+    }
+
+    private func almostMaximizedAXRect(for screen: NSScreen) -> CGRect {
+        let screenFrame = screen.frame
+        let statusBarHeight = getStatusBarHeight(for: screen)
         AppLogger.shared.log("状态栏高度: \(statusBarHeight)", level: .debug)
-        
-        // 从配置获取窗口比例参数 (0.0-1.0)
+
         let scaleFactor = CGFloat(AppConfig.shared.windowScaleFactor)
-        
-        // 基于比例计算边距
         let horizontalMargin = (screenFrame.width * (1.0 - scaleFactor)) / 2
         let verticalMargin = ((screenFrame.height - statusBarHeight) * (1.0 - scaleFactor)) / 2
-        
+
         AppLogger.shared.log("使用比例系数: \(scaleFactor), 计算得到边距 - 水平: \(horizontalMargin), 垂直: \(verticalMargin)", level: .debug)
-        
-        // 计算新的框架，Y坐标从状态栏下方开始 (NSScreen坐标系)
-        let nsFrameX = screenFrame.origin.x + horizontalMargin
-        let nsFrameY = screenFrame.origin.y + verticalMargin
-        let nsFrameWidth = screenFrame.width - (horizontalMargin * 2)
-        let nsFrameHeight = screenFrame.height - statusBarHeight - (verticalMargin * 2)
-        
-        // 创建NSScreen坐标系中的矩形
+
         let nsRect = CGRect(
-            x: nsFrameX,
-            y: nsFrameY,
-            width: nsFrameWidth,
-            height: nsFrameHeight
+            x: screenFrame.origin.x + horizontalMargin,
+            y: screenFrame.origin.y + verticalMargin,
+            width: screenFrame.width - (horizontalMargin * 2),
+            height: screenFrame.height - statusBarHeight - (verticalMargin * 2)
         )
-        
-        // 将矩形从NSScreen坐标系转换为AXUIElement坐标系
-        let axRect = convertToAXRect(nsRect)
-        
-        // 使用增强型setFrame方法应用变更
-        enhancedSetFrame(window, axRect, completion: completion)
+
+        return convertToAXRect(nsRect)
     }
     
     // MARK: - 屏幕和状态栏相关方法
