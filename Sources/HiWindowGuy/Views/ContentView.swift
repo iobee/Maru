@@ -62,25 +62,103 @@ struct ContentView: View {
     
     // 侧边栏视图
     private var sidebarView: some View {
-        ZStack(alignment: .topLeading) {
-            sidebarContainerBackground
-                .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                sidebarBrandHeader
-                sidebarDivider
-                sidebarNavigationContent
-                Spacer(minLength: 0)
-                sidebarStatusFooter
+        VStack(spacing: 0) {
+            sidebarBrandHeader
+            sidebarDivider
+            sidebarNavigationContent
+            Spacer()
+            sidebarStatusFooter
+        }
+        .padding(.vertical, sidebarVerticalPadding)
+        .padding(.horizontal, sidebarHorizontalPadding)
+        .background(sidebarContainerBackground)
+        .onChange(of: selectedSection) { newValue in
+            // 根据选择的部分更新标签
+            switch newValue {
+            case NavigationSection.home.rawValue:
+                selectedTab = .home
+            case NavigationSection.rules.rawValue:
+                selectedTab = .rules
+            case NavigationSection.logs.rawValue:
+                selectedTab = .logs
+            default:
+                break
             }
-            .frame(maxHeight: .infinity, alignment: .top)
-            .padding(.top, sidebarTopPadding)
-            .padding(.bottom, sidebarBottomPadding)
-            .padding(.horizontal, sidebarHorizontalPadding)
         }
     }
-    
+
     private var sidebarBrandHeader: some View {
+        HStack(spacing: 10) {
+            sidebarBrandIcon
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Hi Window Guy")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Text("Window rules")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
+    }
+
+    private var sidebarDivider: some View {
+        Divider()
+            .padding(.vertical, 10)
+            .opacity(0.7)
+    }
+
+    private var sidebarBrandIcon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.blue.opacity(0.95),
+                            Color.cyan.opacity(0.9)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Image(systemName: "window.vertical.closed")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: 30, height: 30)
+        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+    }
+
+    private var sidebarContainerBackground: some View {
+        let fillColor = colorScheme == .dark
+            ? Color(NSColor.controlBackgroundColor).opacity(0.88)
+            : Color(NSColor.controlBackgroundColor).opacity(0.72)
+
+        return RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .fill(fillColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(
+                        Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.06),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.08),
+                radius: 18,
+                x: 0,
+                y: 8
+            )
+    }
+
+    // 导航链接项
+    private func navigationLink(for section: NavigationSection) -> some View {
         HStack(spacing: 12) {
             sidebarBrandIcon
 
@@ -270,4 +348,4 @@ private extension ContentView.NavigationSection {
             return .about
         }
     }
-}
+} 
