@@ -22,6 +22,13 @@ struct ManualControlView: View {
                 description: "将当前前台应用的活动标准窗口调整为接近满屏的工作尺寸。",
                 currentBinding: appConfig.manualAlmostMaximizeShortcut,
                 defaultBinding: ManualWindowAction.almostMaximize.defaultShortcut
+            ),
+            ShortcutItem(
+                action: .moveToNextDisplay,
+                title: ManualWindowAction.moveToNextDisplay.label,
+                description: "将当前前台应用的活动标准窗口移动到下一个显示器，并执行几乎最大化。",
+                currentBinding: appConfig.manualMoveToNextDisplayShortcut,
+                defaultBinding: ManualWindowAction.moveToNextDisplay.defaultShortcut
             )
         ]
     }

@@ -3,6 +3,7 @@ import Foundation
 enum ManualWindowAction: String, CaseIterable, Codable, Identifiable {
     case center
     case almostMaximize
+    case moveToNextDisplay
 
     var id: String { rawValue }
 
@@ -12,6 +13,8 @@ enum ManualWindowAction: String, CaseIterable, Codable, Identifiable {
             return "居中"
         case .almostMaximize:
             return "几乎最大化"
+        case .moveToNextDisplay:
+            return "移到下一个显示器并铺满"
         }
     }
 
@@ -21,6 +24,8 @@ enum ManualWindowAction: String, CaseIterable, Codable, Identifiable {
             return ShortcutBinding(key: "c", modifierFlags: [.control, .command])
         case .almostMaximize:
             return ShortcutBinding(key: "m", modifierFlags: [.control, .command])
+        case .moveToNextDisplay:
+            return ShortcutBinding(key: "n", modifierFlags: [.control, .command])
         }
     }
 }
