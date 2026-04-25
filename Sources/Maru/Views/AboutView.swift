@@ -1,23 +1,44 @@
 import AppKit
 import SwiftUI
 
+enum AboutCardLayout {
+    static let pageHorizontalPadding: CGFloat = 64
+    static let pageTopPadding: CGFloat = 56
+    static let titleToCardSpacing: CGFloat = 44
+    static let contentMaxWidth: CGFloat = 720
+    static let cardMaxWidth: CGFloat = 700
+    static let cardMinHeight: CGFloat = 420
+    static let cardPadding: CGFloat = 52
+    static let cardCornerRadius: CGFloat = 32
+    static let iconSize: CGFloat = 92
+    static let titleFontSize: CGFloat = 50
+    static let sloganFontSize: CGFloat = 24
+    static let descriptionFontSize: CGFloat = 15
+    static let contentColumnMaxWidth: CGFloat = 540
+    static let centerGuideLength: CGFloat = 220
+    static let shadowRadius: CGFloat = 60
+    static let shadowYOffset: CGFloat = 24
+}
+
 struct AboutView: View {
     private let state = AboutViewState()
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: AboutCardLayout.titleToCardSpacing) {
             pageHeader
 
-            Spacer(minLength: 0)
-
             aboutCard
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: AboutCardLayout.cardMaxWidth, alignment: .leading)
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 34)
-        .padding(.vertical, 30)
+        .frame(maxWidth: AboutCardLayout.contentMaxWidth, alignment: .leading)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.leading, AboutCardLayout.pageHorizontalPadding)
+        .padding(.trailing, AboutCardLayout.pageHorizontalPadding)
+        .padding(.top, AboutCardLayout.pageTopPadding)
+        .padding(.bottom, 30)
         .background(pageBackground.ignoresSafeArea(.container, edges: .top))
     }
 }
@@ -26,214 +47,187 @@ private extension AboutView {
     var pageHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("关于")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(.system(size: 34, weight: .semibold))
 
             Text("Maru 的产品名片。")
-                .font(.body)
+                .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(.secondary)
         }
     }
 
     var aboutCard: some View {
-        HStack(alignment: .center, spacing: 30) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top, spacing: 18) {
-                    Image(nsImage: AppIconProvider.loadAppIcon(size: 92))
-                        .resizable()
-                        .interpolation(.high)
-                        .frame(width: 92, height: 92)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        VStack(alignment: .leading, spacing: 0) {
+            Image(nsImage: AppIconProvider.loadAppIcon(size: AboutCardLayout.iconSize))
+                .resizable()
+                .interpolation(.high)
+                .frame(width: AboutCardLayout.iconSize, height: AboutCardLayout.iconSize)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.18 : 0.10), radius: 12, x: 0, y: 7)
 
-                    Spacer(minLength: 16)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(state.appName)
+                    .font(.system(size: AboutCardLayout.titleFontSize, weight: .bold))
+                    .foregroundStyle(.primary)
 
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(state.releaseLineText)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .tracking(0.4)
-                            .foregroundStyle(.secondary)
-
-                        Text(state.updateStatusTitle)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .tracking(0.5)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-
-                Spacer(minLength: 42)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(state.appName)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    Text(state.signatureText)
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(state.localizedSloganText)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(state.productDescriptionText)
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 2)
-
-                    Text(state.metaLineText)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 4)
-                }
+                Text(state.signatureText)
+                    .font(.system(size: AboutCardLayout.sloganFontSize, weight: .medium))
+                    .foregroundStyle(sloganForeground)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: 420, alignment: .leading)
+            .padding(.top, 34)
 
-            Spacer(minLength: 0)
+            Text(state.productDescriptionText)
+                .font(.system(size: AboutCardLayout.descriptionFontSize, weight: .regular))
+                .foregroundStyle(.secondary)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: AboutCardLayout.contentColumnMaxWidth, alignment: .leading)
+                .padding(.top, 38)
 
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.12))
-                    .frame(width: 210, height: 210)
-                    .blur(radius: 42)
+            Spacer(minLength: 48)
 
-                AboutAccentMark()
-                    .frame(width: 198, height: 198)
+            HStack(alignment: .center, spacing: 16) {
+                Text(state.releaseLineText)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(.tertiary)
+
+                Spacer(minLength: 24)
+
+                GitHubCapsuleLink(title: state.githubDisplayText, destination: state.githubURL)
             }
-            .frame(width: 240, height: 240)
+            .frame(maxWidth: AboutCardLayout.contentColumnMaxWidth, alignment: .leading)
         }
-        .padding(36)
-        .frame(maxWidth: 860, minHeight: 360)
+        .padding(AboutCardLayout.cardPadding)
+        .frame(maxWidth: .infinity, minHeight: AboutCardLayout.cardMinHeight, alignment: .topLeading)
         .background(cardBackground)
     }
 
     var pageBackground: some View {
         ZStack {
-            Color(nsColor: .windowBackgroundColor)
-
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.015),
-                    Color.clear
+                    Color(red: 0.980, green: 0.984, blue: 0.992),
+                    Color(red: 0.965, green: 0.969, blue: 0.976)
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .top,
+                endPoint: .bottom
             )
 
-            Circle()
-                .fill(Color.blue.opacity(0.10))
-                .frame(width: 380, height: 380)
-                .blur(radius: 130)
-                .offset(x: 320, y: -220)
+            RadialGradient(
+                colors: [
+                    Color(red: 0.345, green: 0.518, blue: 1.0).opacity(0.08),
+                    Color(red: 0.345, green: 0.518, blue: 1.0).opacity(0.02),
+                    Color.clear
+                ],
+                center: UnitPoint(x: 0.58, y: 0.35),
+                startRadius: 0,
+                endRadius: 430
+            )
         }
     }
 
     var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color(nsColor: .controlBackgroundColor),
-                        Color(nsColor: .windowBackgroundColor).opacity(0.96)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+        RoundedRectangle(cornerRadius: AboutCardLayout.cardCornerRadius, style: .continuous)
+            .fill(cardFillColor)
+            .overlay(centeringAtmosphere)
+            .clipShape(RoundedRectangle(cornerRadius: AboutCardLayout.cardCornerRadius, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.08),
-                                Color.clear,
-                                Color.blue.opacity(0.04)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color.blue.opacity(0.22),
-                                Color.white.opacity(0.05)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                RoundedRectangle(cornerRadius: AboutCardLayout.cardCornerRadius, style: .continuous)
+                    .strokeBorder(cardBorderColor, lineWidth: 1)
             )
             .shadow(
-                color: Color.black.opacity(0.16),
-                radius: 24,
+                color: Color(red: 0.059, green: 0.090, blue: 0.165).opacity(colorScheme == .dark ? 0.22 : 0.06),
+                radius: AboutCardLayout.shadowRadius,
                 x: 0,
-                y: 18
+                y: AboutCardLayout.shadowYOffset
             )
+            .shadow(
+                color: Color(red: 0.059, green: 0.090, blue: 0.165).opacity(colorScheme == .dark ? 0.16 : 0.04),
+                radius: 16,
+                x: 0,
+                y: 4
+            )
+    }
+
+    var cardFillColor: Color {
+        colorScheme == .dark
+            ? Color(nsColor: .controlBackgroundColor).opacity(0.72)
+            : Color.white.opacity(0.72)
+    }
+
+    var cardBorderColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.08)
+            : Color.black.opacity(0.06)
+    }
+
+    var sloganForeground: some ShapeStyle {
+        LinearGradient(
+            colors: [
+                Color(red: 0.231, green: 0.510, blue: 0.965),
+                Color(red: 0.365, green: 0.486, blue: 0.886)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    var centeringAtmosphere: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let height = geometry.size.height
+
+            ZStack {
+                Rectangle()
+                    .fill(Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.010))
+                    .frame(width: 1)
+                    .frame(height: AboutCardLayout.centerGuideLength)
+                    .position(x: width / 2, y: height / 2)
+
+                Rectangle()
+                    .fill(Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.009))
+                    .frame(height: 1)
+                    .frame(width: AboutCardLayout.centerGuideLength)
+                    .position(x: width / 2, y: height / 2)
+
+                Circle()
+                    .fill(Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.018))
+                    .frame(width: 8, height: 8)
+                    .position(x: width / 2, y: height / 2)
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 
-private struct AboutAccentMark: View {
+private struct GitHubCapsuleLink: View {
+    let title: String
+    let destination: URL
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
     var body: some View {
-        GeometryReader { geometry in
-            let size = min(geometry.size.width, geometry.size.height)
-
-            ZStack {
-                Path { path in
-                    let rect = CGRect(
-                        x: size * 0.18,
-                        y: size * 0.38,
-                        width: size * 0.28,
-                        height: size * 0.28
-                    )
-                    path.addRoundedRect(
-                        in: rect,
-                        cornerSize: CGSize(width: size * 0.09, height: size * 0.09)
-                    )
-                }
-                .stroke(
-                    Color.white.opacity(0.84),
-                    style: StrokeStyle(
-                        lineWidth: size * 0.09,
-                        lineCap: .round,
-                        lineJoin: .round
-                    )
-                )
-
-                Path { path in
-                    path.move(to: CGPoint(x: size * 0.40, y: size * 0.52))
-                    path.addLine(to: CGPoint(x: size * 0.66, y: size * 0.27))
-                    path.addLine(to: CGPoint(x: size * 0.66, y: size * 0.42))
-                }
-                .stroke(
-                    Color.white.opacity(0.84),
-                    style: StrokeStyle(
-                        lineWidth: size * 0.09,
-                        lineCap: .round,
-                        lineJoin: .round
-                    )
-                )
-
-                Path { path in
-                    path.move(to: CGPoint(x: size * 0.66, y: size * 0.27))
-                    path.addLine(to: CGPoint(x: size * 0.77, y: size * 0.17))
-                }
-                .stroke(
-                    Color.blue.opacity(0.95),
-                    style: StrokeStyle(
-                        lineWidth: size * 0.035,
-                        lineCap: .round
-                    )
-                )
-            }
-            .shadow(color: Color.black.opacity(0.16), radius: 12, x: 0, y: 8)
+        Link(destination: destination) {
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color(red: 0.145, green: 0.388, blue: 0.922).opacity(colorScheme == .dark ? 0.92 : 0.88))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(buttonBackground)
         }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+
+    private var buttonBackground: some View {
+        Capsule(style: .continuous)
+            .fill(Color.black.opacity(isHovered ? 0.07 : 0.04))
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.46), lineWidth: 0.8)
+            )
     }
 }
