@@ -218,7 +218,7 @@ struct HiWindowGuyApp: App {
     }
     
     init() {
-        NSApplication.shared.applicationIconImage = AppIconProvider.makeAppIcon(size: 512)
+        NSApplication.shared.applicationIconImage = AppIconProvider.loadAppIcon(size: 512)
         globalHotkeyManager = GlobalHotkeyManager(actionHandler: Self.dispatchManualWindowAction)
 
         // 设置未捕获异常处理

@@ -1,6 +1,16 @@
 import AppKit
 
 enum AppIconProvider {
+    static func loadAppIcon(size: CGFloat) -> NSImage {
+        let url = Bundle.module.url(forResource: "MaruIcon", withExtension: "icns")
+               ?? Bundle.main.url(forResource: "MaruIcon", withExtension: "icns")
+        if let url, let icon = NSImage(contentsOf: url) {
+            icon.size = NSSize(width: size, height: size)
+            return icon
+        }
+        return makeAppIcon(size: size)
+    }
+
     static func makeAppIcon(size: CGFloat) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size))
         image.lockFocus()
@@ -50,6 +60,15 @@ enum AppIconProvider {
     }
 
     static func makeMenuBarIcon(size: CGFloat = 18) -> NSImage {
+        // Use the custom menubar icon if available
+        if let url = Bundle.module.url(forResource: "MaruIconMenubar", withExtension: "png")
+                ?? Bundle.main.url(forResource: "MaruIconMenubar", withExtension: "png"),
+           let icon = NSImage(contentsOf: url) {
+            icon.size = NSSize(width: size, height: size)
+            icon.isTemplate = true
+            return icon
+        }
+
         let image = NSImage(size: NSSize(width: size, height: size))
         image.isTemplate = true
         image.lockFocus()

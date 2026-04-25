@@ -39,7 +39,7 @@ private extension AboutView {
         HStack(alignment: .center, spacing: 30) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 18) {
-                    Image(nsImage: AppIconProvider.makeAppIcon(size: 92))
+                    Image(nsImage: AppIconProvider.loadAppIcon(size: 92))
                         .resizable()
                         .interpolation(.high)
                         .frame(width: 92, height: 92)

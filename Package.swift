@@ -21,7 +21,8 @@ let package = Package(
                 "HiWindowGuy/Info.plist"
             ],
             resources: [
-                .process("HiWindowGuy/Assets.xcassets")
+                .process("HiWindowGuy/Assets.xcassets"),
+                .copy("HiWindowGuy/Resources")
             ]
         ),
         .testTarget(
