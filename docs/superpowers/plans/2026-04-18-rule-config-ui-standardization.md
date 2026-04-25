@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restyle the `应用规则` 页面和其编辑弹窗，使其符合已确认的 HiWindowGuy 产品级 UI 标准。
+**Goal:** Restyle the `应用规则` 页面和其编辑弹窗，使其符合已确认的 Maru 产品级 UI 标准。
 
 **Architecture:** Keep the navigation structure and data flow intact while replacing the current mixed web-like card styling with the approved product language: restrained tool surfaces on the right side, blue as the only primary accent, and denser, more native-feeling list and editor components. Remove the standalone search box from the page chrome for this first pass so the page matches the new standard’s “默认不引入搜索” rule; if search remains necessary later, it should return only as a justified tool-row control under the same standard.
 
@@ -12,7 +12,7 @@
 
 ## File Map
 
-- Modify: `Sources/HiWindowGuy/Views/RuleConfigView.swift`
+- Modify: `Sources/Maru/Views/RuleConfigView.swift`
   - Restyle page header, sorting/search tool row, list container, rule rows, bottom status bar, and rule edit sheet.
 ## Verification Strategy
 
@@ -26,7 +26,7 @@
 ### Task 1: Standardize the page container and header/tool row
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/RuleConfigView.swift:1-210`
+- Modify: `Sources/Maru/Views/RuleConfigView.swift:1-210`
 
 - [ ] **Step 1: Replace the decorative header with a page-title header and standard page geometry**
 
@@ -63,14 +63,14 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/RuleConfigView.swift
+git add Sources/Maru/Views/RuleConfigView.swift
 git commit -m "feat: standardize rule config page chrome"
 ```
 
 ### Task 2: Rebuild the rule list into a unified tool surface
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/RuleConfigView.swift:120-380`
+- Modify: `Sources/Maru/Views/RuleConfigView.swift:120-380`
 
 - [ ] **Step 1: Replace the loose scroll/list presentation with a content surface**
 
@@ -105,14 +105,14 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/RuleConfigView.swift
+git add Sources/Maru/Views/RuleConfigView.swift
 git commit -m "feat: standardize rule list surfaces"
 ```
 
 ### Task 3: Restyle the rule edit sheet to match the product standard
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/RuleConfigView.swift:380-520`
+- Modify: `Sources/Maru/Views/RuleConfigView.swift:380-520`
 
 - [ ] **Step 1: Rework the editor layout into the same control-surface language**
 
@@ -145,6 +145,6 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/RuleConfigView.swift
+git add Sources/Maru/Views/RuleConfigView.swift
 git commit -m "feat: standardize rule edit sheet"
 ```

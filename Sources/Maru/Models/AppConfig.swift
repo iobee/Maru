@@ -66,7 +66,7 @@ class AppConfig: ObservableObject {
             appDir = storageDirectoryURL
         } else {
             let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            appDir = appSupportDir.appendingPathComponent("HiWindowGuy")
+            appDir = appSupportDir.appendingPathComponent("Maru")
         }
         
         // 创建应用目录（如果不存在）

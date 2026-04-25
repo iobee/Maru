@@ -1,6 +1,6 @@
 import XCTest
 import AppKit
-@testable import HiWindowGuy
+@testable import Maru
 
 final class ShortcutBindingTests: XCTestCase {
     func testShortcutBindingRepresentsControlCommandC() {

@@ -1,5 +1,5 @@
 import XCTest
-@testable import HiWindowGuy
+@testable import Maru
 
 final class HomeDashboardStateTests: XCTestCase {
     func testSummaryItemsReflectRuleCounts() {
@@ -33,5 +33,23 @@ final class HomeDashboardStateTests: XCTestCase {
         XCTAssertEqual(enabledState.stageManagerTitle, "Stage Manager（推荐）")
         XCTAssertEqual(enabledState.stageManagerStatusTitle, "已开启")
         XCTAssertEqual(disabledState.stageManagerStatusTitle, "未开启")
+        XCTAssertEqual(
+            enabledState.stageManagerDescription,
+            "macOS 系统级窗口分组已开启，可直接配合 Maru 的自动布局使用。"
+        )
+        XCTAssertEqual(
+            enabledState.stageManagerToggleSubtitle,
+            "Maru 会继续按应用规则整理窗口，Stage Manager 负责保留清晰的系统分组。"
+        )
+    }
+
+    func testHeaderUsesMaruProductPositioning() {
+        let state = HomeDashboardState(appRules: [], isEnabled: true, windowScaleFactor: 0.92)
+
+        XCTAssertEqual(state.headerSubtitle, "一键居中，让日常更优雅。")
+        XCTAssertEqual(
+            state.heroDescription,
+            "Maru 是一款 macOS 开源工具，可自动将窗口优雅地移动到屏幕中央，让桌面始终简洁、平衡、顺手。"
+        )
     }
 }

@@ -2,33 +2,33 @@
 import PackageDescription
 
 let package = Package(
-    name: "HiWindowGuy",
+    name: "Maru",
     platforms: [
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "HiWindowGuy", targets: ["HiWindowGuy"])
+        .executable(name: "Maru", targets: ["Maru"])
     ],
     dependencies: [
     ],
     targets: [
         .executableTarget(
-            name: "HiWindowGuy",
+            name: "Maru",
             dependencies: [],
-            path: "Sources",
+            path: "Sources/Maru",
             exclude: [
-                "HiWindowGuy/Utilities/demo.lua",
-                "HiWindowGuy/Info.plist"
+                "Utilities/demo.lua",
+                "Info.plist"
             ],
             resources: [
-                .process("HiWindowGuy/Assets.xcassets"),
-                .copy("HiWindowGuy/Resources")
+                .process("Assets.xcassets"),
+                .copy("Resources")
             ]
         ),
         .testTarget(
-            name: "HiWindowGuyTests",
-            dependencies: ["HiWindowGuy"],
-            path: "Tests"
+            name: "MaruTests",
+            dependencies: ["Maru"],
+            path: "Tests/MaruTests"
         )
     ]
 )

@@ -291,7 +291,7 @@ struct LogViewer: View {
         formatter.dateFormat = "yyyyMMdd_HHmmss"
         let timestamp = formatter.string(from: Date())
 
-        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("hiwindowguy_logs_\(timestamp).log")
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("maru_logs_\(timestamp).log")
 
         var logContent = ""
         for entry in filteredLogs.reversed() {

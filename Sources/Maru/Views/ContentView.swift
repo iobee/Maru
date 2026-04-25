@@ -85,11 +85,11 @@ struct ContentView: View {
             sidebarBrandIcon
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Hi Window Guy")
+                Text("Maru")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                Text("Window rules")
+                Text("Center it")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

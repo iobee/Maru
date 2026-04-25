@@ -1,4 +1,4 @@
-# HiWindowGuy 左侧栏重设计 Spec
+# Maru 左侧栏重设计 Spec
 
 日期：2026-04-17  
 状态：已完成设计确认，待实现  
@@ -6,7 +6,7 @@
 
 ## 1. 目标
 
-把 HiWindowGuy 当前左侧栏从“网页式蓝色按钮导航”调整成更接近 macOS 系统设置气质的原生侧栏，让它和已经成型的首页主体风格一致。
+把 Maru 当前左侧栏从“网页式蓝色按钮导航”调整成更接近 macOS 系统设置气质的原生侧栏，让它和已经成型的首页主体风格一致。
 
 本次设计的核心目标：
 
@@ -54,7 +54,7 @@
 
 ### 5.2 品牌区
 
-- 保留 `Hi Window Guy + 图标` 的识别性
+- 保留 `Maru + 图标` 的识别性
 - 但缩减品牌区高度和装饰感，让它更像产品名区，而不是首页标题
 - 图标尺寸、标题字重、上下间距都需要收紧
 
@@ -84,7 +84,7 @@
 内容：
 
 - App 图标
-- 标题：Hi Window Guy
+- 标题：Maru
 
 调整要求：
 
@@ -125,7 +125,7 @@
 
 ### 7.1 保留
 
-- `Hi Window Guy` 品牌区
+- `Maru` 品牌区
 - 蓝色高亮选中态
 - 三个一级导航入口
 - 底部启用状态提示
@@ -174,12 +174,12 @@
 
 预计主要修改文件：
 
-- `Sources/HiWindowGuy/Views/ContentView.swift`
+- `Sources/Maru/Views/ContentView.swift`
 
 说明：
 
 - 本轮实际改动范围应限制在 `ContentView.swift` 内的 `sidebarView`、`navigationLink(for:)` 和底部状态区相关样式
 - `ContentView.swift` 中右侧主内容切换逻辑保持不变，`home/rules/logs` 内容区不在本次改造范围内
-- `Sources/HiWindowGuy/Views/SidebarView.swift` 是旧的未使用文件，不应作为本轮实现入口
+- `Sources/Maru/Views/SidebarView.swift` 是旧的未使用文件，不应作为本轮实现入口
 
 如果实现过程中需要轻微收口品牌图标或导航图标底板，也应限制在左侧栏局部样式范围内，不扩散到右侧主界面。

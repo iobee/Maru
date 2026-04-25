@@ -1,4 +1,4 @@
-# HiWindowGuy 首页重设计 Spec
+# Maru 首页重设计 Spec
 
 日期：2026-04-15  
 状态：已完成设计确认，待实现  
@@ -171,7 +171,7 @@
 
 预计主要修改文件：
 
-- `Sources/HiWindowGuy/Views/ContentView.swift`
+- `Sources/Maru/Views/ContentView.swift`
 
 可能顺带涉及：
 

@@ -1,5 +1,5 @@
 import XCTest
-@testable import HiWindowGuy
+@testable import Maru
 
 final class AboutViewStateTests: XCTestCase {
     func testVersionDisplayUsesShortAndBuildVersions() {
@@ -19,9 +19,15 @@ final class AboutViewStateTests: XCTestCase {
     func testMissingVersionInfoFallsBackToDefaults() {
         let state = AboutViewState(infoDictionary: [:])
 
+        XCTAssertEqual(state.appName, "Maru")
         XCTAssertEqual(state.versionText, "版本 1.0")
         XCTAssertEqual(state.buildText, "构建 1")
         XCTAssertEqual(state.updateStatusTitle, "版本检查即将支持")
-        XCTAssertEqual(state.signatureText, "Enjoy your life!")
+        XCTAssertEqual(state.signatureText, "Center it. Elevate your everyday.")
+        XCTAssertEqual(state.localizedSloganText, "一键居中，让日常更优雅。")
+        XCTAssertEqual(
+            state.productDescriptionText,
+            "Maru 是一款 macOS 开源工具，可自动将窗口优雅地移动到屏幕中央，让桌面始终简洁、平衡、顺手。"
+        )
     }
 }

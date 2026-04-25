@@ -92,7 +92,7 @@ class AppLogger: ObservableObject {
     private init() {
         // 获取应用支持目录
         let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appDir = appSupportDir.appendingPathComponent("HiWindowGuy")
+        let appDir = appSupportDir.appendingPathComponent("Maru")
         let logsDir = appDir.appendingPathComponent("Logs")
         
         // 创建日志目录（如果不存在）
@@ -104,7 +104,7 @@ class AppLogger: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
         let timestamp = formatter.string(from: Date())
-        currentLogFile = logDirectory.appendingPathComponent("hiwindowguy_\(timestamp).log")
+        currentLogFile = logDirectory.appendingPathComponent("maru_\(timestamp).log")
         
         // 清理旧日志文件
         cleanupOldLogFiles()
@@ -220,7 +220,7 @@ class AppLogger: ObservableObject {
                 let formatter = DateFormatter()
                 formatter.dateFormat = "yyyyMMdd_HHmmss"
                 let timestamp = formatter.string(from: Date())
-                currentLogFile = logDirectory.appendingPathComponent("hiwindowguy_\(timestamp).log")
+                currentLogFile = logDirectory.appendingPathComponent("maru_\(timestamp).log")
                 
                 // 清理旧日志文件
                 cleanupOldLogFiles()

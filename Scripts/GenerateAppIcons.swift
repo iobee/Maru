@@ -3,7 +3,7 @@ import Foundation
 
 enum IconWriter {
     static let outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        .appendingPathComponent("Sources/HiWindowGuy/Assets.xcassets/AppIcon.appiconset", isDirectory: true)
+        .appendingPathComponent("Sources/Maru/Assets.xcassets/AppIcon.appiconset", isDirectory: true)
 
     static let iconFiles: [(filename: String, pixels: Int)] = [
         ("mac-16.png", 16),

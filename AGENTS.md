@@ -1,8 +1,14 @@
-# HiWindowGuy - AI Agent Development Guide
+# Maru - AI Agent Development Guide
 
 ## Project Overview
 
-HiWindowGuy is a macOS window management application written in Swift using SwiftUI. It automatically adjusts window size and position based on application-specific rules. The app runs as a menu bar extra and provides a GUI for configuration.
+Maru is a macOS open-source window utility written in Swift using SwiftUI. It automatically moves windows to the center of the screen so the desktop stays clean, balanced, and easy to use.
+
+**Product Copy:**
+- **Name**: Maru
+- **Slogan**: Center it. Elevate your everyday.
+- **Chinese Slogan**: 一键居中，让日常更优雅。
+- **One-line Description**: Maru 是一款 macOS 开源工具，可自动将窗口优雅地移动到屏幕中央，让桌面始终简洁、平衡、顺手。
 
 **Key Features:**
 - Automatic window positioning and sizing based on app-specific rules
@@ -33,9 +39,9 @@ HiWindowGuy is a macOS window management application written in Swift using Swif
 ## Project Structure
 
 ```
-Sources/HiWindowGuy/
-├── hiWindowGuyApp.swift          # Main app entry point, menu bar extra, window configuration
-├── HiWindowGuy.swift             # Minimal app delegate (legacy)
+Sources/Maru/
+├── MaruApp.swift          # Main app entry point, menu bar extra, window configuration
+├── Maru.swift             # Shared module imports
 ├── Models/                       # Data models
 │   ├── NavigationTab.swift       # Navigation state management
 │   └── AppConfig.swift           # Configuration, app rules, persistence
@@ -59,7 +65,7 @@ All main-window UI work must follow the project-level design standard in `docs/P
 
 ### UI Source of Truth
 
-For any work that changes files under `Sources/HiWindowGuy/Views/`, agents must read `docs/PRODUCT-UI-DESIGN-STANDARD.md` first and align the design before implementing.
+For any work that changes files under `Sources/Maru/Views/`, agents must read `docs/PRODUCT-UI-DESIGN-STANDARD.md` first and align the design before implementing.
 
 Priority order:
 1. `docs/PRODUCT-UI-DESIGN-STANDARD.md` - product-level UI source of truth
@@ -78,7 +84,7 @@ If a page-level spec conflicts with the product-level standard, the product-leve
 
 ## Core Architecture
 
-### 1. Application Entry Point (`hiWindowGuyApp.swift`)
+### 1. Application Entry Point (`MaruApp.swift`)
 - SwiftUI App protocol implementation
 - Manages menu bar extra (MenuBarExtra)
 - Handles window configuration (transparent title bar, Stage Manager compatibility)
@@ -95,7 +101,7 @@ If a page-level spec conflicts with the product-level standard, the product-leve
 
 ### 3. Configuration System (`Models/AppConfig.swift`)
 - **App Rules**: Per-application window handling rules (center, almostMaximize, ignore, custom)
-- **Persistence**: JSON-based configuration stored in `~/Library/Application Support/HiWindowGuy/`
+- **Persistence**: JSON-based configuration stored in `~/Library/Application Support/Maru/`
 - **Default Rules**: Pre-configured rules for common message apps and system apps
 - **Dynamic Updates**: Real-time rule updates with immediate effect
 
@@ -123,7 +129,7 @@ swift build
 swift build -c release
 
 # Create distributable app bundle
-swift build -c release && mkdir -p Release && cp -r .build/release/HiWindowGuy.app Release/
+swift build -c release && mkdir -p Release && cp -r .build/release/Maru.app Release/
 ```
 
 ### Running
@@ -132,7 +138,7 @@ swift build -c release && mkdir -p Release && cp -r .build/release/HiWindowGuy.a
 swift run
 
 # Run specific build
-swift run HiWindowGuy
+swift run Maru
 ```
 
 ### Development
@@ -149,15 +155,15 @@ swift package clean
 ### Swift Package Manager (`Package.swift`)
 - Minimum macOS version: 13.0
 - Swift tools version: 5.8
-- Executable target: HiWindowGuy
+- Executable target: Maru
 - Resources: Assets.xcassets
 - Excludes: demo.lua, Info.plist
 
 ### Configuration Storage
-- **Directory**: `~/Library/Application Support/HiWindowGuy/`
+- **Directory**: `~/Library/Application Support/Maru/`
 - **App Rules**: `config.json` - Application-specific window handling rules
 - **General Settings**: `general.json` - Scale factor, log level preferences
-- **Logs**: `Logs/hiwindowguy_*.log` - Rotating log files
+- **Logs**: `Logs/maru_*.log` - Rotating log files
 
 ## Code Style Guidelines
 
@@ -206,10 +212,10 @@ swift build -c release
 
 # Create app bundle structure
 mkdir -p Release/Applications
-cp -r .build/release/HiWindowGuy.app Release/Applications/
+cp -r .build/release/Maru.app Release/Applications/
 
 # Create DMG (if needed)
-hdiutil create -volname "HiWindowGuy" -srcfolder Release/Applications -ov -format UDZO HiWindowGuy.dmg
+hdiutil create -volname "Maru" -srcfolder Release/Applications -ov -format UDZO Maru.dmg
 ```
 
 ### Code Signing
@@ -254,7 +260,7 @@ hdiutil create -volname "HiWindowGuy" -srcfolder Release/Applications -ov -forma
 4. Update default rules in `AppConfig.setupDefaultRules()`
 
 ### UI Changes
-1. SwiftUI views in `Sources/HiWindowGuy/Views/`
+1. SwiftUI views in `Sources/Maru/Views/`
 2. Support dark mode using `@Environment(\.colorScheme)`
 3. Use responsive layout with `GeometryReader`
 4. Follow macOS human interface guidelines
