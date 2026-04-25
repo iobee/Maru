@@ -23,7 +23,7 @@ final class AboutViewStateTests: XCTestCase {
         XCTAssertEqual(state.versionText, "版本 1.0")
         XCTAssertEqual(state.buildText, "构建 1")
         XCTAssertEqual(state.updateStatusTitle, "版本检查即将支持")
-        XCTAssertEqual(state.signatureText, "Center it. Elevate your everyday.")
+        XCTAssertEqual(state.signatureText, "Center it beautifully.")
         XCTAssertEqual(state.localizedSloganText, "一键居中，让日常更优雅。")
         XCTAssertEqual(
             state.productDescriptionText,

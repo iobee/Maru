@@ -1,6 +1,6 @@
 # Maru
 
-Center it. Elevate your everyday.
+Center it beautifully.
 
 一键居中，让日常更优雅。
 

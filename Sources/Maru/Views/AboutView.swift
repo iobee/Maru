@@ -69,7 +69,7 @@ private extension AboutView {
 
                     Text(state.signatureText)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.93))
+                        .foregroundStyle(.primary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(state.localizedSloganText)

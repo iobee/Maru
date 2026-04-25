@@ -30,7 +30,7 @@
 ### 3.1 产品气质
 
 - 产品定位：`macOS utility console`
-- 品牌主张：`Center it. Elevate your everyday.`
+- 品牌主张：`Center it beautifully.`
 - 中文主张：`一键居中，让日常更优雅。`
 - 设计目标：像原生 macOS 工具，而不是网页后台或营销面板
 - 首页定位：主控制面板，不是 dashboard

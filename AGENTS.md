@@ -6,7 +6,7 @@ Maru is a macOS open-source window utility written in Swift using SwiftUI. It au
 
 **Product Copy:**
 - **Name**: Maru
-- **Slogan**: Center it. Elevate your everyday.
+- **Slogan**: Center it beautifully.
 - **Chinese Slogan**: 一键居中，让日常更优雅。
 - **One-line Description**: Maru 是一款 macOS 开源工具，可自动将窗口优雅地移动到屏幕中央，让桌面始终简洁、平衡、顺手。
 

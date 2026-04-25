@@ -169,7 +169,7 @@ struct MaruApp: App {
             .applicationVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
             .version: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1",
             .credits: NSAttributedString(
-                string: "Center it. Elevate your everyday.\n一键居中，让日常更优雅。\n© 2023-2024 Nick. 保留所有权利。",
+                string: "Center it beautifully.\n一键居中，让日常更优雅。\n© 2023-2024 Nick. 保留所有权利。",
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 12),
                     .foregroundColor: NSColor.labelColor

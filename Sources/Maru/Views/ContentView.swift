@@ -89,9 +89,11 @@ struct ContentView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                Text("Center it")
+                Text("Center it beautifully.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
 
             Spacer(minLength: 0)
@@ -107,25 +109,12 @@ struct ContentView: View {
     }
 
     private var sidebarBrandIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.blue.opacity(0.95),
-                            Color.cyan.opacity(0.9)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-
-            Image(systemName: "window.vertical.closed")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-        }
-        .frame(width: 30, height: 30)
-        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+        Image(nsImage: AppIconProvider.loadAppIcon(size: 38))
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 38, height: 38)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
     }
 
     private var sidebarContainerBackground: some View {
