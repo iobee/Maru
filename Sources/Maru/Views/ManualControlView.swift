@@ -12,21 +12,21 @@ struct ManualControlView: View {
             ShortcutItem(
                 action: .center,
                 title: ManualWindowAction.center.label,
-                description: "将当前前台应用的活动标准窗口移动到屏幕中央。",
+                description: "将当前窗口移至屏幕中央。",
                 currentBinding: appConfig.manualCenterShortcut,
                 defaultBinding: ManualWindowAction.center.defaultShortcut
             ),
             ShortcutItem(
                 action: .almostMaximize,
                 title: ManualWindowAction.almostMaximize.label,
-                description: "将当前前台应用的活动标准窗口调整为接近满屏的工作尺寸。",
+                description: "将当前窗口铺开，边缘保留呼吸空间，适合专注工作。",
                 currentBinding: appConfig.manualAlmostMaximizeShortcut,
                 defaultBinding: ManualWindowAction.almostMaximize.defaultShortcut
             ),
             ShortcutItem(
                 action: .moveToNextDisplay,
                 title: ManualWindowAction.moveToNextDisplay.label,
-                description: "将当前前台应用的活动标准窗口移动到下一个显示器，并执行几乎最大化。",
+                description: "将当前窗口移至下一显示器并以呼吸窗口模式铺开。",
                 currentBinding: appConfig.manualMoveToNextDisplayShortcut,
                 defaultBinding: ManualWindowAction.moveToNextDisplay.defaultShortcut
             )
@@ -66,11 +66,11 @@ private extension ManualControlView {
 
     var pageHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("手动控制")
+            Text("快捷键")
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
-            Text("通过全局快捷键和菜单主动整理窗口。手动操作始终作用于当前前台应用的活动标准窗口，不会复用鼠标优先选窗逻辑。")
+            Text("用全局快捷键或菜单项手动整理当前窗口。操作作用于前台应用的活动窗口。")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -79,7 +79,7 @@ private extension ManualControlView {
 
     var manualOverviewCard: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Label("手动窗口操作", systemImage: "keyboard")
+            Label("手动操作", systemImage: "keyboard")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(.blue)
@@ -91,11 +91,7 @@ private extension ManualControlView {
                 )
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("通过快捷键和菜单主动整理窗口")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("适合在自动规则之外临时整理当前工作区。手动操作会直接面向前台应用的活动标准窗口，并在找不到可操作窗口时给出提示。")
+                Text("适合在自动规则之外临时整理当前窗口，找不到窗口时会提示。")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -105,17 +101,17 @@ private extension ManualControlView {
                 overviewRow(
                     icon: "scope",
                     title: "作用目标",
-                    detail: "当前前台应用的活动标准窗口"
+                    detail: "前台应用的活动窗口"
                 )
                 overviewRow(
                     icon: "menubar.arrow.up.rectangle",
                     title: "触发入口",
-                    detail: "全局快捷键、菜单栏、窗口管理菜单"
+                    detail: "全局快捷键、菜单栏、窗口菜单"
                 )
                 overviewRow(
                     icon: "exclamationmark.bubble",
                     title: "失败反馈",
-                    detail: "找不到可操作窗口时会直接提示"
+                    detail: "找不到可操作窗口时会提示"
                 )
             }
         }
@@ -155,7 +151,7 @@ private extension ManualControlView {
                     .font(.title3)
                     .fontWeight(.semibold)
 
-                Text("为手动窗口操作分配组合键，当前绑定会同时作用于菜单栏和“窗口管理”菜单。")
+                Text("为三项手动操作设置组合键，修改后即时生效。")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -391,7 +387,7 @@ private extension ManualControlView {
 
         for item in shortcutItems where item.action != action {
             if item.currentBinding == draft {
-                return "该组合键已被“\(item.title)”占用。"
+                return "该组合键已被\"\(item.title)\"占用。"
             }
         }
 

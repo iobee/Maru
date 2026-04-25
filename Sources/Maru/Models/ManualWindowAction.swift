@@ -12,9 +12,9 @@ enum ManualWindowAction: String, CaseIterable, Codable, Identifiable {
         case .center:
             return "居中"
         case .almostMaximize:
-            return "几乎最大化"
+            return "呼吸窗口"
         case .moveToNextDisplay:
-            return "移到下一个显示器并铺满"
+            return "移到下一显示器"
         }
     }
 

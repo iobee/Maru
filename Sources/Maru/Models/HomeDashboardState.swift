@@ -54,11 +54,11 @@ struct HomeDashboardState {
     }
 
     var headerTitle: String {
-        "首页"
+        "常规"
     }
 
     var headerSubtitle: String {
-        "一键居中，让日常更优雅。"
+        "窗口自动管理的运行状态与偏好。"
     }
 
     var heroTitle: String {
@@ -82,11 +82,11 @@ struct HomeDashboardState {
     }
 
     var scaleTitle: String {
-        "几乎最大化缩放"
+        "呼吸空间"
     }
 
     var stageManagerTitle: String {
-        "Stage Manager（推荐）"
+        "Stage Manager"
     }
 
     var stageManagerStatusTitle: String {
@@ -95,18 +95,18 @@ struct HomeDashboardState {
 
     var stageManagerDescription: String {
         isStageManagerEnabled
-            ? "macOS 系统级窗口分组已开启，可直接配合 Maru 的自动布局使用。"
-            : "直接切换 macOS 的 Stage Manager，让系统分组与自动窗口布局协同工作。"
+            ? "Stage Manager 已开启。macOS 会将各应用的窗口分组收纳在屏幕一侧，Maru 则在切换应用时自动居中或展开窗口——两者配合，桌面始终整洁有序。"
+            : "Stage Manager 是 macOS 内置的窗口分组功能。开启后每个应用的窗口会被自动收纳到屏幕一侧，不会互相堆叠遮挡。建议与 Maru 配合使用，一个负责分组，一个负责定位。"
     }
 
     var stageManagerToggleTitle: String {
-        isStageManagerEnabled ? "保持推荐工作区模式" : "开启推荐工作区模式"
+        isStageManagerEnabled ? "配合使用中" : "开启 Stage Manager"
     }
 
     var stageManagerToggleSubtitle: String {
         isStageManagerEnabled
-            ? "Maru 会继续按应用规则整理窗口，Stage Manager 负责保留清晰的系统分组。"
-            : "建议与 Maru 一起开启，在专注单个任务时更容易保持桌面整洁。"
+            ? "切换应用时 Stage Manager 负责窗口分组收纳，Maru 负责居中和呼吸窗口布局，桌面井然有序。"
+            : "开启后 Maru 负责窗口位置与大小，Stage Manager 负责按应用分组，专注单个任务时桌面更清爽。"
     }
 
     var stageManagerErrorPrefix: String {
@@ -114,22 +114,22 @@ struct HomeDashboardState {
     }
 
     var scaleDescription: String {
-        "调整常规应用的窗口留白，当前为 \(scaleText)。"
+        "呼吸窗口，是留给窗口的留白——不挤不空，美得恰到好处。"
     }
 
     var scaleFootnote: String {
         if almostMaximizeCount == 0 {
-            return "当前还没有使用“几乎最大化”的规则，调整后会在你添加相关规则时生效。"
+            return "暂无使用呼吸窗口的规则，添加后可生效。"
         }
 
-        return "共有 \(almostMaximizeCount) 条规则会使用这个比例，消息类应用的居中规则不会受影响。"
+        return "\(almostMaximizeCount) 条呼吸窗口规则会使用此间距，居中规则不受影响。"
     }
 
     var summaryItems: [SummaryItem] {
         [
             SummaryItem(title: "总计", count: appRules.count),
             SummaryItem(title: "居中", count: count(for: .center)),
-            SummaryItem(title: "几乎最大化", count: count(for: .almostMaximize)),
+            SummaryItem(title: "呼吸窗口", count: count(for: .almostMaximize)),
             SummaryItem(title: "忽略", count: count(for: .ignore))
         ]
     }
@@ -176,7 +176,7 @@ struct HomeDashboardState {
         let centerCount = count(for: .center)
         let almostMaximizeCount = count(for: .almostMaximize)
 
-        return "已配置 \(appRules.count) 条规则，其中 \(centerCount) 条居中、\(almostMaximizeCount) 条几乎最大化。"
+        return "已配置 \(appRules.count) 条规则，其中 \(centerCount) 条居中、\(almostMaximizeCount) 条呼吸窗口。"
     }
 
     private var almostMaximizeCount: Int {

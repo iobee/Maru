@@ -18,7 +18,7 @@ struct ContentView: View {
         var title: String {
             switch self {
             case .home: return "常规"
-            case .manualControl: return "手动控制"
+            case .manualControl: return "快捷键"
             case .rules: return "应用规则"
             case .logs: return "日志"
             case .about: return "关于"

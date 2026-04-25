@@ -16,7 +16,7 @@ struct AboutViewState {
         appName = bundleName?.isEmpty == false ? bundleName! : "Maru"
         releaseLineText = "版本 \(version) · 构建 \(build)"
         signatureText = "Center it beautifully."
-        productDescriptionText = "Maru 是一款 macOS 开源工具，帮助你优雅地居中窗口，让桌面保持简洁、平衡、顺手。"
+        productDescriptionText = "Maru 是一款 macOS 窗口管理工具，可自动将窗口居中或以呼吸窗口模式调整，让桌面始终保持整洁顺手。开源免费。"
         githubDisplayText = "GitHub ↗"
         githubURL = URL(string: "https://github.com/iobee/hiWindowGuy")!
     }

@@ -24,10 +24,10 @@ struct LogViewer: View {
 
     private var subtitleText: String {
         if filteredLogs.isEmpty {
-            return "查看运行日志、导出当前内容，或载入历史日志文件。"
+            return "查看、筛选、导出运行日志，也可载入历史日志文件。"
         }
 
-        return "当前显示 \(filteredLogs.count) 条日志记录，可按级别筛选并导出。"
+        return "共 \(filteredLogs.count) 条日志，可按级别筛选。"
     }
 
     var body: some View {

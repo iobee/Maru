@@ -98,7 +98,7 @@ struct RuleConfigView: View {
 
     private var subtitleText: String {
         guard !config.appRules.isEmpty else {
-            return "集中管理不同应用的窗口行为规则，后续页面也会沿用这套工具面板风格。"
+            return "为不同应用设置窗口行为规则，规则会在窗口切换时自动执行。"
         }
 
         let centerCount = config.appRules.filter { $0.rule == .center }.count
@@ -207,7 +207,7 @@ struct RuleConfigView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            TextField("搜索应用或 Bundle ID", text: $searchText)
+            TextField("搜索应用名称或包名", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.subheadline)
                 .focused($isSearchFieldFocused)
@@ -276,7 +276,7 @@ struct RuleConfigView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            Text(isFilteringRules ? "换一个应用名称或 Bundle ID 试试。" : "当应用被记录后，这里会集中显示每个应用的窗口处理方式。")
+            Text(isFilteringRules ? "换一个应用名称或包名试试。" : "当应用被窗口管理触发后，会在这里显示，方便单独调整。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -296,7 +296,7 @@ struct RuleConfigView: View {
 
             Spacer(minLength: 16)
 
-            Label("点按编辑，右键快速切换规则", systemImage: "info.circle")
+            Label("点按编辑，右键可快速切换规则", systemImage: "info.circle")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -574,11 +574,11 @@ struct RuleEditView: View {
     private var sheetHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("编辑应用规则")
+                Text("编辑规则")
                     .font(.title3)
                     .fontWeight(.semibold)
 
-                Text("调整这个应用的窗口处理方式。")
+                Text("选择该应用的窗口处理方式。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -654,9 +654,9 @@ struct RuleEditView: View {
                 .font(.headline)
 
             VStack(spacing: 10) {
-                ruleOptionButton(for: .center, subtitle: "消息类应用更适合保持居中。")
-                ruleOptionButton(for: .almostMaximize, subtitle: "常规应用会按全局缩放比例接近最大化。")
-                ruleOptionButton(for: .ignore, subtitle: "不会自动移动或缩放这个应用。")
+                ruleOptionButton(for: .center, subtitle: "窗口保持在屏幕中央，适合聊天等消息应用。")
+                ruleOptionButton(for: .almostMaximize, subtitle: "窗口铺开时保留呼吸空间，适合浏览器等常规应用。")
+                ruleOptionButton(for: .ignore, subtitle: "不自动调整窗口，适合系统设置等无需管理的应用。")
                 ruleOptionButton(for: .custom, subtitle: "为后续扩展保留入口。")
             }
         }

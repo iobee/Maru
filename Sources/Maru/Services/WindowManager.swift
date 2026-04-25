@@ -50,7 +50,7 @@ class WindowManager: ObservableObject {
             AppLogger.shared.log("显示辅助功能权限提示", level: .info)
             let alert = NSAlert()
             alert.messageText = "需要辅助功能权限"
-            alert.informativeText = "请在系统偏好设置中启用辅助功能权限以允许窗口管理。"
+            alert.informativeText = "请在系统设置中开启辅助功能权限以允许窗口管理。"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "打开系统设置")
             alert.addButton(withTitle: "取消")
@@ -375,7 +375,7 @@ class WindowManager: ObservableObject {
 
             let alert = NSAlert()
             alert.messageText = "无法找到可操作的窗口"
-            alert.informativeText = "当前前台应用没有活动的标准窗口，或该窗口不支持窗口管理。"
+            alert.informativeText = "当前前台应用没有活动窗口，或该窗口不支持窗口管理。"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "确定")
             alert.runModal()

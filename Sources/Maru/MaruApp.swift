@@ -61,22 +61,22 @@ struct MaruApp: App {
             }
             
             CommandGroup(after: .appSettings) {
-                Button("窗口规则设置") {
+                Button("应用规则") {
                     openWindow(id: "mainWindow")
                     NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option])
-                
-                Toggle("启用窗口管理", isOn: windowManagementBinding)
+
+                Toggle("窗口自动管理", isOn: windowManagementBinding)
                     .keyboardShortcut("e", modifiers: [.command, .option])
             }
             
-            CommandMenu("窗口管理") {
-                Button("显示主界面") {
+            CommandMenu("窗口") {
+                Button("显示主面板") {
                     openWindow(id: "mainWindow")
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
-                
+
                 Button("查看日志") {
                     openWindow(id: "mainWindow")
                     NotificationCenter.default.post(name: Notification.Name("showLogs"), object: nil)
@@ -92,11 +92,11 @@ struct MaruApp: App {
         }
         
         MenuBarExtra {
-            Button("显示主窗口") {
+            Button("显示主面板") {
                 openWindow(id: "mainWindow")
             }.keyboardShortcut("m")
-            
-            Button("规则配置") {
+
+            Button("应用规则") {
                 openWindow(id: "mainWindow")
                 NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
             }.keyboardShortcut("r")
@@ -109,7 +109,7 @@ struct MaruApp: App {
             
             Divider()
             
-            Toggle("启用窗口管理", isOn: windowManagementBinding)
+            Toggle("窗口自动管理", isOn: windowManagementBinding)
             
             Divider()
             
@@ -209,11 +209,11 @@ struct MaruApp: App {
     private static func manualWindowMenuTitle(for action: ManualWindowAction) -> String {
         switch action {
         case .center:
-            return "窗口居中"
+            return "居中窗口"
         case .almostMaximize:
-            return "几乎最大化"
+            return "呼吸窗口"
         case .moveToNextDisplay:
-            return "移到下一个显示器并铺满"
+            return "移到下一显示器"
         }
     }
     

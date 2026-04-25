@@ -5,11 +5,23 @@ import AppKit
 // 窗口处理规则枚举
 enum WindowHandlingRule: String, Codable, CaseIterable, Identifiable {
     case center = "居中"
-    case almostMaximize = "几乎最大化"
+    case almostMaximize = "呼吸窗口"
     case ignore = "忽略"
     case custom = "自定义"
-    
+
     var id: String { self.rawValue }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        switch value {
+        case "居中": self = .center
+        case "呼吸窗口", "几乎最大化": self = .almostMaximize
+        case "忽略": self = .ignore
+        case "自定义": self = .custom
+        default: self = .almostMaximize
+        }
+    }
 }
 
 // 应用规则结构体
@@ -208,7 +220,7 @@ class AppConfig: ObservableObject {
         if let centerBinding = normalizedCenter,
            let almostMaximizeBinding = normalizedAlmostMaximize,
            centerBinding == almostMaximizeBinding {
-            AppLogger.shared.log("加载的快捷键存在重复，已保留居中快捷键并清除几乎最大化快捷键", level: .warning)
+            AppLogger.shared.log("加载的快捷键存在重复，已保留居中快捷键并清除呼吸窗口快捷键", level: .warning)
             normalizedAlmostMaximize = nil
         }
 
@@ -222,7 +234,7 @@ class AppConfig: ObservableObject {
         if let almostMaximizeBinding = normalizedAlmostMaximize,
            let moveBinding = normalizedMoveToNextDisplay,
            almostMaximizeBinding == moveBinding {
-            AppLogger.shared.log("加载的快捷键存在重复，已保留几乎最大化快捷键并清除下一显示器快捷键", level: .warning)
+            AppLogger.shared.log("加载的快捷键存在重复，已保留呼吸窗口快捷键并清除下一显示器快捷键", level: .warning)
             normalizedMoveToNextDisplay = nil
         }
 
@@ -338,7 +350,7 @@ class AppConfig: ObservableObject {
             appRules[index].lastUsed = Date()
             appRules[index].useCount += 1
         } else {
-            // 创建新记录，默认使用几乎最大化规则
+            // 创建新记录，默认使用呼吸窗口规则
             let rule = AppRule(
                 bundleId: bundleId,
                 appName: appName,
@@ -364,7 +376,7 @@ class AppConfig: ObservableObject {
             return rule.rule
         }
         
-        // 默认使用几乎最大化规则
+        // 默认使用呼吸窗口规则
         return .almostMaximize
     }
 
