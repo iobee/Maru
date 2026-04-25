@@ -513,8 +513,6 @@ struct RuleRow: View {
             return "几乎最大化"
         case .ignore:
             return "忽略"
-        case .custom:
-            return "自定义"
         }
     }
 
@@ -526,8 +524,6 @@ struct RuleRow: View {
             return .green
         case .ignore:
             return .gray
-        case .custom:
-            return .orange
         }
     }
 
@@ -657,7 +653,6 @@ struct RuleEditView: View {
                 ruleOptionButton(for: .center, subtitle: "窗口保持在屏幕中央，适合聊天等消息应用。")
                 ruleOptionButton(for: .almostMaximize, subtitle: "窗口铺开时保留呼吸空间，适合浏览器等常规应用。")
                 ruleOptionButton(for: .ignore, subtitle: "不自动调整窗口，适合系统设置等无需管理的应用。")
-                ruleOptionButton(for: .custom, subtitle: "为后续扩展保留入口。")
             }
         }
         .padding(20)
@@ -799,8 +794,6 @@ struct RuleEditView: View {
             return .green
         case .ignore:
             return .gray
-        case .custom:
-            return .orange
         }
     }
 
@@ -812,8 +805,6 @@ struct RuleEditView: View {
             return "rectangle.inset.filled"
         case .ignore:
             return "eye.slash.fill"
-        case .custom:
-            return "slider.horizontal.3"
         }
     }
 

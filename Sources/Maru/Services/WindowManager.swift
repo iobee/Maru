@@ -188,9 +188,6 @@ class WindowManager: ObservableObject {
             
         case .ignore:
             AppLogger.shared.log("忽略应用: \(appName) (\(bundleId))", level: .debug)
-            
-        case .custom:
-            AppLogger.shared.log("应用 \(appName) (\(bundleId)) 使用自定义规则，暂未实现", level: .warning)
         }
     }
     
@@ -283,7 +280,7 @@ class WindowManager: ObservableObject {
                 self?.handleWindowOperationCompletion(success: success, bundleId: app.bundleIdentifier, triggerSource: triggerSource, actionLabel: action.label, appIdentity: appIdentity)
             })
         case .moveToNextDisplay:
-            moveWindowToNextDisplayAndAlmostMaximize(window, completion: { [weak self] success in
+            moveWindowToNextDisplayUsingAppRule(window, app: app, appIdentity: appIdentity, completion: { [weak self] success in
                 self?.handleWindowOperationCompletion(success: success, bundleId: app.bundleIdentifier, triggerSource: triggerSource, actionLabel: action.label, appIdentity: appIdentity)
             })
         }
@@ -1091,7 +1088,19 @@ class WindowManager: ObservableObject {
         almostMaximizeWindow(window, on: currentScreen, completion: completion)
     }
 
-    private func moveWindowToNextDisplayAndAlmostMaximize(_ window: AXUIElement, completion: ((Bool) -> Void)? = nil) {
+    private func moveWindowToNextDisplayUsingAppRule(_ window: AXUIElement, app: NSRunningApplication, appIdentity: String, completion: ((Bool) -> Void)? = nil) {
+        guard let appName = app.localizedName,
+              let bundleId = app.bundleIdentifier else {
+            AppLogger.shared.log("移动到下一个显示器失败: 无法获取应用规则, 应用=\(appIdentity)", level: .warning)
+            completion?(false)
+            return
+        }
+
+        let rule = AppConfig.shared.getRule(for: bundleId, appName: appName)
+        moveWindowToNextDisplay(window, rule: rule, completion: completion)
+    }
+
+    private func moveWindowToNextDisplay(_ window: AXUIElement, rule: WindowHandlingRule, completion: ((Bool) -> Void)? = nil) {
         let screens = NSScreen.screens
         guard !screens.isEmpty else {
             AppLogger.shared.log("移动到下一个显示器失败: 未检测到可用屏幕", level: .warning)
@@ -1104,13 +1113,86 @@ class WindowManager: ObservableObject {
         let nextIndex = (currentIndex + 1) % screens.count
         let targetScreen = screens[nextIndex]
 
-        AppLogger.shared.log("准备将窗口移动到下一个显示器并铺满: 当前=\(currentScreen.localizedName), 目标=\(targetScreen.localizedName)", level: .info)
-        almostMaximizeWindow(window, on: targetScreen, completion: completion)
+        AppLogger.shared.log("准备按应用规则移动窗口到下一个显示器: 规则=\(rule.rawValue), 当前=\(currentScreen.localizedName), 目标=\(targetScreen.localizedName)", level: .info)
+
+        switch rule {
+        case .center:
+            centerWindow(window, on: targetScreen, completion: completion)
+        case .almostMaximize:
+            almostMaximizeWindow(window, on: targetScreen, completion: completion)
+        case .ignore:
+            moveWindowOnly(window, from: currentScreen, to: targetScreen, completion: completion)
+        }
+    }
+
+    private func centerWindow(_ window: AXUIElement, on screen: NSScreen, completion: ((Bool) -> Void)? = nil) {
+        guard let (_, size) = getWindowPositionAndSize(window) else {
+            AppLogger.shared.log("移动后居中失败: 无法获取窗口大小", level: .warning)
+            completion?(false)
+            return
+        }
+
+        let statusBarHeight = getStatusBarHeight(for: screen)
+        let screenFrame = screen.frame
+        let stageManagerSideMargin = screenFrame.width * 0.15
+        let usableScreenWidth = screenFrame.width - (stageManagerSideMargin * 2)
+        let nsScreenX = screenFrame.origin.x + stageManagerSideMargin + (usableScreenWidth - size.width) / 2
+        let nsScreenY = screenFrame.origin.y + (screenFrame.height - statusBarHeight - size.height) / 2
+        let newPosition = convertToAXCoordinates(CGPoint(x: nsScreenX, y: nsScreenY), size: size)
+        let targetFrame = CGRect(origin: newPosition, size: size)
+
+        enhancedSetFrame(window, targetFrame, completion: completion)
+    }
+
+    private func moveWindowOnly(_ window: AXUIElement, from currentScreen: NSScreen, to targetScreen: NSScreen, completion: ((Bool) -> Void)? = nil) {
+        guard let (position, size) = getWindowPositionAndSize(window) else {
+            AppLogger.shared.log("只移动到下一个显示器失败: 无法获取窗口位置和大小", level: .warning)
+            completion?(false)
+            return
+        }
+
+        let windowFrame = CGRect(origin: position, size: size)
+        let currentScreenFrame = convertToAXRect(currentScreen.frame)
+        let targetScreenFrame = convertToAXRect(targetScreen.visibleFrame)
+        let targetFrame = Self.moveOnlyTargetFrame(for: windowFrame, from: currentScreenFrame, to: targetScreenFrame)
+
+        AppLogger.shared.log("只移动窗口到下一个显示器: 目标Frame=\(targetFrame)", level: .info)
+        enhancedSetFrame(window, targetFrame, adjustSizeFirst: false, completion: completion)
     }
 
     private func almostMaximizeWindow(_ window: AXUIElement, on screen: NSScreen, completion: ((Bool) -> Void)? = nil) {
         let axRect = almostMaximizedAXRect(for: screen)
         enhancedSetFrame(window, axRect, completion: completion)
+    }
+
+    static func moveOnlyTargetFrame(for windowFrame: CGRect, from currentScreenFrame: CGRect, to targetScreenFrame: CGRect) -> CGRect {
+        guard currentScreenFrame.width > 0, currentScreenFrame.height > 0 else {
+            return CGRect(origin: targetScreenFrame.origin, size: windowFrame.size)
+        }
+
+        let relativeCenterX = (windowFrame.midX - currentScreenFrame.minX) / currentScreenFrame.width
+        let relativeCenterY = (windowFrame.midY - currentScreenFrame.minY) / currentScreenFrame.height
+        let proposedCenterX = targetScreenFrame.minX + (relativeCenterX * targetScreenFrame.width)
+        let proposedCenterY = targetScreenFrame.minY + (relativeCenterY * targetScreenFrame.height)
+        let proposedOrigin = CGPoint(
+            x: proposedCenterX - windowFrame.width / 2,
+            y: proposedCenterY - windowFrame.height / 2
+        )
+
+        return CGRect(
+            x: clamp(proposedOrigin.x, min: targetScreenFrame.minX, max: targetScreenFrame.maxX - windowFrame.width),
+            y: clamp(proposedOrigin.y, min: targetScreenFrame.minY, max: targetScreenFrame.maxY - windowFrame.height),
+            width: windowFrame.width,
+            height: windowFrame.height
+        )
+    }
+
+    private static func clamp(_ value: CGFloat, min minimum: CGFloat, max maximum: CGFloat) -> CGFloat {
+        guard maximum >= minimum else {
+            return minimum
+        }
+
+        return Swift.min(Swift.max(value, minimum), maximum)
     }
 
     private func almostMaximizedAXRect(for screen: NSScreen) -> CGRect {

@@ -7,7 +7,6 @@ enum WindowHandlingRule: String, Codable, CaseIterable, Identifiable {
     case center = "居中"
     case almostMaximize = "呼吸窗口"
     case ignore = "忽略"
-    case custom = "自定义"
 
     var id: String { self.rawValue }
 
@@ -18,7 +17,7 @@ enum WindowHandlingRule: String, Codable, CaseIterable, Identifiable {
         case "居中": self = .center
         case "呼吸窗口", "几乎最大化": self = .almostMaximize
         case "忽略": self = .ignore
-        case "自定义": self = .custom
+        case "自定义": self = .almostMaximize
         default: self = .almostMaximize
         }
     }

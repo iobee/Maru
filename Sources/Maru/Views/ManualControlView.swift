@@ -26,7 +26,7 @@ struct ManualControlView: View {
             ShortcutItem(
                 action: .moveToNextDisplay,
                 title: ManualWindowAction.moveToNextDisplay.label,
-                description: "将当前窗口移至下一显示器并以呼吸窗口模式铺开。",
+                description: "按应用规则将当前窗口移至下一显示器。",
                 currentBinding: appConfig.manualMoveToNextDisplayShortcut,
                 defaultBinding: ManualWindowAction.moveToNextDisplay.defaultShortcut
             )

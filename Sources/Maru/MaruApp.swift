@@ -72,7 +72,7 @@ struct MaruApp: App {
             }
             
             CommandMenu("窗口") {
-                Button("显示主面板") {
+                Button("配置") {
                     openWindow(id: "mainWindow")
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
@@ -92,7 +92,7 @@ struct MaruApp: App {
         }
         
         MenuBarExtra {
-            Button("显示主面板") {
+            Button("配置") {
                 openWindow(id: "mainWindow")
             }.keyboardShortcut("m")
 

@@ -13,8 +13,8 @@ final class ShortcutBindingTests: XCTestCase {
 
     func testManualWindowActionLabelsAreStable() {
         XCTAssertEqual(ManualWindowAction.center.label, "居中")
-        XCTAssertEqual(ManualWindowAction.almostMaximize.label, "几乎最大化")
-        XCTAssertEqual(ManualWindowAction.moveToNextDisplay.label, "移到下一个显示器并铺满")
+        XCTAssertEqual(ManualWindowAction.almostMaximize.label, "呼吸窗口")
+        XCTAssertEqual(ManualWindowAction.moveToNextDisplay.label, "移到下一显示器")
     }
 
     func testMoveToNextDisplayDefaultShortcutIsStable() {
