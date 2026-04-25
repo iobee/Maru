@@ -4,13 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HiWindowGuy is a macOS window management application written in Swift using SwiftUI. It automatically adjusts window size and position based on application-specific rules. The app runs as a menu bar extra and provides a GUI for configuration.
+Maru is a macOS open-source window utility written in Swift using SwiftUI. It automatically moves windows to the center of the screen so the desktop stays clean, balanced, and easy to use.
+
+Product copy:
+- Name: Maru
+- Slogan: Center it. Elevate your everyday.
+- Chinese slogan: 一键居中，让日常更优雅。
+- One-line description: Maru 是一款 macOS 开源工具，可自动将窗口优雅地移动到屏幕中央，让桌面始终简洁、平衡、顺手。
 
 ## Architecture
 
 ### Core Components
 
-- **hiWindowGuyApp.swift**: Main app entry point using SwiftUI App protocol
+- **MaruApp.swift**: Main app entry point using SwiftUI App protocol
   - Manages menu bar extra, window configuration, and global app state
   - Handles accessibility permissions and app lifecycle
   - Configures window appearance (hidden title bar, transparency)
@@ -57,7 +63,7 @@ swift build
 swift build -c release
 
 # Create distributable app
-swift build -c release && mkdir -p Release && cp -r .build/release/HiWindowGuy.app Release/
+swift build -c release && mkdir -p Release && cp -r .build/release/Maru.app Release/
 ```
 
 ### Running
@@ -67,7 +73,7 @@ swift build -c release && mkdir -p Release && cp -r .build/release/HiWindowGuy.a
 swift run
 
 # Run specific build
-swift run HiWindowGuy
+swift run Maru
 ```
 
 ### Development Workflow
@@ -93,7 +99,7 @@ The app handles complex coordinate system conversions between:
 
 ### Configuration Storage
 
-- Application support directory: `~/Library/Application Support/HiWindowGuy/`
+- Application support directory: `~/Library/Application Support/Maru/`
 - config.json: Application-specific rules
 - general.json: General settings (scale factor, log level)
 
@@ -120,7 +126,7 @@ The app handles complex coordinate system conversions between:
 
 ### UI Changes
 
-1. SwiftUI views in Sources/HiWindowGuy/Views/
+1. SwiftUI views in Sources/Maru/Views/
 2. Dark mode support using colorScheme environment
 3. Responsive layout with GeometryReader
 

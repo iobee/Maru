@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rebuild the HiWindowGuy homepage into the approved hero-first control panel, with light glass styling, a shared window-management toggle state, and a low-emphasis summary strip.
+**Goal:** Rebuild the Maru homepage into the approved hero-first control panel, with light glass styling, a shared window-management toggle state, and a low-emphasis summary strip.
 
-**Architecture:** Keep `ContentView` focused on the app shell, tab switching, and sidebar chrome. Extract homepage rendering into a dedicated `HomeDashboardView` that consumes a small, testable `HomeDashboardState` helper for copy and summary counts, while `HiWindowGuyApp` remains the single source of truth for the enable/disable binding used by the homepage and menu commands.
+**Architecture:** Keep `ContentView` focused on the app shell, tab switching, and sidebar chrome. Extract homepage rendering into a dedicated `HomeDashboardView` that consumes a small, testable `HomeDashboardState` helper for copy and summary counts, while `MaruApp` remains the single source of truth for the enable/disable binding used by the homepage and menu commands.
 
 **Tech Stack:** SwiftUI, Swift Package Manager, XCTest, AppKit
 
@@ -12,32 +12,32 @@
 
 ## File Map
 
-- Create: `Sources/HiWindowGuy/Models/HomeDashboardState.swift`
+- Create: `Sources/Maru/Models/HomeDashboardState.swift`
   - Pure helper that derives homepage status copy, formatted scale text, and summary metrics from `AppConfig` data plus the shared enable state.
-- Create: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
+- Create: `Sources/Maru/Views/HomeDashboardView.swift`
   - Dedicated homepage view that renders the approved `Hero Control` layout.
-- Create: `Tests/HiWindowGuyTests/HomeDashboardStateTests.swift`
+- Create: `Tests/MaruTests/HomeDashboardStateTests.swift`
   - Unit coverage for summary counts and enabled/disabled copy.
 - Modify: `Package.swift:4-27`
   - Add the new test target.
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:6-384`
+- Modify: `Sources/Maru/Views/ContentView.swift:6-384`
   - Remove inline homepage rendering, pass through the shared enable binding, tighten sidebar styling, and host `HomeDashboardView`.
-- Modify: `Sources/HiWindowGuy/hiWindowGuyApp.swift:17-120`
+- Modify: `Sources/Maru/MaruApp.swift:17-120`
   - Pass the app-level enable binding into `ContentView` so homepage, menu commands, and menu bar extra all stay in sync.
 
 ### Task 1: Add a testable homepage state helper
 
 **Files:**
-- Create: `Sources/HiWindowGuy/Models/HomeDashboardState.swift`
-- Create: `Tests/HiWindowGuyTests/HomeDashboardStateTests.swift`
+- Create: `Sources/Maru/Models/HomeDashboardState.swift`
+- Create: `Tests/MaruTests/HomeDashboardStateTests.swift`
 - Modify: `Package.swift:4-27`
 
 - [ ] **Step 1: Write the failing tests and test target**
 
 ```swift
-// Tests/HiWindowGuyTests/HomeDashboardStateTests.swift
+// Tests/MaruTests/HomeDashboardStateTests.swift
 import XCTest
-@testable import HiWindowGuy
+@testable import Maru
 
 final class HomeDashboardStateTests: XCTestCase {
     func testSummaryCountsFollowRuleBuckets() {
@@ -68,8 +68,8 @@ final class HomeDashboardStateTests: XCTestCase {
 ```swift
 // Package.swift
 .testTarget(
-    name: "HiWindowGuyTests",
-    dependencies: ["HiWindowGuy"]
+    name: "MaruTests",
+    dependencies: ["Maru"]
 )
 ```
 
@@ -81,7 +81,7 @@ Expected: FAIL with an error like `cannot find 'HomeDashboardState' in scope`
 - [ ] **Step 3: Write the minimal implementation**
 
 ```swift
-// Sources/HiWindowGuy/Models/HomeDashboardState.swift
+// Sources/Maru/Models/HomeDashboardState.swift
 import Foundation
 
 struct HomeDashboardState {
@@ -115,21 +115,21 @@ Expected: PASS with `Executed 2 tests`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Package.swift Sources/HiWindowGuy/Models/HomeDashboardState.swift Tests/HiWindowGuyTests/HomeDashboardStateTests.swift
+git add Package.swift Sources/Maru/Models/HomeDashboardState.swift Tests/MaruTests/HomeDashboardStateTests.swift
 git commit -m "test: add homepage dashboard state coverage"
 ```
 
 ### Task 2: Extract homepage rendering and share the enable binding
 
 **Files:**
-- Create: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:6-213`
-- Modify: `Sources/HiWindowGuy/hiWindowGuyApp.swift:17-120`
+- Create: `Sources/Maru/Views/HomeDashboardView.swift`
+- Modify: `Sources/Maru/Views/ContentView.swift:6-213`
+- Modify: `Sources/Maru/MaruApp.swift:17-120`
 
 - [ ] **Step 1: Wire the shell to a new homepage view before implementing it**
 
 ```swift
-// Sources/HiWindowGuy/hiWindowGuyApp.swift
+// Sources/Maru/MaruApp.swift
 @State private var isWindowManagementEnabled = true
 
 ContentView(
@@ -137,7 +137,7 @@ ContentView(
     isWindowManagementEnabled: $isWindowManagementEnabled
 )
 
-// Sources/HiWindowGuy/Views/ContentView.swift
+// Sources/Maru/Views/ContentView.swift
 struct ContentView: View {
     @Binding var selectedTab: NavigationTab
     @Binding var isWindowManagementEnabled: Bool
@@ -156,7 +156,7 @@ struct ContentView: View {
 ```
 
 Implementation notes:
-- Keep `@State private var isWindowManagementEnabled = true` in `HiWindowGuyApp` as the single source of truth for enable state.
+- Keep `@State private var isWindowManagementEnabled = true` in `MaruApp` as the single source of truth for enable state.
 - Migrate the existing `.commands` toggle and `MenuBarExtra` toggle to that same binding instead of introducing a second homepage-specific state.
 - `ContentView` and the sidebar footer must consume only the passed binding, never define their own running-state storage.
 
@@ -168,7 +168,7 @@ Expected: FAIL with an error like `cannot find 'HomeDashboardView' in scope`
 - [ ] **Step 3: Add the minimal homepage view shell**
 
 ```swift
-// Sources/HiWindowGuy/Views/HomeDashboardView.swift
+// Sources/Maru/Views/HomeDashboardView.swift
 import SwiftUI
 
 struct HomeDashboardView: View {
@@ -180,7 +180,7 @@ struct HomeDashboardView: View {
     }
 }
 
-// Sources/HiWindowGuy/hiWindowGuyApp.swift
+// Sources/Maru/MaruApp.swift
 private func applyWindowManagementState(_ isEnabled: Bool, source: String) {
     if isEnabled {
         logger.log("\(source)启用窗口管理", level: .info)
@@ -195,7 +195,7 @@ private func applyWindowManagementState(_ isEnabled: Bool, source: String) {
 Implementation notes:
 - `isWindowManagementEnabled` changes should own monitoring side effects in exactly one place: a single app-level `.onChange(of: isWindowManagementEnabled)` observer plus initial startup sync in `onAppear`.
 - `.commands`, `MenuBarExtra`, and `HomeDashboardView` should only mutate the binding; they must not call `startMonitoring()`, `stopMonitoring()`, or log toggle transitions directly.
-- `applyWindowManagementState` exists only to centralize the startup/onChange side effect path in `HiWindowGuyApp`.
+- `applyWindowManagementState` exists only to centralize the startup/onChange side effect path in `MaruApp`.
 
 - [ ] **Step 4: Run build to verify it passes**
 
@@ -205,15 +205,15 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/HomeDashboardView.swift Sources/HiWindowGuy/Views/ContentView.swift Sources/HiWindowGuy/hiWindowGuyApp.swift
+git add Sources/Maru/Views/HomeDashboardView.swift Sources/Maru/Views/ContentView.swift Sources/Maru/MaruApp.swift
 git commit -m "refactor: extract homepage dashboard shell"
 ```
 
 ### Task 3: Implement the hero control card and scale control card
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
-- Modify: `Sources/HiWindowGuy/Models/HomeDashboardState.swift`
+- Modify: `Sources/Maru/Views/HomeDashboardView.swift`
+- Modify: `Sources/Maru/Models/HomeDashboardState.swift`
 
 - [ ] **Step 1: Replace the placeholder with the target structure before helpers exist**
 
@@ -304,15 +304,15 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Models/HomeDashboardState.swift Sources/HiWindowGuy/Views/HomeDashboardView.swift
+git add Sources/Maru/Models/HomeDashboardState.swift Sources/Maru/Views/HomeDashboardView.swift
 git commit -m "feat: redesign homepage hero controls"
 ```
 
 ### Task 4: Replace the stat grid with a summary strip and calm down the sidebar
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:66-155`
+- Modify: `Sources/Maru/Views/HomeDashboardView.swift`
+- Modify: `Sources/Maru/Views/ContentView.swift:66-155`
 
 - [ ] **Step 1: Swap the legacy stats section for a summary strip skeleton**
 
@@ -373,17 +373,17 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/HomeDashboardView.swift Sources/HiWindowGuy/Views/ContentView.swift
+git add Sources/Maru/Views/HomeDashboardView.swift Sources/Maru/Views/ContentView.swift
 git commit -m "feat: add homepage summary strip and sidebar polish"
 ```
 
 ### Task 5: Verify behavior and visual acceptance criteria
 
 **Files:**
-- Verify: `Sources/HiWindowGuy/Models/HomeDashboardState.swift`
-- Verify: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
-- Verify: `Sources/HiWindowGuy/Views/ContentView.swift`
-- Verify: `Sources/HiWindowGuy/hiWindowGuyApp.swift`
+- Verify: `Sources/Maru/Models/HomeDashboardState.swift`
+- Verify: `Sources/Maru/Views/HomeDashboardView.swift`
+- Verify: `Sources/Maru/Views/ContentView.swift`
+- Verify: `Sources/Maru/MaruApp.swift`
 
 - [ ] **Step 1: Run the unit tests**
 
@@ -397,7 +397,7 @@ Expected: PASS with `Build complete!`
 
 - [ ] **Step 3: Launch the app for manual verification**
 
-Run: `swift run HiWindowGuy`
+Run: `swift run Maru`
 Expected: App launches and the homepage opens with the redesigned control panel
 
 - [ ] **Step 4: Manually verify the acceptance checklist**
@@ -413,6 +413,6 @@ Checklist:
 - [ ] **Step 5: Commit the verified result**
 
 ```bash
-git add Package.swift Sources/HiWindowGuy/Models/HomeDashboardState.swift Sources/HiWindowGuy/Views/HomeDashboardView.swift Sources/HiWindowGuy/Views/ContentView.swift Sources/HiWindowGuy/hiWindowGuyApp.swift Tests/HiWindowGuyTests/HomeDashboardStateTests.swift
+git add Package.swift Sources/Maru/Models/HomeDashboardState.swift Sources/Maru/Views/HomeDashboardView.swift Sources/Maru/Views/ContentView.swift Sources/Maru/MaruApp.swift Tests/MaruTests/HomeDashboardStateTests.swift
 git commit -m "feat: redesign homepage as a control panel"
 ```

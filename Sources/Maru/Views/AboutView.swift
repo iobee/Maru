@@ -29,7 +29,7 @@ private extension AboutView {
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
-            Text("HiWindowGuy 的产品名片。")
+            Text("Maru 的产品名片。")
                 .font(.body)
                 .foregroundStyle(.secondary)
         }
@@ -62,20 +62,31 @@ private extension AboutView {
 
                 Spacer(minLength: 42)
 
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(state.signatureText)
-                        .font(.system(size: 44, weight: .medium, design: .serif))
-                        .italic()
-                        .foregroundStyle(Color.white.opacity(0.93))
-
+                VStack(alignment: .leading, spacing: 12) {
                     Text(state.appName)
                         .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .tracking(-0.8)
                         .foregroundStyle(.primary)
+
+                    Text(state.signatureText)
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.93))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(state.localizedSloganText)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(state.productDescriptionText)
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
 
                     Text(state.metaLineText)
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
                         .padding(.top, 4)
                 }
             }

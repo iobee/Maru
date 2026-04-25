@@ -1,5 +1,5 @@
 import XCTest
-@testable import HiWindowGuy
+@testable import Maru
 
 final class StageManagerSettingsTests: XCTestCase {
     func testReloadReflectsSystemEnabledState() {

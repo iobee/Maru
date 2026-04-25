@@ -12,7 +12,7 @@
 
 ## File Map
 
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:33-191`
+- Modify: `Sources/Maru/Views/ContentView.swift:33-191`
   - Restyle only the sidebar container, brand block, navigation rows, selection highlight, footer status area, and sidebar width/padding.
 
 ## Verification Strategy
@@ -28,7 +28,7 @@
 ### Task 1: Rebuild the sidebar container and brand block
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:33-115`
+- Modify: `Sources/Maru/Views/ContentView.swift:33-115`
 
 - [ ] **Step 1: Rewrite `sidebarView` to reference the new shell pieces before they exist**
 
@@ -60,7 +60,7 @@ private var sidebarBrandHeader: some View {
         sidebarBrandIcon
 
         VStack(alignment: .leading, spacing: 0) {
-            Text("Hi Window Guy")
+            Text("Maru")
                 .font(.system(size: 18, weight: .semibold))
         }
 
@@ -101,14 +101,14 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/ContentView.swift
+git add Sources/Maru/Views/ContentView.swift
 git commit -m "feat: restyle sidebar container and brand block"
 ```
 
 ### Task 2: Replace the current list chrome with Apple-like navigation rows
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:76-166`
+- Modify: `Sources/Maru/Views/ContentView.swift:76-166`
 
 Existing glue to keep:
 - `currentSection`
@@ -191,14 +191,14 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/ContentView.swift
+git add Sources/Maru/Views/ContentView.swift
 git commit -m "feat: add apple-like sidebar navigation rows"
 ```
 
 ### Task 3: Rebalance footer, width, and final sidebar polish
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/ContentView.swift:33-115`
+- Modify: `Sources/Maru/Views/ContentView.swift:33-115`
 
 - [ ] **Step 1: Reference the final sidebar sizing/padding constants before defining them**
 
@@ -254,14 +254,14 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/ContentView.swift
+git add Sources/Maru/Views/ContentView.swift
 git commit -m "feat: finalize sidebar apple-cues styling"
 ```
 
 ### Task 4: Verify the sidebar-only acceptance criteria
 
 **Files:**
-- Verify: `Sources/HiWindowGuy/Views/ContentView.swift`
+- Verify: `Sources/Maru/Views/ContentView.swift`
 
 - [ ] **Step 1: Run the final build**
 
@@ -270,7 +270,7 @@ Expected: PASS with `Build complete!`
 
 - [ ] **Step 2: Launch the app for manual verification**
 
-Run: `swift run HiWindowGuy`
+Run: `swift run Maru`
 Expected: App launches and shows the updated sidebar
 
 - [ ] **Step 3: Manually verify the sidebar checklist**

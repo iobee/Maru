@@ -6,7 +6,7 @@ import AppKit
 import OSLog
 
 @main
-struct HiWindowGuyApp: App {
+struct MaruApp: App {
     private static let sharedWindowManager = WindowManager()
 
     @StateObject private var appConfig = AppConfig.shared
@@ -16,10 +16,10 @@ struct HiWindowGuyApp: App {
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
     @State private var selectedTab: NavigationTab = .home
-    private let windowManager = HiWindowGuyApp.sharedWindowManager
+    private let windowManager = MaruApp.sharedWindowManager
     
     var body: some Scene {
-        Window("HiWindowGuy", id: "mainWindow") {
+        Window("Maru", id: "mainWindow") {
             ContentView(
                 selectedTab: $selectedTab,
                 isWindowManagementEnabled: windowManagementBinding
@@ -55,7 +55,7 @@ struct HiWindowGuyApp: App {
         .commands {
             // 添加自定义命令到标准菜单栏
             CommandGroup(replacing: .appInfo) {
-                Button("关于 HiWindowGuy") {
+                Button("关于 Maru") {
                     showAboutPanel()
                 }
             }
@@ -124,7 +124,7 @@ struct HiWindowGuyApp: App {
     private func configureWindow() {
         // 查找应用窗口
         for window in NSApplication.shared.windows {
-            if window.title == "HiWindowGuy" {
+            if window.title == "Maru" {
                 MainWindowChrome.applyProductStandard(to: window)
                 logger.log("配置窗口: \(window.title)", level: .info)
             }
@@ -132,7 +132,7 @@ struct HiWindowGuyApp: App {
         
         // 注册窗口创建通知，以便在新窗口创建时也进行配置
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
-            if let window = notification.object as? NSWindow, window.title == "HiWindowGuy" {
+            if let window = notification.object as? NSWindow, window.title == "Maru" {
                 MainWindowChrome.applyProductStandard(to: window)
                 logger.log("配置新窗口: \(window.title)", level: .info)
             }
@@ -165,11 +165,11 @@ struct HiWindowGuyApp: App {
     
     private func showAboutPanel() {
         let options: [NSApplication.AboutPanelOptionKey: Any] = [
-            .applicationName: "HiWindowGuy",
+            .applicationName: "Maru",
             .applicationVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
             .version: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1",
             .credits: NSAttributedString(
-                string: "一个简单而强大的窗口管理工具\n© 2023-2024 Nick. 保留所有权利。",
+                string: "Center it. Elevate your everyday.\n一键居中，让日常更优雅。\n© 2023-2024 Nick. 保留所有权利。",
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 12),
                     .foregroundColor: NSColor.labelColor

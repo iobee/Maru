@@ -4,19 +4,19 @@
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:hiWindowGuy}",
-            "name": "Debug HiWindowGuy",
-            "program": "${workspaceFolder:hiWindowGuy}/.build/debug/HiWindowGuy",
-            "preLaunchTask": "swift: Build Debug HiWindowGuy"
+            "cwd": "${workspaceFolder}",
+            "name": "Debug Maru",
+            "program": "${workspaceFolder}/.build/debug/Maru",
+            "preLaunchTask": "swift: Build Debug Maru"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:hiWindowGuy}",
-            "name": "Release HiWindowGuy",
-            "program": "${workspaceFolder:hiWindowGuy}/.build/release/HiWindowGuy",
-            "preLaunchTask": "swift: Build Release HiWindowGuy"
+            "cwd": "${workspaceFolder}",
+            "name": "Release Maru",
+            "program": "${workspaceFolder}/.build/release/Maru",
+            "preLaunchTask": "swift: Build Release Maru"
         }
     ]
 }

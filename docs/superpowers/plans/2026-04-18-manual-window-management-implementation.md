@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add manual window centering and almost-maximize actions to HiWindowGuy with configurable global shortcuts, matching menu entries, and a homepage settings card that stays aligned with the current product UI standard.
+**Goal:** Add manual window centering and almost-maximize actions to Maru with configurable global shortcuts, matching menu entries, and a homepage settings card that stays aligned with the current product UI standard.
 
 **Architecture:** Keep automatic window management intact, but add a separate manual trigger path. Reuse the existing low-level `centerWindow` and `almostMaximizeWindow` frame logic, while splitting out a manual target resolver that only operates on the frontmost app’s active standard window. Persist shortcut bindings in `AppConfig`, register them through a dedicated global hotkey manager, route both menus and hotkeys through the same manual action entrypoints, and surface shortcut editing inside the existing homepage card language.
 
@@ -12,25 +12,25 @@
 
 ## File Map
 
-- Modify: `Sources/HiWindowGuy/Models/AppConfig.swift`
+- Modify: `Sources/Maru/Models/AppConfig.swift`
   - Add shortcut binding models, default values, persistence, clear/reset actions, and duplicate-binding validation.
-- Create: `Sources/HiWindowGuy/Models/ManualWindowAction.swift`
+- Create: `Sources/Maru/Models/ManualWindowAction.swift`
   - Define the two fixed manual actions plus menu/display metadata.
-- Create: `Sources/HiWindowGuy/Models/ShortcutBinding.swift`
+- Create: `Sources/Maru/Models/ShortcutBinding.swift`
   - Represent key + modifier data, default display formatting, equality/hashability, and serialization.
-- Create: `Sources/HiWindowGuy/Services/GlobalHotkeyManager.swift`
+- Create: `Sources/Maru/Services/GlobalHotkeyManager.swift`
   - Register/unregister Carbon global shortcuts and dispatch bound actions.
-- Modify: `Sources/HiWindowGuy/Services/WindowManager.swift`
+- Modify: `Sources/Maru/Services/WindowManager.swift`
   - Add manual action entrypoints, manual target window resolution, alert feedback, and manual-action logging.
-- Modify: `Sources/HiWindowGuy/hiWindowGuyApp.swift`
+- Modify: `Sources/Maru/MaruApp.swift`
   - Wire menu bar entries, top app menu entries, and startup lifecycle registration for global hotkeys.
-- Modify: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
+- Modify: `Sources/Maru/Views/HomeDashboardView.swift`
   - Add the “手动窗口管理” settings card in the approved homepage card style.
-- Modify: `Sources/HiWindowGuy/Models/HomeDashboardState.swift`
+- Modify: `Sources/Maru/Models/HomeDashboardState.swift`
   - Add homepage copy and display helpers for the new shortcut card if needed.
-- Create: `Tests/HiWindowGuyTests/ShortcutBindingTests.swift`
+- Create: `Tests/MaruTests/ShortcutBindingTests.swift`
   - Cover binding formatting, equality, and duplicate detection helpers.
-- Create: `Tests/HiWindowGuyTests/AppConfigShortcutTests.swift`
+- Create: `Tests/MaruTests/AppConfigShortcutTests.swift`
   - Cover default shortcut loading, clear/reset behavior, persistence-safe validation, and duplicate rejection.
 
 ## Verification Strategy
@@ -39,7 +39,7 @@
 - Use compile verification after each integration slice because the hotkey manager, menus, and SwiftUI card changes span multiple files.
 - Finish with a fresh full test run and a fresh build.
 - Manual verification in the running app is still required for:
-  - global shortcuts while HiWindowGuy is backgrounded
+  - global shortcuts while Maru is backgrounded
   - manual actions targeting the frontmost app’s active standard window instead of the mouse-hover window
   - alert feedback when no standard window is available
   - homepage card visual consistency with the current UI standard
@@ -47,11 +47,11 @@
 ### Task 1: Build the shortcut binding model and persistence rules
 
 **Files:**
-- Create: `Sources/HiWindowGuy/Models/ManualWindowAction.swift`
-- Create: `Sources/HiWindowGuy/Models/ShortcutBinding.swift`
-- Modify: `Sources/HiWindowGuy/Models/AppConfig.swift`
-- Test: `Tests/HiWindowGuyTests/ShortcutBindingTests.swift`
-- Test: `Tests/HiWindowGuyTests/AppConfigShortcutTests.swift`
+- Create: `Sources/Maru/Models/ManualWindowAction.swift`
+- Create: `Sources/Maru/Models/ShortcutBinding.swift`
+- Modify: `Sources/Maru/Models/AppConfig.swift`
+- Test: `Tests/MaruTests/ShortcutBindingTests.swift`
+- Test: `Tests/MaruTests/AppConfigShortcutTests.swift`
 
 - [ ] **Step 1: Write failing tests for shortcut bindings and config defaults**
 
@@ -88,20 +88,20 @@ Expected: PASS with both new test suites green
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Models/ManualWindowAction.swift Sources/HiWindowGuy/Models/ShortcutBinding.swift Sources/HiWindowGuy/Models/AppConfig.swift Tests/HiWindowGuyTests/ShortcutBindingTests.swift Tests/HiWindowGuyTests/AppConfigShortcutTests.swift
+git add Sources/Maru/Models/ManualWindowAction.swift Sources/Maru/Models/ShortcutBinding.swift Sources/Maru/Models/AppConfig.swift Tests/MaruTests/ShortcutBindingTests.swift Tests/MaruTests/AppConfigShortcutTests.swift
 git commit -m "feat: add manual shortcut configuration"
 ```
 
 ### Task 2: Add the global hotkey manager and wire it into app lifecycle and menus
 
 **Files:**
-- Create: `Sources/HiWindowGuy/Services/GlobalHotkeyManager.swift`
-- Modify: `Sources/HiWindowGuy/hiWindowGuyApp.swift`
-- Modify: `Sources/HiWindowGuy/Models/AppConfig.swift`
+- Create: `Sources/Maru/Services/GlobalHotkeyManager.swift`
+- Modify: `Sources/Maru/MaruApp.swift`
+- Modify: `Sources/Maru/Models/AppConfig.swift`
 
 - [ ] **Step 1: Introduce compile references to a dedicated global hotkey manager**
 
-Plumb the app entrypoint so startup and config changes refer to a `GlobalHotkeyManager` that does not exist yet. Also add the new manual menu commands in `hiWindowGuyApp.swift` so the build breaks on the new unresolved symbols first.
+Plumb the app entrypoint so startup and config changes refer to a `GlobalHotkeyManager` that does not exist yet. Also add the new manual menu commands in `MaruApp.swift` so the build breaks on the new unresolved symbols first.
 
 - [ ] **Step 2: Run build to verify it fails on the missing hotkey manager and manual action symbols**
 
@@ -130,14 +130,14 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Services/GlobalHotkeyManager.swift Sources/HiWindowGuy/hiWindowGuyApp.swift Sources/HiWindowGuy/Models/AppConfig.swift
+git add Sources/Maru/Services/GlobalHotkeyManager.swift Sources/Maru/MaruApp.swift Sources/Maru/Models/AppConfig.swift
 git commit -m "feat: wire manual window actions into hotkeys and menus"
 ```
 
 ### Task 3: Implement the manual window action path and target resolver
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Services/WindowManager.swift`
+- Modify: `Sources/Maru/Services/WindowManager.swift`
 
 - [ ] **Step 1: Add new manual action entrypoints that intentionally call unresolved resolver helpers first**
 
@@ -169,16 +169,16 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Services/WindowManager.swift
+git add Sources/Maru/Services/WindowManager.swift
 git commit -m "feat: add manual window action resolver"
 ```
 
 ### Task 4: Add the homepage shortcut settings card in the approved UI language
 
 **Files:**
-- Modify: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
-- Modify: `Sources/HiWindowGuy/Models/HomeDashboardState.swift`
-- Modify: `Sources/HiWindowGuy/Models/AppConfig.swift`
+- Modify: `Sources/Maru/Views/HomeDashboardView.swift`
+- Modify: `Sources/Maru/Models/HomeDashboardState.swift`
+- Modify: `Sources/Maru/Models/AppConfig.swift`
 
 - [ ] **Step 1: Add new homepage state references and view helper names before implementing the card**
 
@@ -212,20 +212,20 @@ Expected: PASS with `Build complete!`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Views/HomeDashboardView.swift Sources/HiWindowGuy/Models/HomeDashboardState.swift Sources/HiWindowGuy/Models/AppConfig.swift
+git add Sources/Maru/Views/HomeDashboardView.swift Sources/Maru/Models/HomeDashboardState.swift Sources/Maru/Models/AppConfig.swift
 git commit -m "feat: add homepage manual shortcut settings"
 ```
 
 ### Task 5: Run the full verification pass and complete manual QA
 
 **Files:**
-- Verify: `Sources/HiWindowGuy/Models/AppConfig.swift`
-- Verify: `Sources/HiWindowGuy/Services/GlobalHotkeyManager.swift`
-- Verify: `Sources/HiWindowGuy/Services/WindowManager.swift`
-- Verify: `Sources/HiWindowGuy/Views/HomeDashboardView.swift`
-- Verify: `Sources/HiWindowGuy/hiWindowGuyApp.swift`
-- Verify: `Tests/HiWindowGuyTests/ShortcutBindingTests.swift`
-- Verify: `Tests/HiWindowGuyTests/AppConfigShortcutTests.swift`
+- Verify: `Sources/Maru/Models/AppConfig.swift`
+- Verify: `Sources/Maru/Services/GlobalHotkeyManager.swift`
+- Verify: `Sources/Maru/Services/WindowManager.swift`
+- Verify: `Sources/Maru/Views/HomeDashboardView.swift`
+- Verify: `Sources/Maru/MaruApp.swift`
+- Verify: `Tests/MaruTests/ShortcutBindingTests.swift`
+- Verify: `Tests/MaruTests/AppConfigShortcutTests.swift`
 
 - [ ] **Step 1: Run the full automated test suite**
 
@@ -239,7 +239,7 @@ Expected: PASS with `Build complete!`
 
 - [ ] **Step 3: Manually verify the manual action workflow in the running app**
 
-Run: `swift run HiWindowGuy`
+Run: `swift run Maru`
 
 Manual checks:
 
@@ -267,6 +267,6 @@ Checklist:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/HiWindowGuy/Models/AppConfig.swift Sources/HiWindowGuy/Models/ManualWindowAction.swift Sources/HiWindowGuy/Models/ShortcutBinding.swift Sources/HiWindowGuy/Services/GlobalHotkeyManager.swift Sources/HiWindowGuy/Services/WindowManager.swift Sources/HiWindowGuy/Views/HomeDashboardView.swift Sources/HiWindowGuy/Models/HomeDashboardState.swift Sources/HiWindowGuy/hiWindowGuyApp.swift Tests/HiWindowGuyTests/ShortcutBindingTests.swift Tests/HiWindowGuyTests/AppConfigShortcutTests.swift
+git add Sources/Maru/Models/AppConfig.swift Sources/Maru/Models/ManualWindowAction.swift Sources/Maru/Models/ShortcutBinding.swift Sources/Maru/Services/GlobalHotkeyManager.swift Sources/Maru/Services/WindowManager.swift Sources/Maru/Views/HomeDashboardView.swift Sources/Maru/Models/HomeDashboardState.swift Sources/Maru/MaruApp.swift Tests/MaruTests/ShortcutBindingTests.swift Tests/MaruTests/AppConfigShortcutTests.swift
 git commit -m "feat: add manual window management controls"
 ```

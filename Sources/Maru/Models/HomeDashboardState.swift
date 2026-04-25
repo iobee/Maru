@@ -58,9 +58,7 @@ struct HomeDashboardState {
     }
 
     var headerSubtitle: String {
-        isEnabled
-            ? "像 macOS 控制面板一样集中管理窗口行为。\(ruleOverview)"
-            : "窗口自动管理当前已暂停。开启后会按既有规则接管窗口布局。"
+        "一键居中，让日常更优雅。"
     }
 
     var heroTitle: String {
@@ -68,9 +66,7 @@ struct HomeDashboardState {
     }
 
     var heroDescription: String {
-        isEnabled
-            ? "新的前台窗口会按既有规则自动调整位置和尺寸。\(ruleOverview)"
-            : "开启后，新的前台窗口会按既有规则自动调整位置和尺寸。\(ruleOverview)"
+        "Maru 是一款 macOS 开源工具，可自动将窗口优雅地移动到屏幕中央，让桌面始终简洁、平衡、顺手。"
     }
 
     var heroToggleTitle: String {
@@ -99,7 +95,7 @@ struct HomeDashboardState {
 
     var stageManagerDescription: String {
         isStageManagerEnabled
-            ? "macOS 系统级窗口分组已开启，可直接配合 HiWindowGuy 的自动布局使用。"
+            ? "macOS 系统级窗口分组已开启，可直接配合 Maru 的自动布局使用。"
             : "直接切换 macOS 的 Stage Manager，让系统分组与自动窗口布局协同工作。"
     }
 
@@ -109,8 +105,8 @@ struct HomeDashboardState {
 
     var stageManagerToggleSubtitle: String {
         isStageManagerEnabled
-            ? "HiWindowGuy 会继续按应用规则整理窗口，Stage Manager 负责保留清晰的系统分组。"
-            : "建议与 HiWindowGuy 一起开启，在专注单个任务时更容易保持桌面整洁。"
+            ? "Maru 会继续按应用规则整理窗口，Stage Manager 负责保留清晰的系统分组。"
+            : "建议与 Maru 一起开启，在专注单个任务时更容易保持桌面整洁。"
     }
 
     var stageManagerErrorPrefix: String {

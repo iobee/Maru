@@ -1,11 +1,11 @@
 import XCTest
 import Foundation
-@testable import HiWindowGuy
+@testable import Maru
 
 final class AppConfigShortcutTests: XCTestCase {
     private var storageDirectoryURL: URL {
         let baseURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        return baseURL.appendingPathComponent("HiWindowGuy-ShortcutTests-\(UUID().uuidString)", isDirectory: true)
+        return baseURL.appendingPathComponent("Maru-ShortcutTests-\(UUID().uuidString)", isDirectory: true)
     }
 
     private func makeConfig() throws -> (AppConfig, URL) {
