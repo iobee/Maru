@@ -218,6 +218,7 @@ struct MaruApp: App {
     }
     
     init() {
+        MaruApplicationActivation.applyLaunchPolicy()
         NSApplication.shared.applicationIconImage = AppIconProvider.loadAppIcon(size: 512)
         globalHotkeyManager = GlobalHotkeyManager(actionHandler: Self.dispatchManualWindowAction)
 

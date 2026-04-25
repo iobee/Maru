@@ -1,24 +1,39 @@
 import SwiftUI
 
-struct RuleConfigView: View {
-    @StateObject private var config = AppConfig.shared
-    @State private var selectedRule: AppRule?
-    @State private var sortOption = SortOption.lastUsed
-    @State private var refreshTrigger = UUID()
-    @Environment(\.colorScheme) private var colorScheme
+enum RuleConfigSortOption: String, CaseIterable, Identifiable {
+    case lastUsed = "最近使用"
+    case name = "名称"
+    case useCount = "使用次数"
 
-    enum SortOption: String, CaseIterable, Identifiable {
-        case lastUsed = "最近使用"
-        case name = "名称"
-        case useCount = "使用次数"
+    var id: String { self.rawValue }
+}
 
-        var id: String { self.rawValue }
-    }
+struct RuleConfigSearchTransition: Equatable {
+    let isSearchActive: Bool
+    let searchText: String
+    let shouldActivateApplication: Bool
+    let shouldFocusSearchField: Bool
+}
 
-    private var sortedRules: [AppRule] {
-        _ = config.refreshID
+struct RuleConfigState {
+    static func visibleRules(
+        from rules: [AppRule],
+        searchText: String,
+        sortOption: RuleConfigSortOption
+    ) -> [AppRule] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return config.appRules.sorted { lhs, rhs in
+        let filteredRules: [AppRule]
+        if query.isEmpty {
+            filteredRules = rules
+        } else {
+            filteredRules = rules.filter { rule in
+                rule.appName.localizedCaseInsensitiveContains(query) ||
+                rule.bundleId.localizedCaseInsensitiveContains(query)
+            }
+        }
+
+        return filteredRules.sorted { lhs, rhs in
             switch sortOption {
             case .name:
                 return lhs.appName.localizedCompare(rhs.appName) == .orderedAscending
@@ -28,6 +43,57 @@ struct RuleConfigView: View {
                 return lhs.useCount > rhs.useCount
             }
         }
+    }
+
+    static func searchTransition(isActive: Bool, searchText: String) -> RuleConfigSearchTransition {
+        if isActive {
+            return RuleConfigSearchTransition(
+                isSearchActive: false,
+                searchText: "",
+                shouldActivateApplication: false,
+                shouldFocusSearchField: false
+            )
+        }
+
+        return RuleConfigSearchTransition(
+            isSearchActive: true,
+            searchText: searchText,
+            shouldActivateApplication: true,
+            shouldFocusSearchField: true
+        )
+    }
+}
+
+struct RuleConfigView: View {
+    @StateObject private var config = AppConfig.shared
+    @State private var selectedRule: AppRule?
+    @State private var sortOption = RuleConfigSortOption.lastUsed
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @State private var refreshTrigger = UUID()
+    @FocusState private var isSearchFieldFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var visibleRules: [AppRule] {
+        _ = config.refreshID
+
+        return RuleConfigState.visibleRules(
+            from: config.appRules,
+            searchText: searchText,
+            sortOption: sortOption
+        )
+    }
+
+    private var isFilteringRules: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var ruleCountText: String {
+        if isFilteringRules {
+            return "\(visibleRules.count) / \(config.appRules.count) 条规则"
+        }
+
+        return "\(visibleRules.count) 条规则"
     }
 
     private var subtitleText: String {
@@ -82,15 +148,32 @@ struct RuleConfigView: View {
 
     private var toolRow: some View {
         HStack(spacing: 12) {
-            Label("\(sortedRules.count) 条规则", systemImage: "square.stack.3d.up")
+            Label(ruleCountText, systemImage: "square.stack.3d.up")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 16)
 
+            if isSearchActive {
+                searchField
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+
+            Button {
+                toggleSearch()
+            } label: {
+                Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isSearchActive ? .blue : .primary)
+                    .frame(width: 34, height: 34)
+                    .background(toolButtonBackground)
+            }
+            .buttonStyle(.plain)
+            .help(isSearchActive ? "关闭搜索" : "搜索应用规则")
+
             Menu {
-                ForEach(SortOption.allCases) { option in
+                ForEach(RuleConfigSortOption.allCases) { option in
                     Button {
                         sortOption = option
                     } label: {
@@ -108,25 +191,60 @@ struct RuleConfigView: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.55))
-                )
+                .background(toolButtonBackground)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .background(secondarySurfaceBackground(cornerRadius: 18))
+        .animation(.easeInOut(duration: 0.18), value: isSearchActive)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("搜索应用或 Bundle ID", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.subheadline)
+                .focused($isSearchFieldFocused)
+                .frame(width: 220)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    isSearchFieldFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("清除搜索")
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.55))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(isSearchFieldFocused ? Color.blue.opacity(0.45) : Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12), lineWidth: 1)
+        )
     }
 
     private var rulesSurface: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if sortedRules.isEmpty {
+            if visibleRules.isEmpty {
                 emptyStateView
             } else {
                 LazyVStack(spacing: 12) {
-                    ForEach(sortedRules, id: \.bundleId) { rule in
+                    ForEach(visibleRules, id: \.bundleId) { rule in
                         RuleRow(rule: rule)
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -150,15 +268,15 @@ struct RuleConfigView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 14) {
-            Image(systemName: "square.stack.3d.up.slash")
+            Image(systemName: isFilteringRules ? "magnifyingglass" : "square.stack.3d.up.slash")
                 .font(.system(size: 34))
                 .foregroundStyle(.secondary)
 
-            Text("还没有应用规则")
+            Text(isFilteringRules ? "没有匹配的应用规则" : "还没有应用规则")
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            Text("当应用被记录后，这里会集中显示每个应用的窗口处理方式。")
+            Text(isFilteringRules ? "换一个应用名称或 Bundle ID 试试。" : "当应用被记录后，这里会集中显示每个应用的窗口处理方式。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -171,7 +289,7 @@ struct RuleConfigView: View {
 
     private var bottomStatusBar: some View {
         HStack(spacing: 12) {
-            Label("\(sortedRules.count) 个应用", systemImage: "app.badge")
+            Label("\(visibleRules.count) 个应用", systemImage: "app.badge")
                 .font(.footnote)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
@@ -248,7 +366,12 @@ struct RuleConfigView: View {
             )
     }
 
-    private func sortOptionIcon(_ option: SortOption) -> String {
+    private var toolButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.55))
+    }
+
+    private func sortOptionIcon(_ option: RuleConfigSortOption) -> String {
         switch option {
         case .lastUsed:
             return "clock"
@@ -256,6 +379,27 @@ struct RuleConfigView: View {
             return "textformat"
         case .useCount:
             return "number"
+        }
+    }
+
+    private func toggleSearch() {
+        let transition = RuleConfigState.searchTransition(
+            isActive: isSearchActive,
+            searchText: searchText
+        )
+
+        searchText = transition.searchText
+        isSearchActive = transition.isSearchActive
+        isSearchFieldFocused = false
+
+        if transition.shouldActivateApplication {
+            MaruApplicationActivation.activateForTextInput()
+        }
+
+        if transition.shouldFocusSearchField {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isSearchFieldFocused = true
+            }
         }
     }
 
