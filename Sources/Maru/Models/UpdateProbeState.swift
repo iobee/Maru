@@ -43,14 +43,26 @@ struct UpdateProbeCoordinator {
     }
 
     mutating func markUpdateFound() {
+        guard state == .checking else {
+            return
+        }
+
         state = .updateAvailable
     }
 
     mutating func markNoUpdateFound() {
+        guard state == .checking else {
+            return
+        }
+
         state = .idle
     }
 
     mutating func markFailed() {
+        guard state == .checking else {
+            return
+        }
+
         state = .failed
     }
 }

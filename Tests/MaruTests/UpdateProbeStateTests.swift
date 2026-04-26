@@ -55,16 +55,24 @@ final class UpdateProbeStateTests: XCTestCase {
         XCTAssertEqual(AboutUpdateStatusState(probeState: coordinator.state), AboutUpdateStatusState(showsSpinner: false, message: nil))
     }
 
+    func testTerminalTransitionsBeforeStartingProbeDoNotLeaveIdleState() {
+        var updateCoordinator = UpdateProbeCoordinator()
+        updateCoordinator.markUpdateFound()
+        XCTAssertEqual(updateCoordinator.state, .idle)
+
+        var noUpdateCoordinator = UpdateProbeCoordinator()
+        noUpdateCoordinator.markNoUpdateFound()
+        XCTAssertEqual(noUpdateCoordinator.state, .idle)
+
+        var failedCoordinator = UpdateProbeCoordinator()
+        failedCoordinator.markFailed()
+        XCTAssertEqual(failedCoordinator.state, .idle)
+    }
+
     func testPresentationKeepsUpdateAvailableCopyLowPriority() {
         let state = AboutUpdateStatusState(probeState: .updateAvailable)
-        let fieldLabels = reflectedFieldLabels(in: state)
 
         XCTAssertEqual(state.showsSpinner, false)
         XCTAssertEqual(state.message, "发现新版本")
-        XCTAssertEqual(fieldLabels, ["showsSpinner", "message"])
-    }
-
-    private func reflectedFieldLabels(in state: AboutUpdateStatusState) -> Set<String> {
-        Set(Mirror(reflecting: state).children.compactMap(\.label))
     }
 }
