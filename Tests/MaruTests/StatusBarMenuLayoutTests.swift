@@ -30,4 +30,19 @@ final class StatusBarMenuLayoutTests: XCTestCase {
 
         XCTAssertFalse(titles.contains("查看日志"))
     }
+
+    func testMenuItemIdentifiersAreStableForRendering() {
+        XCTAssertEqual(StatusBarMenuItem.windowManagementToggle.id, "windowManagementToggle")
+        XCTAssertEqual(StatusBarMenuItem.manualAction(.center).id, "manualAction.center")
+        XCTAssertEqual(StatusBarMenuItem.manualAction(.almostMaximize).id, "manualAction.almostMaximize")
+        XCTAssertEqual(StatusBarMenuItem.manualAction(.moveToNextDisplay).id, "manualAction.moveToNextDisplay")
+        XCTAssertEqual(StatusBarMenuItem.appConfiguration.id, "appConfiguration")
+        XCTAssertEqual(StatusBarMenuItem.appRules.id, "appRules")
+        XCTAssertEqual(StatusBarMenuItem.checkForUpdates.id, "checkForUpdates")
+        XCTAssertEqual(StatusBarMenuItem.quit.id, "quit")
+
+        let identifiers = StatusBarMenuLayout.groups.flatMap { $0 }.map(\.id)
+
+        XCTAssertEqual(Set(identifiers).count, identifiers.count)
+    }
 }

@@ -1,10 +1,27 @@
-enum StatusBarMenuItem: Equatable {
+enum StatusBarMenuItem: Equatable, Identifiable {
     case windowManagementToggle
     case manualAction(ManualWindowAction)
     case appConfiguration
     case appRules
     case checkForUpdates
     case quit
+
+    var id: String {
+        switch self {
+        case .windowManagementToggle:
+            return "windowManagementToggle"
+        case .manualAction(let action):
+            return "manualAction.\(action.rawValue)"
+        case .appConfiguration:
+            return "appConfiguration"
+        case .appRules:
+            return "appRules"
+        case .checkForUpdates:
+            return "checkForUpdates"
+        case .quit:
+            return "quit"
+        }
+    }
 
     var title: String {
         switch self {

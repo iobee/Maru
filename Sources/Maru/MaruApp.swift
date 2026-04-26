@@ -101,36 +101,52 @@ struct MaruApp: App {
         }
         
         MenuBarExtra {
-            Toggle(StatusBarMenuItem.windowManagementToggle.title, isOn: windowManagementBinding)
-            
-            Divider()
+            statusBarMenuContent()
+        } label: {
+            Image(nsImage: AppIconProvider.makeMenuBarIcon())
+        }
+    }
 
-            manualWindowActionButton(for: .center)
-            manualWindowActionButton(for: .almostMaximize)
-            manualWindowActionButton(for: .moveToNextDisplay)
-            
-            Divider()
+    @ViewBuilder
+    private func statusBarMenuContent() -> some View {
+        ForEach(StatusBarMenuLayout.groups.indices, id: \.self) { groupIndex in
+            if groupIndex > StatusBarMenuLayout.groups.startIndex {
+                Divider()
+            }
 
-            Button(StatusBarMenuItem.appConfiguration.title) {
+            ForEach(StatusBarMenuLayout.groups[groupIndex]) { item in
+                statusBarMenuItem(for: item)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func statusBarMenuItem(for item: StatusBarMenuItem) -> some View {
+        switch item {
+        case .windowManagementToggle:
+            Toggle(item.title, isOn: windowManagementBinding)
+        case .manualAction(let action):
+            manualWindowActionButton(for: action)
+        case .appConfiguration:
+            Button(item.title) {
                 openConfigurationWindow()
-            }.keyboardShortcut("m")
-
-            Button(StatusBarMenuItem.appRules.title) {
+            }
+            .keyboardShortcut("m")
+        case .appRules:
+            Button(item.title) {
                 openConfigurationWindow(show: Self.showRulesConfigNotification)
-            }.keyboardShortcut("r")
-
-            Button(StatusBarMenuItem.checkForUpdates.title) {
+            }
+            .keyboardShortcut("r")
+        case .checkForUpdates:
+            Button(item.title) {
                 updateService.checkForUpdates()
             }
             .disabled(!updateService.canCheckForUpdates)
-            
-            Divider()
-            
-            Button(StatusBarMenuItem.quit.title) {
+        case .quit:
+            Button(item.title) {
                 NSApp.terminate(nil)
-            }.keyboardShortcut("q")
-        } label: {
-            Image(nsImage: AppIconProvider.makeMenuBarIcon())
+            }
+            .keyboardShortcut("q")
         }
     }
 
