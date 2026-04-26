@@ -21,6 +21,7 @@ enum AboutCardLayout {
 struct AboutView: View {
     private let state = AboutViewState()
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var updateService: UpdateService
 
     var body: some View {
         VStack(alignment: .leading, spacing: AboutCardLayout.titleToCardSpacing) {
@@ -36,6 +37,9 @@ struct AboutView: View {
         .padding(.top, AboutCardLayout.pageTopPadding)
         .padding(.bottom, 30)
         .background(pageBackground.ignoresSafeArea(.container, edges: .top))
+        .onAppear {
+            updateService.checkForUpdatesFromAboutIfNeeded()
+        }
     }
 }
 
@@ -83,9 +87,7 @@ private extension AboutView {
             Spacer(minLength: 48)
 
             HStack(alignment: .center, spacing: 16) {
-                Text(state.releaseLineText)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(.tertiary)
+                releaseLineWithUpdateStatus
 
                 Spacer(minLength: 24)
 
@@ -96,6 +98,31 @@ private extension AboutView {
         .padding(AboutCardLayout.cardPadding)
         .frame(maxWidth: .infinity, minHeight: AboutCardLayout.cardMinHeight, alignment: .topLeading)
         .background(cardBackground)
+    }
+
+    var releaseLineWithUpdateStatus: some View {
+        HStack(spacing: 8) {
+            Text(state.releaseLineText)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(.tertiary)
+
+            if updateStatusState.showsSpinner {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.55)
+                    .frame(width: 12, height: 12)
+            }
+
+            if let message = updateStatusState.message {
+                Text(message)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    var updateStatusState: AboutUpdateStatusState {
+        AboutUpdateStatusState(probeState: updateService.probeState)
     }
 
     var pageBackground: some View {
