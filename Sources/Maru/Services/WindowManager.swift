@@ -391,7 +391,7 @@ class WindowManager: ObservableObject {
         if AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedWindowRef) == .success,
            let focusedWindowRef {
             let focusedWindow = focusedWindowRef as! AXUIElement
-            if isStandardManualWindow(focusedWindow) {
+            if isStandardWindow(focusedWindow) {
                 AppLogger.shared.log("手动目标解析成功: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 使用 AXFocusedWindow", level: .info)
                 return focusedWindow
             } else {
@@ -409,7 +409,7 @@ class WindowManager: ObservableObject {
         }
 
         for window in windowArray {
-            guard isStandardManualWindow(window) else { continue }
+            guard isStandardWindow(window) else { continue }
 
             AppLogger.shared.log("手动目标解析成功: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity), 使用同应用第一个非最小化标准窗口", level: .info)
             return window
@@ -419,7 +419,7 @@ class WindowManager: ObservableObject {
         return nil
     }
 
-    private func isStandardManualWindow(_ window: AXUIElement) -> Bool {
+    private func isStandardWindow(_ window: AXUIElement) -> Bool {
         guard !isWindowMinimized(window) else {
             return false
         }
@@ -500,23 +500,13 @@ class WindowManager: ObservableObject {
                 // --- End log ---
                 
                 if let role = currentRole as? String, role == (kAXWindowRole as String) {
-                    AppLogger.shared.log("  [层级 \(i)] 找到 kAXWindowRole 元素，检查子角色...", level: .debug)
-                    // 进一步检查是否是标准窗口 (排除菜单栏、对话框等)
-                    if let subrole = currentSubrole as? String {
-                        // 允许标准窗口和未知子角色(有些应用窗口子角色未知)
-                        // 排除系统对话框等明确不希望处理的类型
-                        if subrole == (kAXStandardWindowSubrole as String) || subrole == (kAXUnknownSubrole as String) {
-                             potentialWindowElement = currentElement
-                             AppLogger.shared.log("  [层级 \(i)] 找到有效窗口 (Subrole: \(subrole))，查找结束。", level: .debug)
-                             break
-                        } else {
-                             AppLogger.shared.log("  [层级 \(i)] 子角色 (\(subrole)) 不符合标准窗口，继续向上查找父窗口...", level: .debug)
-                        }
-                    } else {
-                        // 如果没有子角色，也认为是目标窗口 (某些应用可能没有设置 Subrole)
+                    AppLogger.shared.log("  [层级 \(i)] 找到 kAXWindowRole 元素，检查是否为标准窗口...", level: .debug)
+                    if isStandardWindow(currentElement) {
                         potentialWindowElement = currentElement
-                        AppLogger.shared.log("  [层级 \(i)] 找到有效窗口 (无Subrole)，查找结束。", level: .debug)
+                        AppLogger.shared.log("  [层级 \(i)] 找到标准窗口，查找结束。", level: .debug)
                         break
+                    } else {
+                        AppLogger.shared.log("  [层级 \(i)] 非标准窗口，继续向上查找父窗口...", level: .debug)
                     }
                 }
 
@@ -572,22 +562,12 @@ class WindowManager: ObservableObject {
                             // 检查鼠标坐标是否在窗口范围内
                             if windowFrame.contains(axMouseLocation) {
                                 AppLogger.shared.log("几何位置匹配：鼠标坐标在此窗口范围内", level: .debug)
-                                
-                                // 检查窗口类型是否为标准窗口
-                                var subroleRef: AnyObject?
-                                if AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subroleRef) == .success,
-                                   let subrole = subroleRef as? String {
-                                    
-                                    if subrole == (kAXStandardWindowSubrole as String) || subrole == (kAXUnknownSubrole as String) {
-                                        AppLogger.shared.log("成功: 基于几何位置找到包含鼠标坐标的标准窗口 (Subrole: \(subrole))", level: .info)
-                                        return window
-                                    } else {
-                                        AppLogger.shared.log("找到包含鼠标坐标的窗口，但子角色不是标准窗口: \(subrole)", level: .debug)
-                                    }
-                                } else {
-                                    // 没有子角色，也可能是目标窗口
-                                    AppLogger.shared.log("成功: 基于几何位置找到包含鼠标坐标的窗口 (无Subrole)", level: .info)
+
+                                if isStandardWindow(window) {
+                                    AppLogger.shared.log("成功: 基于几何位置找到包含鼠标坐标的标准窗口", level: .info)
                                     return window
+                                } else {
+                                    AppLogger.shared.log("找到包含鼠标坐标的窗口，但不是标准窗口，跳过", level: .debug)
                                 }
                             }
                         }
@@ -613,15 +593,12 @@ class WindowManager: ObservableObject {
         var focusedWindowRef: AnyObject?
         var result = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedWindowRef)
         if result == .success, let focusedWindow = focusedWindowRef {
-            // 验证焦点窗口是否为标准窗口
-            var subroleRef: AnyObject?
-            if AXUIElementCopyAttributeValue(focusedWindow as! AXUIElement, kAXSubroleAttribute as CFString, &subroleRef) == .success,
-               let subrole = subroleRef as? String,
-               (subrole == (kAXStandardWindowSubrole as String) || subrole == (kAXUnknownSubrole as String)) {
-                 AppLogger.shared.log("Fallback 成功: 获取到焦点窗口。", level: .info)
-                 return (focusedWindow as! AXUIElement)
+            let window = focusedWindow as! AXUIElement
+            if isStandardWindow(window) {
+                AppLogger.shared.log("Fallback 成功: 获取到焦点窗口(标准窗口)。", level: .info)
+                return window
             } else {
-                 AppLogger.shared.log("Fallback 信息: 找到焦点窗口，但不是标准窗口，尝试获取窗口列表。", level: .debug)
+                AppLogger.shared.log("Fallback 信息: 焦点窗口不是标准窗口，尝试获取窗口列表。", level: .debug)
             }
         }
 
@@ -629,23 +606,14 @@ class WindowManager: ObservableObject {
         var windowsRef: AnyObject?
         result = AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef)
         if result == .success, let windowArray = windowsRef as? [AXUIElement] {
-             AppLogger.shared.log("Fallback: 获取到窗口列表 (数量: \(windowArray.count))，查找第一个标准窗口。", level: .debug)
-            // 筛选出可见的标准窗口
+            AppLogger.shared.log("Fallback: 获取到窗口列表 (数量: \(windowArray.count))，查找第一个标准窗口。", level: .debug)
             for window in windowArray {
-                var isMinimizedRef: AnyObject?
-                let isMinimized = AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &isMinimizedRef) == .success && (isMinimizedRef as? Bool == true)
-                
-                if isMinimized { continue } // 跳过最小化的窗口
-
-                var subroleRef: AnyObject?
-                if AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subroleRef) == .success,
-                   let subrole = subroleRef as? String,
-                   (subrole == (kAXStandardWindowSubrole as String) || subrole == (kAXUnknownSubrole as String)) {
-                     AppLogger.shared.log("Fallback 成功: 使用窗口列表中的第一个标准窗口。", level: .info)
-                     return window // 返回第一个符合条件的窗口
+                if isStandardWindow(window) {
+                    AppLogger.shared.log("Fallback 成功: 使用窗口列表中的第一个标准窗口。", level: .info)
+                    return window
                 }
             }
-             AppLogger.shared.log("Fallback: 窗口列表中未找到合适的标准窗口。", level: .debug)
+            AppLogger.shared.log("Fallback: 窗口列表中未找到合适的标准窗口。", level: .debug)
         }
 
         AppLogger.shared.log("Fallback 失败: 无法获取应用窗口。", level: .warning)
