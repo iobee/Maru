@@ -18,6 +18,69 @@ enum AboutCardLayout {
     static let shadowYOffset: CGFloat = 24
 }
 
+enum AboutPageBackgroundAppearance {
+    case light
+    case dark
+
+    init(colorScheme: ColorScheme) {
+        self = colorScheme == .dark ? .dark : .light
+    }
+}
+
+struct AboutPageBackgroundColor: Equatable {
+    let red: Double
+    let green: Double
+    let blue: Double
+
+    var relativeLuminance: Double {
+        let linearRed = linearized(red)
+        let linearGreen = linearized(green)
+        let linearBlue = linearized(blue)
+
+        return 0.2126 * linearRed + 0.7152 * linearGreen + 0.0722 * linearBlue
+    }
+
+    fileprivate var swiftUIColor: Color {
+        Color(red: red, green: green, blue: blue)
+    }
+
+    private func linearized(_ component: Double) -> Double {
+        component <= 0.03928
+            ? component / 12.92
+            : pow((component + 0.055) / 1.055, 2.4)
+    }
+}
+
+struct AboutPageBackgroundPalette: Equatable {
+    let topColor: AboutPageBackgroundColor
+    let bottomColor: AboutPageBackgroundColor
+    let accentColor: AboutPageBackgroundColor
+    let accentPeakOpacity: Double
+    let accentMidOpacity: Double
+
+    init(appearance: AboutPageBackgroundAppearance) {
+        switch appearance {
+        case .light:
+            topColor = AboutPageBackgroundColor(red: 0.980, green: 0.984, blue: 0.992)
+            bottomColor = AboutPageBackgroundColor(red: 0.965, green: 0.969, blue: 0.976)
+            accentColor = AboutPageBackgroundColor(red: 0.345, green: 0.518, blue: 1.000)
+            accentPeakOpacity = 0.08
+            accentMidOpacity = 0.02
+
+        case .dark:
+            topColor = AboutPageBackgroundColor(red: 0.074, green: 0.080, blue: 0.090)
+            bottomColor = AboutPageBackgroundColor(red: 0.050, green: 0.055, blue: 0.064)
+            accentColor = AboutPageBackgroundColor(red: 0.231, green: 0.510, blue: 0.965)
+            accentPeakOpacity = 0.035
+            accentMidOpacity = 0.012
+        }
+    }
+
+    init(colorScheme: ColorScheme) {
+        self.init(appearance: AboutPageBackgroundAppearance(colorScheme: colorScheme))
+    }
+}
+
 struct AboutView: View {
     private let state = AboutViewState()
     @Environment(\.colorScheme) private var colorScheme
@@ -126,11 +189,13 @@ private extension AboutView {
     }
 
     var pageBackground: some View {
-        ZStack {
+        let palette = AboutPageBackgroundPalette(colorScheme: colorScheme)
+
+        return ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.980, green: 0.984, blue: 0.992),
-                    Color(red: 0.965, green: 0.969, blue: 0.976)
+                    palette.topColor.swiftUIColor,
+                    palette.bottomColor.swiftUIColor
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -138,8 +203,8 @@ private extension AboutView {
 
             RadialGradient(
                 colors: [
-                    Color(red: 0.345, green: 0.518, blue: 1.0).opacity(0.08),
-                    Color(red: 0.345, green: 0.518, blue: 1.0).opacity(0.02),
+                    palette.accentColor.swiftUIColor.opacity(palette.accentPeakOpacity),
+                    palette.accentColor.swiftUIColor.opacity(palette.accentMidOpacity),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.58, y: 0.35),
