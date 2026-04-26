@@ -14,6 +14,8 @@
     <string>Maru</string>
     <key>CFBundleDisplayName</key>
     <string>Maru</string>
+    <key>CFBundleIconFile</key>
+    <string>MaruIcon</string>
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
