@@ -963,7 +963,8 @@ class WindowManager: ObservableObject {
     ///   - window: 目标窗口
     ///   - frame: 目标位置和大小
     ///   - adjustSizeFirst: 是否先调整大小，默认为true
-    private func enhancedSetFrame(_ window: AXUIElement, _ frame: CGRect, adjustSizeFirst: Bool = true, completion: ((Bool) -> Void)? = nil) {
+    ///   - skipVerify: 跳过 100ms 后的验证步骤，直接以 success=true 触发 completion。用于多阶段操作的中间步骤。
+    private func enhancedSetFrame(_ window: AXUIElement, _ frame: CGRect, adjustSizeFirst: Bool = true, skipVerify: Bool = false, completion: ((Bool) -> Void)? = nil) {
         AppLogger.shared.log("开始增强型设置窗口位置和大小: \(frame)", level: .debug)
         
         // 为防止系统增强型UI干扰窗口调整，尝试暂时禁用它（如果有）
@@ -1031,7 +1032,11 @@ class WindowManager: ObservableObject {
         }
         
         // 4. 验证调整结果
-        verifyWindowChange(window, expectedFrame: frame, completion: completion)
+        if skipVerify {
+            completion?(true)
+        } else {
+            verifyWindowChange(window, expectedFrame: frame, completion: completion)
+        }
         
         // 如果增强型UI之前是开启的，恢复它
         if let appElement = appElement, enhancedUI == true {
@@ -1199,9 +1204,15 @@ class WindowManager: ObservableObject {
 
         switch rule {
         case .center:
-            centerWindow(window, on: targetScreen, completion: completion)
+            moveWindowOnly(window, from: currentScreen, to: targetScreen, skipVerify: true) { [weak self] _ in
+                guard let self else { completion?(false); return }
+                self.centerWindow(window, on: targetScreen, completion: completion)
+            }
         case .almostMaximize:
-            almostMaximizeWindow(window, on: targetScreen, completion: completion)
+            moveWindowOnly(window, from: currentScreen, to: targetScreen, skipVerify: true) { [weak self] _ in
+                guard let self else { completion?(false); return }
+                self.almostMaximizeWindow(window, on: targetScreen, completion: completion)
+            }
         case .ignore:
             moveWindowOnly(window, from: currentScreen, to: targetScreen, completion: completion)
         }
@@ -1226,7 +1237,7 @@ class WindowManager: ObservableObject {
         enhancedSetFrame(window, targetFrame, completion: completion)
     }
 
-    private func moveWindowOnly(_ window: AXUIElement, from currentScreen: NSScreen, to targetScreen: NSScreen, completion: ((Bool) -> Void)? = nil) {
+    private func moveWindowOnly(_ window: AXUIElement, from currentScreen: NSScreen, to targetScreen: NSScreen, skipVerify: Bool = false, completion: ((Bool) -> Void)? = nil) {
         guard let (position, size) = getWindowPositionAndSize(window) else {
             AppLogger.shared.log("只移动到下一个显示器失败: 无法获取窗口位置和大小", level: .warning)
             completion?(false)
@@ -1239,7 +1250,7 @@ class WindowManager: ObservableObject {
         let targetFrame = Self.moveOnlyTargetFrame(for: windowFrame, from: currentScreenFrame, to: targetScreenFrame)
 
         AppLogger.shared.log("只移动窗口到下一个显示器: 目标Frame=\(targetFrame)", level: .info)
-        enhancedSetFrame(window, targetFrame, adjustSizeFirst: false, completion: completion)
+        enhancedSetFrame(window, targetFrame, adjustSizeFirst: false, skipVerify: skipVerify, completion: completion)
     }
 
     private func almostMaximizeWindow(_ window: AXUIElement, on screen: NSScreen, completion: ((Bool) -> Void)? = nil) {
