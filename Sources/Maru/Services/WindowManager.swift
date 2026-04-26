@@ -52,6 +52,7 @@ class WindowManager: ObservableObject {
     private let minProcessingInterval: TimeInterval = 1.5
     // 窗口操作状态标记
     private var isWindowOperationInProgress = false
+    private var activationMouseLocation: CGPoint?  // 激活通知时的鼠标位置,避免300ms防抖后移动
     private var accessibilityPermissionFlowState = AccessibilityPermissionFlowState()
     private var accessibilityPermissionPollingTimer: Timer?
     private var accessibilityPermissionPollingAttemptsRemaining = 0
@@ -246,9 +247,16 @@ class WindowManager: ObservableObject {
             return
         }
         
+        // 在通知到达时捕获鼠标位置(避免300ms防抖后鼠标已移走)
+        let capturedMouseLocation = NSEvent.mouseLocation
+
         // 创建新的延迟计时器
+        let scheduledAt = Date()
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceTime, repeats: false) { [weak self] _ in
             guard let self = self else { return }
+            self.activationMouseLocation = capturedMouseLocation
+            let elapsedMs = Int(Date().timeIntervalSince(scheduledAt) * 1000)
+            AppLogger.shared.log("防抖结束(\(elapsedMs)ms),开始处理 \(appName)", level: .debug)
             self.manageWindow(for: app)
         }
     }
@@ -259,6 +267,9 @@ class WindowManager: ObservableObject {
             AppLogger.shared.log("无法获取应用信息", level: .warning)
             return
         }
+
+        let runningDuration = Date().timeIntervalSince(app.launchDate ?? Date())
+        AppLogger.shared.log("应用 \(appName) 已运行 \(String(format: "%.1f", runningDuration))s", level: .debug)
         
         // 获取应用规则
         let rule = AppConfig.shared.getRule(for: bundleId, appName: appName)
@@ -275,37 +286,99 @@ class WindowManager: ObservableObject {
     
     /// 处理需要调整位置的窗口
     private func processWindowWithRule(app: NSRunningApplication, bundleId: String, appName: String, rule: WindowHandlingRule) {
-        // 获取窗口
-        guard let window = getFrontmostWindow(for: app) else {
+        let windows = findWindowsToManage(for: app)
+        guard !windows.isEmpty else {
             AppLogger.shared.log("应用 \(appName) 没有活动窗口，无法执行操作", level: .debug)
+            scheduleWindowRetry(for: app, bundleId: bundleId, appName: appName, rule: rule, attempt: 1)
             return
         }
-        
-        // 获取窗口特征
-        guard let signature = getWindowSignature(window) else {
-            AppLogger.shared.log("无法获取窗口特征", level: .warning)
-            return
+
+        if windows.count > 1 {
+            AppLogger.shared.log("将依次处理 \(windows.count) 个同屏窗口", level: .info)
         }
-        
-        // 记录处理信息
         AppLogger.shared.log("处理应用: \(appName) (\(bundleId)), 规则: \(rule)", level: .info)
-        AppLogger.shared.log("窗口位置: (\(signature.position.x), \(signature.position.y)), 大小: \(signature.size.width) x \(signature.size.height)", level: .debug)
-        
-        // 标记窗口操作开始
+
         isWindowOperationInProgress = true
-        
-        // 执行窗口操作
+        processWindowsSequentially(windows, at: 0, app: app, bundleId: bundleId, appName: appName, rule: rule)
+    }
+
+    /// 顺序处理一批窗口,只在最后一个完成时调 handleWindowOperationCompletion
+    private func processWindowsSequentially(_ windows: [AXUIElement], at index: Int, app: NSRunningApplication, bundleId: String, appName: String, rule: WindowHandlingRule) {
+        let appIdentity = "\(appName) (\(bundleId), pid: \(app.processIdentifier))"
+        let actionLabel = rule == .center ? "居中" : "几乎最大化"
+
+        guard index < windows.count else {
+            // 全部处理完毕
+            handleWindowOperationCompletion(success: true, bundleId: bundleId, triggerSource: "automatic", actionLabel: actionLabel, appIdentity: appIdentity)
+            return
+        }
+
+        let window = windows[index]
+        guard let signature = getWindowSignature(window) else {
+            AppLogger.shared.log("窗口[\(index)] 无法获取特征,跳过", level: .warning)
+            processWindowsSequentially(windows, at: index + 1, app: app, bundleId: bundleId, appName: appName, rule: rule)
+            return
+        }
+        AppLogger.shared.log("处理窗口[\(index)]: pos=(\(signature.position.x),\(signature.position.y)) size=(\(signature.size.width)x\(signature.size.height))", level: .debug)
+
+        let onComplete: (Bool) -> Void = { [weak self] _ in
+            self?.processWindowsSequentially(windows, at: index + 1, app: app, bundleId: bundleId, appName: appName, rule: rule)
+        }
+
         switch rule {
         case .center:
-            centerWindow(window, completion: { [weak self] success in
-                self?.handleWindowOperationCompletion(success: success, bundleId: bundleId, triggerSource: "automatic", actionLabel: rule == .center ? "居中" : "几乎最大化", appIdentity: "\(appName) (\(bundleId), pid: \(app.processIdentifier))")
-            })
+            centerWindow(window, completion: onComplete)
         case .almostMaximize:
-            almostMaximizeWindow(window, completion: { [weak self] success in
-                self?.handleWindowOperationCompletion(success: success, bundleId: bundleId, triggerSource: "automatic", actionLabel: rule == .center ? "居中" : "几乎最大化", appIdentity: "\(appName) (\(bundleId), pid: \(app.processIdentifier))")
-            })
+            almostMaximizeWindow(window, completion: onComplete)
         default:
-            break // 不会发生，因为调用方已过滤
+            // 不会发生,直接进入下一个
+            onComplete(false)
+        }
+    }
+
+    private func scheduleWindowRetry(for app: NSRunningApplication, bundleId: String, appName: String, rule: WindowHandlingRule, attempt: Int) {
+        let delays = [0.3, 0.5, 0.8, 1.2]
+        guard attempt <= delays.count else {
+            AppLogger.shared.log("[重试] \(appName) 全部 \(delays.count) 次重试失败,放弃", level: .debug)
+            return
+        }
+
+        let delay = delays[attempt - 1]
+        let pid = app.processIdentifier
+        AppLogger.shared.log("[重试] \(appName) 将在 \(String(format: "%.1f", delay))s 后重试 (第 \(attempt)/\(delays.count) 次)", level: .debug)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self = self, self.isMonitoring else { return }
+
+            // 用户已切换到其他应用则取消
+            guard let frontmost = NSWorkspace.shared.frontmostApplication,
+                  frontmost.processIdentifier == pid else {
+                AppLogger.shared.log("[重试#\(attempt)] \(appName) 取消: 用户已切换到其他应用", level: .debug)
+                return
+            }
+
+            // 有其他窗口操作进行中则放弃本轮
+            guard !self.isWindowOperationInProgress else {
+                AppLogger.shared.log("[重试#\(attempt)] \(appName) 跳过: 其他窗口操作进行中", level: .debug)
+                return
+            }
+
+            // 尝试获取窗口
+            let windows = self.findWindowsToManage(for: frontmost)
+            guard !windows.isEmpty else {
+                AppLogger.shared.log("[重试#\(attempt)] \(appName) 仍无窗口,进入下一轮", level: .debug)
+                self.scheduleWindowRetry(for: app, bundleId: bundleId, appName: appName, rule: rule, attempt: attempt + 1)
+                return
+            }
+
+            AppLogger.shared.log("[重试#\(attempt)] \(appName) 成功获取窗口 (\(windows.count) 个,距首次激活已 \(String(format: "%.1f", Date().timeIntervalSince(app.launchDate ?? Date())))s)", level: .info)
+            if windows.count > 1 {
+                AppLogger.shared.log("将依次处理 \(windows.count) 个同屏窗口", level: .info)
+            }
+            AppLogger.shared.log("处理应用: \(appName) (\(bundleId)), 规则: \(rule)", level: .info)
+
+            self.isWindowOperationInProgress = true
+            self.processWindowsSequentially(windows, at: 0, app: frontmost, bundleId: bundleId, appName: appName, rule: rule)
         }
     }
 
@@ -448,6 +521,35 @@ class WindowManager: ObservableObject {
         return "\(appName) (\(bundleId), pid: \(app.processIdentifier))"
     }
 
+    private func describePid(_ pid: pid_t) -> String {
+        if let app = NSRunningApplication(processIdentifier: pid) {
+            return "\(pid)(\(app.localizedName ?? app.bundleIdentifier ?? "?"))"
+        }
+        return "\(pid)(已退出或不可见)"
+    }
+
+    private func axErrorDescription(_ error: AXError) -> String {
+        switch error {
+        case .success: return "success"
+        case .failure: return "failure"
+        case .illegalArgument: return "illegalArgument"
+        case .invalidUIElement: return "invalidUIElement"
+        case .invalidUIElementObserver: return "invalidUIElementObserver"
+        case .cannotComplete: return "cannotComplete"
+        case .attributeUnsupported: return "attributeUnsupported"
+        case .actionUnsupported: return "actionUnsupported"
+        case .notificationUnsupported: return "notificationUnsupported"
+        case .notImplemented: return "notImplemented"
+        case .notificationAlreadyRegistered: return "notificationAlreadyRegistered"
+        case .notificationNotRegistered: return "notificationNotRegistered"
+        case .apiDisabled: return "apiDisabled"
+        case .noValue: return "noValue"
+        case .parameterizedAttributeUnsupported: return "parameterizedAttributeUnsupported"
+        case .notEnoughPrecision: return "notEnoughPrecision"
+        @unknown default: return "unknown(\(error.rawValue))"
+        }
+    }
+
     private func showManualWindowNotFoundAlert(triggerSource: String, appIdentity: String?, action: ManualWindowAction) {
         DispatchQueue.main.async {
             AppLogger.shared.log("手动窗口操作未找到可操作窗口: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity ?? "未知应用")", level: .warning)
@@ -461,165 +563,242 @@ class WindowManager: ObservableObject {
         }
     }
     
-    // 获取应用的前台窗口
-    private func getFrontmostWindow(for app: NSRunningApplication) -> AXUIElement? {
-        AppLogger.shared.log("开始查找应用 \(app.localizedName ?? "未知") 的前台窗口", level: .debug)
+    // 获取应用要处理的窗口列表(返回空数组表示未找到,绝大多数路径返回单元素数组)
+    // 策略:
+    //   1. 查 kAXWindowsAttribute 数标准窗口
+    //      - 0 个 → 尝试 focusedWindow / 鼠标 fallback(冷启动或 Finder 类)
+    //      - 1 个 → 直接返回(单窗口,最可靠)
+    //      - >1 个 → mouseHit → 几何匹配 → 同屏匹配(可返回多个) → focusedWindow → 第一个标准窗口
+    //   2. kAXWindowsAttribute 失败(cannotComplete) → focusedWindow + 鼠标 fallback,仍失败则走重试链
+    private func findWindowsToManage(for app: NSRunningApplication) -> [AXUIElement] {
+        AppLogger.shared.log("开始查找应用 \(describeApplication(app)) 的前台窗口", level: .debug)
 
-        // --- 新逻辑：基于鼠标位置查找 ---
-        let mouseLocation = NSEvent.mouseLocation
-        // 转换鼠标坐标到AX坐标系（只需要转换点，不需要size）
-        let axMouseLocation = convertToAXCoordinates(mouseLocation) 
-        AppLogger.shared.log("当前鼠标位置 (屏幕坐标系): \(mouseLocation), 转换后 (AX坐标系): \(axMouseLocation)", level: .debug)
-
-        var elementUnderMouseRef: AXUIElement?
-        let systemWideElement = AXUIElementCreateSystemWide()
-        let error = AXUIElementCopyElementAtPosition(systemWideElement, Float(axMouseLocation.x), Float(axMouseLocation.y), &elementUnderMouseRef)
-
-        if error == .success, let topElementAX = elementUnderMouseRef {
-            AppLogger.shared.log("获取到鼠标位置最顶层元素: Role=\(topElementAX)", level: .debug)
-
-            // --- Log details of the top element ---
-            var topRole: AnyObject?
-            var topSubrole: AnyObject?
-            AXUIElementCopyAttributeValue(topElementAX, kAXRoleAttribute as CFString, &topRole)
-            AXUIElementCopyAttributeValue(topElementAX, kAXSubroleAttribute as CFString, &topSubrole)
-            AppLogger.shared.log("获取到鼠标位置最顶层元素: Role=\(topRole as? String ?? "nil"), Subrole=\(topSubrole as? String ?? "nil")", level: .debug)
-            // --- End log ---
-
-            // 向上查找包含该元素的窗口
-            var currentElement = topElementAX
-            var potentialWindowElement: AXUIElement? = nil
-            AppLogger.shared.log("开始向上查找窗口元素...", level: .debug)
-            for i in 0..<15 { // 增加查找层数上限到15
-                // --- Log details of the current element in the loop ---
-                var currentRole: AnyObject?
-                var currentSubrole: AnyObject?
-                AXUIElementCopyAttributeValue(currentElement, kAXRoleAttribute as CFString, &currentRole)
-                AXUIElementCopyAttributeValue(currentElement, kAXSubroleAttribute as CFString, &currentSubrole)
-                AppLogger.shared.log("  [层级 \(i)] 检查元素: Role=\(currentRole as? String ?? "nil"), Subrole=\(currentSubrole as? String ?? "nil")", level: .debug)
-                // --- End log ---
-                
-                if let role = currentRole as? String, role == (kAXWindowRole as String) {
-                    AppLogger.shared.log("  [层级 \(i)] 找到 kAXWindowRole 元素，检查是否为标准窗口...", level: .debug)
-                    if isStandardWindow(currentElement) {
-                        potentialWindowElement = currentElement
-                        AppLogger.shared.log("  [层级 \(i)] 找到标准窗口，查找结束。", level: .debug)
-                        break
-                    } else {
-                        AppLogger.shared.log("  [层级 \(i)] 非标准窗口，继续向上查找父窗口...", level: .debug)
-                    }
-                }
-
-                // 获取父元素继续查找
-                var parentRef: AnyObject?
-                guard AXUIElementCopyAttributeValue(currentElement, kAXParentAttribute as CFString, &parentRef) == .success,
-                      let parentElement = parentRef else {
-                    AppLogger.shared.log("  [层级 \(i)] 无法获取父元素或已到达顶层，查找终止。", level: .debug)
-                    break 
-                }
-                currentElement = parentElement as! AXUIElement
+        if let bundleId = app.bundleIdentifier {
+            let allInstances = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
+            if allInstances.count > 1 {
+                let pids = allInstances.map { String($0.processIdentifier) }.joined(separator: ", ")
+                AppLogger.shared.log("注意:\(app.localizedName ?? "?") 有 \(allInstances.count) 个实例 (PIDs: \(pids))", level: .debug)
             }
-            AppLogger.shared.log("向上查找窗口元素结束。", level: .debug)
-
-            // 验证找到的窗口是否属于当前激活的应用
-            if let foundWindow = potentialWindowElement {
-                var windowPid: pid_t = 0
-                if AXUIElementGetPid(foundWindow, &windowPid) == .success {
-                    AppLogger.shared.log("鼠标下窗口PID: \(windowPid), 激活应用PID: \(app.processIdentifier)", level: .debug)
-                    if windowPid == app.processIdentifier {
-                        AppLogger.shared.log("成功：鼠标下的窗口属于激活的应用，使用此窗口。", level: .info)
-                        return foundWindow // 成功找到目标窗口
-                    } else {
-                        AppLogger.shared.log("信息：鼠标下的窗口属于其他应用 (PID: \(windowPid))，执行 Fallback。", level: .info)
-                    }
-                } else {
-                     AppLogger.shared.log("警告：无法获取鼠标下窗口的PID，执行 Fallback。", level: .warning)
-                }
-            } else {
-                AppLogger.shared.log("信息：在鼠标位置未找到有效的窗口元素，执行几何位置查找。", level: .info)
-                
-                // --- 新增：尝试基于几何位置查找包含鼠标坐标的窗口 ---
-                AppLogger.shared.log("开始基于几何位置查找包含鼠标坐标的窗口...", level: .debug)
-                
-                // 获取应用引用
-                let appRef = AXUIElementCreateApplication(app.processIdentifier)
-                
-                // 获取应用的所有窗口
-                var windowsRef: AnyObject?
-                if AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-                   let windowArray = windowsRef as? [AXUIElement] {
-                   
-                    AppLogger.shared.log("获取到应用的窗口列表 (数量: \(windowArray.count))，检查哪个窗口包含鼠标坐标...", level: .debug)
-                    
-                    // 遍历所有窗口，查找包含鼠标坐标的窗口
-                    for window in windowArray {
-                        // 获取窗口位置和大小
-                        if let (position, size) = getWindowPositionAndSize(window) {
-                            let windowFrame = CGRect(x: position.x, y: position.y, width: size.width, height: size.height)
-                            
-                            AppLogger.shared.log("检查窗口: 位置(\(position.x),\(position.y)) 大小(\(size.width)x\(size.height)) 是否包含鼠标(\(axMouseLocation.x),\(axMouseLocation.y))", level: .debug)
-                            
-                            // 检查鼠标坐标是否在窗口范围内
-                            if windowFrame.contains(axMouseLocation) {
-                                AppLogger.shared.log("几何位置匹配：鼠标坐标在此窗口范围内", level: .debug)
-
-                                if isStandardWindow(window) {
-                                    AppLogger.shared.log("成功: 基于几何位置找到包含鼠标坐标的标准窗口", level: .info)
-                                    return window
-                                } else {
-                                    AppLogger.shared.log("找到包含鼠标坐标的窗口，但不是标准窗口，跳过", level: .debug)
-                                }
-                            }
-                        }
-                    }
-                    
-                    AppLogger.shared.log("基于几何位置未找到包含鼠标坐标的窗口，继续执行Fallback", level: .debug)
-                } else {
-                    AppLogger.shared.log("无法获取应用的窗口列表，继续执行Fallback", level: .debug)
-                }
-                // --- 新增部分结束 ---
-                
-                AppLogger.shared.log("执行 Fallback 逻辑查找窗口...", level: .info)
-            }
-        } else {
-            AppLogger.shared.log("警告：无法获取鼠标位置下的UI元素 (Error: \(error.rawValue))，执行 Fallback。", level: .warning)
         }
 
-        // --- Fallback 逻辑 (原逻辑) ---
-        AppLogger.shared.log("执行 Fallback 逻辑查找窗口...", level: .info)
         let appRef = AXUIElementCreateApplication(app.processIdentifier)
 
-        // Fallback 1: 尝试获取焦点窗口
-        var focusedWindowRef: AnyObject?
-        var result = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedWindowRef)
-        if result == .success, let focusedWindow = focusedWindowRef {
-            let window = focusedWindow as! AXUIElement
-            if isStandardWindow(window) {
-                AppLogger.shared.log("Fallback 成功: 获取到焦点窗口(标准窗口)。", level: .info)
-                return window
-            } else {
-                AppLogger.shared.log("Fallback 信息: 焦点窗口不是标准窗口，尝试获取窗口列表。", level: .debug)
+        // 查询窗口列表
+        var windowsRef: AnyObject?
+        let windowsErr = AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef)
+
+        if windowsErr == .success, let windowArray = windowsRef as? [AXUIElement] {
+            let standardWindows = windowArray.filter { isStandardWindow($0) }
+
+            // 日志: 所有窗口的 subrole
+            for (idx, window) in windowArray.enumerated() {
+                var subroleRef: AnyObject?
+                let subrole = (AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subroleRef) == .success ? subroleRef as? String : nil) ?? "nil"
+                AppLogger.shared.log("窗口[\(idx)]: subrole=\(subrole), isStandard=\(standardWindows.contains(where: { $0 === window }))", level: .debug)
+            }
+
+            switch standardWindows.count {
+            case 0:
+                // 无标准窗口(Finder Desktop 等) → 尝试 focusedWindow + 鼠标
+                AppLogger.shared.log("0 个标准窗口,尝试 focusedWindow/鼠标 fallback", level: .debug)
+                return findWindowViaFocusedAndMouse(app: app, appRef: appRef)
+
+            case 1:
+                // 单窗口,直接使用,不需要纠结焦点或鼠标
+                AppLogger.shared.log("单窗口应用,直接使用", level: .info)
+                return [standardWindows[0]]
+
+            default:
+                // 多窗口: 鼠标定位优先,因为焦点窗口不可信
+                AppLogger.shared.log("多窗口应用(\(standardWindows.count)个),鼠标定位优先", level: .info)
+
+                // 1) 鼠标 hit-test
+                if let mouseWindow = windowOfAppAtMouse(app) {
+                    AppLogger.shared.log("鼠标 hit-test 成功", level: .info)
+                    return [mouseWindow]
+                }
+
+                // 2) 几何匹配: 鼠标是否在某个窗口范围内(用激活时的鼠标位置)
+                let mouseLocation = activationMouseLocation ?? NSEvent.mouseLocation
+                let axMouseLocation = convertToAXCoordinates(mouseLocation)
+                AppLogger.shared.log("几何匹配: 鼠标 AX=\(axMouseLocation)", level: .debug)
+                for (idx, window) in standardWindows.enumerated() {
+                    if let (pos, size) = getWindowPositionAndSize(window) {
+                        let frame = CGRect(x: pos.x, y: pos.y, width: size.width, height: size.height)
+                        let contains = frame.contains(axMouseLocation)
+                        AppLogger.shared.log("几何匹配 窗口[\(idx)]: pos=(\(pos.x),\(pos.y)) size=(\(size.width)x\(size.height)) frame=\(frame), containsMouse=\(contains)", level: .debug)
+                        if contains {
+                            AppLogger.shared.log("几何匹配成功 [\(idx)]", level: .info)
+                            return [window]
+                        }
+                    } else {
+                        AppLogger.shared.log("几何匹配 窗口[\(idx)]: 无法获取位置/大小", level: .debug)
+                    }
+                }
+                AppLogger.shared.log("几何匹配也失败,尝试同屏匹配", level: .debug)
+
+                // 3) 同屏匹配: 找出鼠标所在屏幕上的所有 standardWindows(可能多个)
+                let sameScreenWindows = windowsOnSameScreenAsMouse(standardWindows: standardWindows, mouseLocation: mouseLocation)
+                if !sameScreenWindows.isEmpty {
+                    return sameScreenWindows
+                }
+
+                // 4) focusedWindow
+                var focusedRef: AnyObject?
+                if AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedRef) == .success,
+                   let focused = focusedRef, isStandardWindow(focused as! AXUIElement) {
+                    AppLogger.shared.log("回退到 focusedWindow", level: .info)
+                    return [focused as! AXUIElement]
+                }
+
+                // 5) 第一个标准窗口
+                AppLogger.shared.log("focusedWindow 也失败,使用窗口列表第一个标准窗口", level: .debug)
+                return [standardWindows[0]]
             }
         }
 
-        // Fallback 2: 尝试获取窗口列表的第一个标准窗口
-        var windowsRef: AnyObject?
-        result = AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsRef)
-        if result == .success, let windowArray = windowsRef as? [AXUIElement] {
-            AppLogger.shared.log("Fallback: 获取到窗口列表 (数量: \(windowArray.count))，查找第一个标准窗口。", level: .debug)
-            for window in windowArray {
-                if isStandardWindow(window) {
-                    AppLogger.shared.log("Fallback 成功: 使用窗口列表中的第一个标准窗口。", level: .info)
-                    return window
+        // kAXWindowsAttribute 失败(cannotComplete 等) → focusedWindow + 鼠标,仍失败则走重试链
+        AppLogger.shared.log("kAXWindowsAttribute 失败 (Error: \(axErrorDescription(windowsErr))),尝试 focusedWindow/鼠标 fallback", level: .debug)
+        return findWindowViaFocusedAndMouse(app: app, appRef: appRef)
+    }
+
+    /// 同屏匹配: 找出鼠标所在屏幕上的所有 standardWindows(命中可能多个)
+    private func windowsOnSameScreenAsMouse(standardWindows: [AXUIElement], mouseLocation: CGPoint) -> [AXUIElement] {
+        guard let mouseScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) else {
+            AppLogger.shared.log("同屏匹配: 无法确定鼠标所在屏幕", level: .debug)
+            return []
+        }
+        AppLogger.shared.log("同屏匹配: 鼠标在屏幕 \(mouseScreen.localizedName)", level: .debug)
+
+        // 把 mouseScreen 边界换算到 AX 坐标系(Y 轴翻转,以主屏高度为基准)
+        guard let mainScreenHeight = NSScreen.screens.first?.frame.height else {
+            return []
+        }
+        let axScreenMinX = mouseScreen.frame.origin.x
+        let axScreenMaxX = mouseScreen.frame.origin.x + mouseScreen.frame.width
+        let axScreenMinY = mainScreenHeight - (mouseScreen.frame.origin.y + mouseScreen.frame.height)
+        let axScreenMaxY = mainScreenHeight - mouseScreen.frame.origin.y
+
+        let matched = standardWindows.filter { window in
+            guard let (pos, size) = getWindowPositionAndSize(window) else { return false }
+            let cx = pos.x + size.width / 2
+            let cy = pos.y + size.height / 2
+            return cx >= axScreenMinX && cx <= axScreenMaxX && cy >= axScreenMinY && cy <= axScreenMaxY
+        }
+        if !matched.isEmpty {
+            AppLogger.shared.log("同屏匹配成功: \(mouseScreen.localizedName) 上找到 \(matched.count) 个窗口", level: .info)
+        } else {
+            AppLogger.shared.log("同屏匹配: \(mouseScreen.localizedName) 上无该应用窗口", level: .debug)
+        }
+        return matched
+    }
+
+    /// kAXWindowsAttribute 不可用时(failed/0-window)的兜底: focusedWindow → 鼠标 hit-test → 几何匹配
+    private func findWindowViaFocusedAndMouse(app: NSRunningApplication, appRef: AXUIElement) -> [AXUIElement] {
+        var focusedRef: AnyObject?
+        if AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &focusedRef) == .success,
+           let focused = focusedRef, isStandardWindow(focused as! AXUIElement) {
+            AppLogger.shared.log("focusedWindow fallback 成功", level: .info)
+            return [focused as! AXUIElement]
+        }
+
+        // 鼠标 hit-test
+        let mouseLocation = NSEvent.mouseLocation
+        let axMouseLocation = convertToAXCoordinates(mouseLocation)
+        AppLogger.shared.log("鼠标 fallback: 屏幕(\(mouseLocation)), AX(\(axMouseLocation))", level: .debug)
+
+        var elementRef: AXUIElement?
+        if AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(axMouseLocation.x), Float(axMouseLocation.y), &elementRef) == .success,
+           let topElement = elementRef {
+            // 向上遍历找标准窗口
+            var current = topElement
+            for _ in 0..<15 {
+                var roleRef: AnyObject?
+                AXUIElementCopyAttributeValue(current, kAXRoleAttribute as CFString, &roleRef)
+                if let role = roleRef as? String, role == (kAXWindowRole as String), isStandardWindow(current) {
+                    var pid: pid_t = 0
+                    if AXUIElementGetPid(current, &pid) == .success, pid == app.processIdentifier {
+                        AppLogger.shared.log("鼠标 hit-test fallback 成功", level: .info)
+                        return [current]
+                    }
+                    break
+                }
+                var parentRef: AnyObject?
+                guard AXUIElementCopyAttributeValue(current, kAXParentAttribute as CFString, &parentRef) == .success,
+                      let parent = parentRef else { break }
+                current = parent as! AXUIElement
+            }
+        }
+
+        // 几何匹配(仅当之前窗口列表成功但无标准窗口时重试)
+        var retryRef: AnyObject?
+        if AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &retryRef) == .success,
+           let windows = retryRef as? [AXUIElement] {
+            for window in windows where isStandardWindow(window) {
+                if let (pos, size) = getWindowPositionAndSize(window) {
+                    if CGRect(x: pos.x, y: pos.y, width: size.width, height: size.height).contains(axMouseLocation) {
+                        AppLogger.shared.log("几何匹配 fallback 成功", level: .info)
+                        return [window]
+                    }
                 }
             }
-            AppLogger.shared.log("Fallback: 窗口列表中未找到合适的标准窗口。", level: .debug)
         }
 
-        AppLogger.shared.log("Fallback 失败: 无法获取应用窗口。", level: .warning)
+        return []
+    }
+
+    /// 返回鼠标位置下属于指定应用的标准窗口,或 nil
+    private func windowOfAppAtMouse(_ app: NSRunningApplication) -> AXUIElement? {
+        let mouseLocation = activationMouseLocation ?? NSEvent.mouseLocation
+        let axMouseLocation = convertToAXCoordinates(mouseLocation)
+
+        var elementRef: AXUIElement?
+        let hitTestErr = AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(axMouseLocation.x), Float(axMouseLocation.y), &elementRef)
+        guard hitTestErr == .success, let topElement = elementRef else {
+            AppLogger.shared.log("mouseHit: AXUIElementCopyElementAtPosition 失败 (\(axErrorDescription(hitTestErr)))", level: .debug)
+            return nil
+        }
+
+        // 记录鼠标下顶层元素
+        var topRole: AnyObject?
+        AXUIElementCopyAttributeValue(topElement, kAXRoleAttribute as CFString, &topRole)
+        AppLogger.shared.log("mouseHit: 顶层 Role=\(topRole as? String ?? "nil"), AX=\(axMouseLocation)", level: .debug)
+
+        var current: AXUIElement = topElement
+        for i in 0..<15 {
+            var roleRef: AnyObject?
+            var subroleRef: AnyObject?
+            AXUIElementCopyAttributeValue(current, kAXRoleAttribute as CFString, &roleRef)
+            AXUIElementCopyAttributeValue(current, kAXSubroleAttribute as CFString, &subroleRef)
+            let roleStr = roleRef as? String ?? "nil"
+            let subroleStr = subroleRef as? String ?? "nil"
+
+            if roleStr == (kAXWindowRole as String) {
+                if !isStandardWindow(current) {
+                    AppLogger.shared.log("mouseHit: [层级 \(i)] 找到窗口但非标准 (subrole=\(subroleStr))", level: .debug)
+                    break
+                }
+                var pid: pid_t = 0
+                AXUIElementGetPid(current, &pid)
+                if pid == app.processIdentifier {
+                    AppLogger.shared.log("mouseHit: [层级 \(i)] 找到目标窗口 PID=\(describePid(pid))", level: .debug)
+                    return current
+                }
+                AppLogger.shared.log("mouseHit: [层级 \(i)] 窗口 PID 不匹配 (窗口=\(describePid(pid)), 目标=\(describePid(app.processIdentifier)))", level: .debug)
+                break
+            }
+            var parentRef: AnyObject?
+            guard AXUIElementCopyAttributeValue(current, kAXParentAttribute as CFString, &parentRef) == .success,
+                  let parent = parentRef else {
+                AppLogger.shared.log("mouseHit: [层级 \(i)] \(roleStr)/\(subroleStr) → 无法获取父元素", level: .debug)
+                break
+            }
+            current = parent as! AXUIElement
+        }
+        AppLogger.shared.log("mouseHit: 遍历结束,未找到目标窗口", level: .debug)
         return nil
     }
-    
+
     // 获取窗口特征，用于标识窗口
     private func getWindowSignature(_ window: AXUIElement) -> (position: CGPoint, size: CGSize)? {
         var positionRef: AnyObject?
@@ -1312,7 +1491,7 @@ class WindowManager: ObservableObject {
         AppLogger.shared.log("开始测试窗口调整优化", level: .info)
         
         guard let app = NSWorkspace.shared.frontmostApplication,
-              let window = getFrontmostWindow(for: app) else {
+              let window = findWindowsToManage(for: app).first else {
             AppLogger.shared.log("无法获取当前窗口进行测试", level: .error)
             return
         }
