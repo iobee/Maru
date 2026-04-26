@@ -51,6 +51,16 @@ final class AboutViewStateTests: XCTestCase {
         XCTAssertEqual((fields["githubURL"] as? URL)?.absoluteString, "https://github.com/iobee/Maru")
     }
 
+    func testAboutPageBackgroundUsesDarkSurfacePaletteInDarkMode() {
+        let darkPalette = AboutPageBackgroundPalette(colorScheme: .dark)
+        let lightPalette = AboutPageBackgroundPalette(colorScheme: .light)
+
+        XCTAssertLessThan(darkPalette.topColor.relativeLuminance, 0.10)
+        XCTAssertLessThan(darkPalette.bottomColor.relativeLuminance, 0.08)
+        XCTAssertGreaterThan(lightPalette.topColor.relativeLuminance, 0.90)
+        XCTAssertGreaterThan(lightPalette.bottomColor.relativeLuminance, 0.88)
+    }
+
     private func reflectedFieldLabels(in state: AboutViewState) -> Set<String> {
         Set(Mirror(reflecting: state).children.compactMap(\.label))
     }
