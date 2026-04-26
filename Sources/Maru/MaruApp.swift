@@ -13,6 +13,7 @@ struct MaruApp: App {
 
     @StateObject private var appConfig = AppConfig.shared
     @StateObject private var logger = AppLogger.shared
+    @StateObject private var updateService = UpdateService.shared
     @StateObject private var stageManagerSettings = StageManagerSettings()
     private let globalHotkeyManager: GlobalHotkeyManager
     @State private var isWindowManagementEnabled = true
@@ -28,6 +29,7 @@ struct MaruApp: App {
             )
                 .environmentObject(appConfig)
                 .environmentObject(logger)
+                .environmentObject(updateService)
                 .environmentObject(stageManagerSettings)
                 .background(Color(NSColor.windowBackgroundColor))
                 .onAppear {
@@ -60,6 +62,13 @@ struct MaruApp: App {
                 Button("关于 Maru") {
                     showAboutPanel()
                 }
+
+                Divider()
+
+                Button(StatusBarMenuItem.checkForUpdates.menuTitle) {
+                    updateService.checkForUpdates()
+                }
+                .disabled(!updateService.canCheckForUpdates)
             }
             
             CommandGroup(after: .appSettings) {
@@ -73,7 +82,7 @@ struct MaruApp: App {
             }
             
             CommandMenu("窗口") {
-                Button("配置") {
+                Button(StatusBarMenuItem.appConfiguration.menuTitle) {
                     openConfigurationWindow()
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
@@ -92,14 +101,8 @@ struct MaruApp: App {
         }
         
         MenuBarExtra {
-            Button("配置") {
-                openConfigurationWindow()
-            }.keyboardShortcut("m")
-
-            Button("应用规则") {
-                openConfigurationWindow(show: Self.showRulesConfigNotification)
-            }.keyboardShortcut("r")
-
+            Toggle(StatusBarMenuItem.windowManagementToggle.menuTitle, isOn: windowManagementBinding)
+            
             Divider()
 
             manualWindowActionButton(for: .center)
@@ -107,12 +110,23 @@ struct MaruApp: App {
             manualWindowActionButton(for: .moveToNextDisplay)
             
             Divider()
-            
-            Toggle("窗口自动管理", isOn: windowManagementBinding)
+
+            Button(StatusBarMenuItem.appConfiguration.menuTitle) {
+                openConfigurationWindow()
+            }.keyboardShortcut("m")
+
+            Button(StatusBarMenuItem.appRules.menuTitle) {
+                openConfigurationWindow(show: Self.showRulesConfigNotification)
+            }.keyboardShortcut("r")
+
+            Button(StatusBarMenuItem.checkForUpdates.menuTitle) {
+                updateService.checkForUpdates()
+            }
+            .disabled(!updateService.canCheckForUpdates)
             
             Divider()
             
-            Button("退出") {
+            Button(StatusBarMenuItem.quit.menuTitle) {
                 NSApp.terminate(nil)
             }.keyboardShortcut("q")
         } label: {
@@ -218,14 +232,7 @@ struct MaruApp: App {
     }
 
     private static func manualWindowMenuTitle(for action: ManualWindowAction) -> String {
-        switch action {
-        case .center:
-            return "居中窗口"
-        case .almostMaximize:
-            return "呼吸窗口"
-        case .moveToNextDisplay:
-            return "移到下一显示器"
-        }
+        action.menuTitle
     }
     
     init() {
