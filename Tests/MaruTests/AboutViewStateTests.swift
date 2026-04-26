@@ -50,7 +50,7 @@ final class AboutViewStateTests: XCTestCase {
             "Maru 是一款 macOS 开源工具，帮助你优雅地居中窗口，让桌面保持简洁、平衡、顺手。"
         )
         XCTAssertEqual(fields["githubDisplayText"] as? String, "GitHub ↗")
-        XCTAssertEqual((fields["githubURL"] as? URL)?.absoluteString, "https://github.com/iobee/hiWindowGuy")
+        XCTAssertEqual((fields["githubURL"] as? URL)?.absoluteString, "https://github.com/iobee/Maru")
     }
 
     private func reflectedFieldLabels(in state: AboutViewState) -> Set<String> {
