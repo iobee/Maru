@@ -8,6 +8,8 @@ import OSLog
 @main
 struct MaruApp: App {
     private static let sharedWindowManager = WindowManager()
+    private static let showRulesConfigNotification = Notification.Name("showRulesConfig")
+    private static let showLogsNotification = Notification.Name("showLogs")
 
     @StateObject private var appConfig = AppConfig.shared
     @StateObject private var logger = AppLogger.shared
@@ -62,8 +64,7 @@ struct MaruApp: App {
             
             CommandGroup(after: .appSettings) {
                 Button("应用规则") {
-                    openWindow(id: "mainWindow")
-                    NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
+                    openConfigurationWindow(show: Self.showRulesConfigNotification)
                 }
                 .keyboardShortcut("r", modifiers: [.command, .option])
 
@@ -73,13 +74,12 @@ struct MaruApp: App {
             
             CommandMenu("窗口") {
                 Button("配置") {
-                    openWindow(id: "mainWindow")
+                    openConfigurationWindow()
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
 
                 Button("查看日志") {
-                    openWindow(id: "mainWindow")
-                    NotificationCenter.default.post(name: Notification.Name("showLogs"), object: nil)
+                    openConfigurationWindow(show: Self.showLogsNotification)
                 }
                 .keyboardShortcut("l", modifiers: [.command, .option])
 
@@ -93,12 +93,11 @@ struct MaruApp: App {
         
         MenuBarExtra {
             Button("配置") {
-                openWindow(id: "mainWindow")
+                openConfigurationWindow()
             }.keyboardShortcut("m")
 
             Button("应用规则") {
-                openWindow(id: "mainWindow")
-                NotificationCenter.default.post(name: Notification.Name("showRulesConfig"), object: nil)
+                openConfigurationWindow(show: Self.showRulesConfigNotification)
             }.keyboardShortcut("r")
 
             Divider()
@@ -118,6 +117,18 @@ struct MaruApp: App {
             }.keyboardShortcut("q")
         } label: {
             Image(nsImage: AppIconProvider.makeMenuBarIcon())
+        }
+    }
+
+    private func openConfigurationWindow(show notification: Notification.Name? = nil) {
+        openWindow(id: "mainWindow")
+
+        DispatchQueue.main.async {
+            MaruApplicationActivation.activateForConfigurationWindow()
+
+            if let notification {
+                NotificationCenter.default.post(name: notification, object: nil)
+            }
         }
     }
     

@@ -6,6 +6,35 @@ import ApplicationServices
 // 系统没有公开kAXEnhancedUserInterfaceAttribute常量，所以我们需要自己定义
 let kAXEnhancedUserInterfaceAttribute = "AXEnhancedUserInterface" as CFString
 
+struct AccessibilityPermissionFlowState {
+    private(set) var hasRequestedPermission = false
+    private(set) var hasHandledPermissionGrant = false
+
+    mutating func reservePermissionRequest() -> Bool {
+        guard !hasRequestedPermission else {
+            return false
+        }
+
+        hasRequestedPermission = true
+        return true
+    }
+
+    mutating func reservePermissionGrantHandling() -> Bool {
+        guard !hasHandledPermissionGrant else {
+            return false
+        }
+
+        hasHandledPermissionGrant = true
+        return true
+    }
+}
+
+enum AccessibilityPermissionGrantedAlertContent {
+    static let title = "辅助功能权限已开启"
+    static let message = "Maru 已开始管理窗口。"
+    static let confirmButtonTitle = "知道了"
+}
+
 class WindowManager: ObservableObject {
     // 延迟时间（秒）
     private let debounceTime: TimeInterval = 0.3
@@ -23,19 +52,23 @@ class WindowManager: ObservableObject {
     private let minProcessingInterval: TimeInterval = 1.5
     // 窗口操作状态标记
     private var isWindowOperationInProgress = false
+    private var accessibilityPermissionFlowState = AccessibilityPermissionFlowState()
+    private var accessibilityPermissionPollingTimer: Timer?
+    private var accessibilityPermissionPollingAttemptsRemaining = 0
+    private let maxAccessibilityPermissionPollingAttempts = 120
 
     init() {
         // Don't request permissions during init - wait for app to launch
     }
     
     deinit {
+        accessibilityPermissionPollingTimer?.invalidate()
         stopMonitoring()
     }
     
     // 检查并请求辅助功能权限
     func checkAccessibilityPermission() -> Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
+        let accessEnabled = AXIsProcessTrusted()
         
         if !accessEnabled {
             AppLogger.shared.log("需要辅助功能权限来管理窗口", level: .warning)
@@ -44,21 +77,70 @@ class WindowManager: ObservableObject {
         return true
     }
     
-    // 显示权限请求对话框（在主线程安全调用）
+    // 显示系统辅助功能权限请求（在主线程安全调用）
     func showAccessibilityPermissionAlert() {
-        DispatchQueue.main.async {
-            AppLogger.shared.log("显示辅助功能权限提示", level: .info)
-            let alert = NSAlert()
-            alert.messageText = "需要辅助功能权限"
-            alert.informativeText = "请在系统设置中开启辅助功能权限以允许窗口管理。"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "打开系统设置")
-            alert.addButton(withTitle: "取消")
-            
-            if alert.runModal() == .alertFirstButtonReturn {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-            }
+        guard accessibilityPermissionFlowState.reservePermissionRequest() else {
+            AppLogger.shared.log("辅助功能权限提示已显示过，跳过重复提示", level: .debug)
+            return
         }
+
+        DispatchQueue.main.async { [weak self] in
+            AppLogger.shared.log("请求系统辅助功能权限提示", level: .info)
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+            _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
+            self?.beginAccessibilityPermissionGrantPolling()
+        }
+    }
+
+    private func beginAccessibilityPermissionGrantPolling() {
+        accessibilityPermissionPollingTimer?.invalidate()
+        accessibilityPermissionPollingAttemptsRemaining = maxAccessibilityPermissionPollingAttempts
+
+        accessibilityPermissionPollingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
+
+            guard self.accessibilityPermissionPollingAttemptsRemaining > 0 else {
+                AppLogger.shared.log("辅助功能权限授权轮询超时，等待用户下次启动", level: .debug)
+                timer.invalidate()
+                self.accessibilityPermissionPollingTimer = nil
+                return
+            }
+
+            self.accessibilityPermissionPollingAttemptsRemaining -= 1
+
+            guard AXIsProcessTrusted() else {
+                return
+            }
+
+            timer.invalidate()
+            self.accessibilityPermissionPollingTimer = nil
+            self.handleAccessibilityPermissionGranted()
+        }
+    }
+
+    private func handleAccessibilityPermissionGranted() {
+        guard accessibilityPermissionFlowState.reservePermissionGrantHandling() else {
+            AppLogger.shared.log("辅助功能权限授权后处理已执行过，跳过重复处理", level: .debug)
+            return
+        }
+
+        AppLogger.shared.log("辅助功能权限已开启，开始窗口管理", level: .info)
+        startMonitoring()
+        showAccessibilityPermissionGrantedAlert()
+    }
+
+    private func showAccessibilityPermissionGrantedAlert() {
+        MaruApplicationActivation.activateForTextInput()
+
+        let alert = NSAlert()
+        alert.messageText = AccessibilityPermissionGrantedAlertContent.title
+        alert.informativeText = AccessibilityPermissionGrantedAlertContent.message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: AccessibilityPermissionGrantedAlertContent.confirmButtonTitle)
+        alert.runModal()
     }
     
     func startMonitoring() {

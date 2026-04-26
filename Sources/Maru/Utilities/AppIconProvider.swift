@@ -2,8 +2,8 @@ import AppKit
 
 enum AppIconProvider {
     static func loadAppIcon(size: CGFloat) -> NSImage {
-        let url = Bundle.module.url(forResource: "MaruIcon", withExtension: "icns")
-               ?? Bundle.main.url(forResource: "MaruIcon", withExtension: "icns")
+        let url = mainResourceURL(named: "MaruIcon", extension: "icns")
+               ?? Bundle.module.url(forResource: "MaruIcon", withExtension: "icns")
         if let url, let icon = NSImage(contentsOf: url) {
             icon.size = NSSize(width: size, height: size)
             return icon
@@ -61,8 +61,8 @@ enum AppIconProvider {
 
     static func makeMenuBarIcon(size: CGFloat = 18) -> NSImage {
         // Use the custom menubar icon if available
-        if let url = Bundle.module.url(forResource: "MaruIconMenubar", withExtension: "png")
-                ?? Bundle.main.url(forResource: "MaruIconMenubar", withExtension: "png"),
+        if let url = mainResourceURL(named: "MaruIconMenubar", extension: "png")
+                ?? Bundle.module.url(forResource: "MaruIconMenubar", withExtension: "png"),
            let icon = NSImage(contentsOf: url) {
             icon.size = NSSize(width: size, height: size)
             icon.isTemplate = true
@@ -95,6 +95,20 @@ enum AppIconProvider {
 
         image.unlockFocus()
         return image
+    }
+
+    private static func mainResourceURL(named name: String, extension fileExtension: String) -> URL? {
+        guard let executablePath = CommandLine.arguments.first else {
+            return nil
+        }
+
+        let contentsURL = URL(fileURLWithPath: executablePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+
+        return contentsURL
+            .appendingPathComponent("Resources")
+            .appendingPathComponent("\(name).\(fileExtension)")
     }
 
     private static func drawMinimalGlyph(in bounds: NSRect, primary: NSColor, accent: NSColor) {
