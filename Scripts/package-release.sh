@@ -9,10 +9,15 @@ SKIP_SMOKE_TEST=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_DIR="$ROOT_DIR/Release"
+SOURCE_PLIST_PATH="$ROOT_DIR/Sources/Maru/Info.plist"
+APP_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$SOURCE_PLIST_PATH")"
 APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
 DMG_ROOT="$RELEASE_DIR/DMGRoot"
-DMG_PATH="$RELEASE_DIR/$APP_NAME.dmg"
+DMG_PATH="$RELEASE_DIR/$APP_NAME-$APP_VERSION.dmg"
+LEGACY_DMG_PATH="$RELEASE_DIR/$APP_NAME.dmg"
 PLIST_PATH="$APP_BUNDLE/Contents/Info.plist"
+SPARKLE_FRAMEWORK_SOURCE="$ROOT_DIR/.build/release/Sparkle.framework"
+SPARKLE_FRAMEWORK_DEST="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
 
 usage() {
     cat <<EOF
@@ -130,10 +135,10 @@ BUILT_EXECUTABLE="$ROOT_DIR/.build/release/$APP_NAME"
 detach_existing_dmg_mounts
 
 log "Creating app bundle"
-rm -rf "$APP_BUNDLE" "$DMG_ROOT" "$DMG_PATH"
-mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
+rm -rf "$APP_BUNDLE" "$DMG_ROOT" "$DMG_PATH" "$LEGACY_DMG_PATH"
+mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$APP_BUNDLE/Contents/Frameworks"
 
-cp "$ROOT_DIR/Sources/Maru/Info.plist" "$PLIST_PATH"
+cp "$SOURCE_PLIST_PATH" "$PLIST_PATH"
 plist_set "CFBundleDevelopmentRegion" "zh_CN"
 plist_set "CFBundleExecutable" "$APP_NAME"
 plist_set "CFBundleIdentifier" "$BUNDLE_ID"
@@ -143,6 +148,12 @@ plutil -lint "$PLIST_PATH" >/dev/null
 
 cp "$BUILT_EXECUTABLE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+
+[[ -d "$SPARKLE_FRAMEWORK_SOURCE" ]] || fail "Missing Sparkle framework at $SPARKLE_FRAMEWORK_SOURCE"
+ditto "$SPARKLE_FRAMEWORK_SOURCE" "$SPARKLE_FRAMEWORK_DEST"
+if ! otool -l "$APP_BUNDLE/Contents/MacOS/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+fi
 
 cp "$ROOT_DIR/Sources/Maru/Resources/MaruIcon.icns" "$APP_BUNDLE/Contents/Resources/MaruIcon.icns"
 cp "$ROOT_DIR/Sources/Maru/Resources/MaruIconMenubar.png" "$APP_BUNDLE/Contents/Resources/MaruIconMenubar.png"
