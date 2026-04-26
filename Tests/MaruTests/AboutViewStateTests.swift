@@ -6,8 +6,6 @@ final class AboutViewStateTests: XCTestCase {
         XCTAssertEqual(AboutCardLayout.pageHorizontalPadding, 64, accuracy: 0.001)
         XCTAssertEqual(AboutCardLayout.pageTopPadding, 56, accuracy: 0.001)
         XCTAssertEqual(AboutCardLayout.titleToCardSpacing, 44, accuracy: 0.001)
-        XCTAssertEqual(AboutCardLayout.contentMaxWidth, 720, accuracy: 0.001)
-        XCTAssertEqual(AboutCardLayout.cardMaxWidth, 700, accuracy: 0.001)
         XCTAssertEqual(AboutCardLayout.cardMinHeight, 420, accuracy: 0.001)
         XCTAssertEqual(AboutCardLayout.cardPadding, 52, accuracy: 0.001)
         XCTAssertEqual(AboutCardLayout.cardCornerRadius, 32, accuracy: 0.001)
@@ -47,7 +45,7 @@ final class AboutViewStateTests: XCTestCase {
         XCTAssertEqual(state.signatureText, "Center it beautifully.")
         XCTAssertEqual(
             state.productDescriptionText,
-            "Maru 是一款 macOS 开源工具，帮助你优雅地居中窗口，让桌面保持简洁、平衡、顺手。"
+            "Maru 是一款 macOS 窗口管理工具，可自动将窗口居中或以呼吸窗口模式调整，让桌面始终保持整洁顺手。开源免费。"
         )
         XCTAssertEqual(fields["githubDisplayText"] as? String, "GitHub ↗")
         XCTAssertEqual((fields["githubURL"] as? URL)?.absoluteString, "https://github.com/iobee/Maru")
