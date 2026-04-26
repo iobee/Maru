@@ -10,11 +10,14 @@ let package = Package(
         .executable(name: "Maru", targets: ["Maru"])
     ],
     dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.1")
     ],
     targets: [
         .executableTarget(
             name: "Maru",
-            dependencies: [],
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
             path: "Sources/Maru",
             exclude: [
                 "Utilities/demo.lua",

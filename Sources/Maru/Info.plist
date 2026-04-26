@@ -30,5 +30,11 @@
     <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>此应用需要通过AppleScript来管理窗口大小和位置</string>
+    <key>SUFeedURL</key>
+    <string>https://iobee.github.io/Maru/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>xziBlk6XgmuJw8Fd/stKc5AqTz6FZ/rYimII+lhdSpw=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
 </dict>
 </plist> 
