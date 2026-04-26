@@ -230,7 +230,7 @@ struct MaruApp: App {
     
     init() {
         MaruApplicationActivation.applyLaunchPolicy()
-        NSApplication.shared.applicationIconImage = AppIconProvider.loadAppIcon(size: 512)
+        AppIconProvider.setDockIcon()
         globalHotkeyManager = GlobalHotkeyManager(actionHandler: Self.dispatchManualWindowAction)
 
         // 设置未捕获异常处理

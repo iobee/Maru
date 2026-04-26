@@ -5,8 +5,6 @@ enum AboutCardLayout {
     static let pageHorizontalPadding: CGFloat = 64
     static let pageTopPadding: CGFloat = 56
     static let titleToCardSpacing: CGFloat = 44
-    static let contentMaxWidth: CGFloat = 720
-    static let cardMaxWidth: CGFloat = 700
     static let cardMinHeight: CGFloat = 420
     static let cardPadding: CGFloat = 52
     static let cardCornerRadius: CGFloat = 32
@@ -29,14 +27,12 @@ struct AboutView: View {
             pageHeader
 
             aboutCard
-                .frame(maxWidth: AboutCardLayout.cardMaxWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: AboutCardLayout.contentMaxWidth, alignment: .leading)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.leading, AboutCardLayout.pageHorizontalPadding)
-        .padding(.trailing, AboutCardLayout.pageHorizontalPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, AboutCardLayout.pageHorizontalPadding)
         .padding(.top, AboutCardLayout.pageTopPadding)
         .padding(.bottom, 30)
         .background(pageBackground.ignoresSafeArea(.container, edges: .top))
