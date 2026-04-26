@@ -82,7 +82,7 @@ struct MaruApp: App {
             }
             
             CommandMenu("窗口") {
-                Button(StatusBarMenuItem.appConfiguration.menuTitle) {
+                Button(StatusBarMenuItem.appConfiguration.title) {
                     openConfigurationWindow()
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
@@ -101,7 +101,7 @@ struct MaruApp: App {
         }
         
         MenuBarExtra {
-            Toggle(StatusBarMenuItem.windowManagementToggle.menuTitle, isOn: windowManagementBinding)
+            Toggle(StatusBarMenuItem.windowManagementToggle.title, isOn: windowManagementBinding)
             
             Divider()
 
@@ -111,22 +111,22 @@ struct MaruApp: App {
             
             Divider()
 
-            Button(StatusBarMenuItem.appConfiguration.menuTitle) {
+            Button(StatusBarMenuItem.appConfiguration.title) {
                 openConfigurationWindow()
             }.keyboardShortcut("m")
 
-            Button(StatusBarMenuItem.appRules.menuTitle) {
+            Button(StatusBarMenuItem.appRules.title) {
                 openConfigurationWindow(show: Self.showRulesConfigNotification)
             }.keyboardShortcut("r")
 
-            Button(StatusBarMenuItem.checkForUpdates.menuTitle) {
+            Button(StatusBarMenuItem.checkForUpdates.title) {
                 updateService.checkForUpdates()
             }
             .disabled(!updateService.canCheckForUpdates)
             
             Divider()
             
-            Button(StatusBarMenuItem.quit.menuTitle) {
+            Button(StatusBarMenuItem.quit.title) {
                 NSApp.terminate(nil)
             }.keyboardShortcut("q")
         } label: {
@@ -260,11 +260,5 @@ struct MaruApp: App {
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
             AppLogger.shared.log("应用即将退出", level: .info)
         }
-    }
-} 
-
-extension StatusBarMenuItem {
-    var title: String {
-        menuTitle
     }
 }

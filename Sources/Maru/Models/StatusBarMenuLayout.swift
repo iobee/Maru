@@ -6,7 +6,7 @@ enum StatusBarMenuItem: Equatable {
     case checkForUpdates
     case quit
 
-    var menuTitle: String {
+    var title: String {
         switch self {
         case .windowManagementToggle:
             return "窗口自动管理"
