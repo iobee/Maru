@@ -65,7 +65,7 @@ struct MaruApp: App {
 
                 Divider()
 
-                Button(StatusBarMenuItem.checkForUpdates.menuTitle) {
+                Button(StatusBarMenuItem.checkForUpdates.title) {
                     updateService.checkForUpdates()
                 }
                 .disabled(!updateService.canCheckForUpdates)
@@ -262,3 +262,9 @@ struct MaruApp: App {
         }
     }
 } 
+
+extension StatusBarMenuItem {
+    var title: String {
+        menuTitle
+    }
+}
