@@ -15,9 +15,13 @@ APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
 DMG_ROOT="$RELEASE_DIR/DMGRoot"
 DMG_PATH="$RELEASE_DIR/$APP_NAME-$APP_VERSION.dmg"
 LEGACY_DMG_PATH="$RELEASE_DIR/$APP_NAME.dmg"
+APPCAST_PATH="$RELEASE_DIR/appcast.xml"
 PLIST_PATH="$APP_BUNDLE/Contents/Info.plist"
 SPARKLE_FRAMEWORK_SOURCE="$ROOT_DIR/.build/release/Sparkle.framework"
 SPARKLE_FRAMEWORK_DEST="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
+RESOURCE_BUNDLE_SOURCE="$ROOT_DIR/.build/release/$RESOURCE_BUNDLE_NAME"
+RESOURCE_BUNDLE_DEST="$APP_BUNDLE/Contents/Resources/$RESOURCE_BUNDLE_NAME"
 
 usage() {
     cat <<EOF
@@ -72,6 +76,84 @@ plist_set() {
     fi
 
     /usr/libexec/PlistBuddy -c "Add :$key string $value" "$PLIST_PATH"
+}
+
+validate_app_bundle() {
+    local bundle_path="$1"
+    local executable_path="$bundle_path/Contents/MacOS/$APP_NAME"
+    local resource_bundle_path="$bundle_path/Contents/Resources/$RESOURCE_BUNDLE_NAME"
+    local sparkle_framework_path="$bundle_path/Contents/Frameworks/Sparkle.framework"
+
+    [[ -d "$bundle_path" ]] || fail "Missing app bundle at $bundle_path"
+    [[ -x "$executable_path" ]] || fail "Missing executable at $executable_path"
+    [[ -f "$bundle_path/Contents/Info.plist" ]] || fail "Missing Info.plist in $bundle_path"
+    [[ -d "$sparkle_framework_path" ]] || fail "Missing Sparkle framework in $bundle_path"
+    [[ -d "$resource_bundle_path" ]] || fail "Missing SwiftPM resource bundle: $resource_bundle_path"
+    [[ -f "$resource_bundle_path/Resources/MaruIcon.icns" ]] || fail "Missing MaruIcon.icns in $resource_bundle_path"
+    [[ -f "$resource_bundle_path/Resources/MaruIconMenubar.png" ]] || fail "Missing MaruIconMenubar.png in $resource_bundle_path"
+    [[ -f "$bundle_path/Contents/Resources/MaruIcon.icns" ]] || fail "Missing Finder icon in Contents/Resources"
+
+    otool -L "$executable_path" | grep -Fq "@rpath/Sparkle.framework" \
+        || fail "Executable does not link Sparkle through @rpath"
+    otool -l "$executable_path" | grep -Fq "@executable_path/../Frameworks" \
+        || fail "Executable is missing @executable_path/../Frameworks rpath"
+}
+
+direct_launch_smoke_test() {
+    local bundle_path="$1"
+    local executable_path="$bundle_path/Contents/MacOS/$APP_NAME"
+    local stdout_file=""
+    local stderr_file=""
+    local pid=""
+    local status=0
+
+    stdout_file="$(mktemp "${TMPDIR:-/tmp}/maru-launch-stdout.XXXXXX")"
+    stderr_file="$(mktemp "${TMPDIR:-/tmp}/maru-launch-stderr.XXXXXX")"
+
+    "$executable_path" >"$stdout_file" 2>"$stderr_file" &
+    pid="$!"
+
+    for _ in {1..20}; do
+        if kill -0 "$pid" >/dev/null 2>&1; then
+            sleep 0.25
+            continue
+        fi
+
+        wait "$pid"
+        status="$?"
+        if [[ "$status" -eq 0 ]]; then
+            rm -f "$stdout_file" "$stderr_file"
+            return 0
+        fi
+
+        printf 'Direct launch exited early with status %s\n' "$status" >&2
+        sed -n '1,120p' "$stderr_file" >&2
+        rm -f "$stdout_file" "$stderr_file"
+        return 1
+    done
+
+    kill "$pid" >/dev/null 2>&1 || true
+    wait "$pid" >/dev/null 2>&1 || true
+    rm -f "$stdout_file" "$stderr_file"
+}
+
+smoke_test_without_build_resource_bundle() {
+    local bundle_path="$1"
+    local backup_path="$RESOURCE_BUNDLE_SOURCE.__packaging-smoke-backup__"
+    local status=0
+
+    [[ -d "$RESOURCE_BUNDLE_SOURCE" ]] || fail "Missing build resource bundle at $RESOURCE_BUNDLE_SOURCE"
+    [[ ! -e "$backup_path" ]] || fail "Temporary backup already exists: $backup_path"
+
+    mv "$RESOURCE_BUNDLE_SOURCE" "$backup_path"
+    set +e
+    direct_launch_smoke_test "$bundle_path"
+    status="$?"
+    set -e
+    mv "$backup_path" "$RESOURCE_BUNDLE_SOURCE"
+
+    [[ "$status" -eq 0 ]] || fail "Launch failed without build resource fallback for $bundle_path"
+    log "Launch smoke test passed without build resource fallback: $bundle_path"
 }
 
 wait_for_launch() {
@@ -135,7 +217,10 @@ BUILT_EXECUTABLE="$ROOT_DIR/.build/release/$APP_NAME"
 detach_existing_dmg_mounts
 
 log "Creating app bundle"
-rm -rf "$APP_BUNDLE" "$DMG_ROOT" "$DMG_PATH" "$LEGACY_DMG_PATH"
+if [[ -f "$APPCAST_PATH" ]]; then
+    log "Removing stale appcast: $APPCAST_PATH"
+fi
+rm -rf "$APP_BUNDLE" "$DMG_ROOT" "$DMG_PATH" "$LEGACY_DMG_PATH" "$APPCAST_PATH"
 mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$APP_BUNDLE/Contents/Frameworks"
 
 cp "$SOURCE_PLIST_PATH" "$PLIST_PATH"
@@ -155,21 +240,30 @@ if ! otool -l "$APP_BUNDLE/Contents/MacOS/$APP_NAME" | grep -q "@executable_path
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 fi
 
+[[ -d "$RESOURCE_BUNDLE_SOURCE" ]] || fail "Missing SwiftPM resource bundle at $RESOURCE_BUNDLE_SOURCE"
+ditto "$RESOURCE_BUNDLE_SOURCE" "$RESOURCE_BUNDLE_DEST"
+
 cp "$ROOT_DIR/Sources/Maru/Resources/MaruIcon.icns" "$APP_BUNDLE/Contents/Resources/MaruIcon.icns"
 cp "$ROOT_DIR/Sources/Maru/Resources/MaruIconMenubar.png" "$APP_BUNDLE/Contents/Resources/MaruIconMenubar.png"
+
+log "Validating app bundle layout"
+validate_app_bundle "$APP_BUNDLE"
 
 log "Signing app bundle with ad-hoc identity"
 codesign --force --deep --sign - "$APP_BUNDLE"
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 if [[ "$SKIP_SMOKE_TEST" -eq 0 ]]; then
+    log "Smoke testing app launch without build resource fallback"
+    smoke_test_without_build_resource_bundle "$APP_BUNDLE"
+
     log "Smoke testing app launch"
     wait_for_launch "$APP_BUNDLE"
 fi
 
 log "Creating DMG"
 mkdir -p "$DMG_ROOT"
-cp -R "$APP_BUNDLE" "$DMG_ROOT/$APP_NAME.app"
+ditto "$APP_BUNDLE" "$DMG_ROOT/$APP_NAME.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_PATH"
 
@@ -187,9 +281,13 @@ trap cleanup_mount EXIT
 
 MOUNTED_APP="$MOUNT_POINT/$APP_NAME.app"
 [[ -d "$MOUNTED_APP" ]] || fail "Missing mounted app at $MOUNTED_APP"
+validate_app_bundle "$MOUNTED_APP"
 codesign --verify --deep --strict --verbose=2 "$MOUNTED_APP"
 
 if [[ "$SKIP_SMOKE_TEST" -eq 0 ]]; then
+    log "Smoke testing mounted DMG app launch without build resource fallback"
+    smoke_test_without_build_resource_bundle "$MOUNTED_APP"
+
     log "Smoke testing mounted DMG app launch"
     wait_for_launch "$MOUNTED_APP"
 fi
