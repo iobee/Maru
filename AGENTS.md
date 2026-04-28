@@ -205,18 +205,118 @@ swift package clean
 
 ## Deployment Process
 
+### Release Source of Truth
+
+- Use `docs/UPDATE-RELEASE-CHECKLIST.md` as the detailed runbook for DMG packaging, GitHub Release upload, and Sparkle appcast publishing.
+- The current public Sparkle feed is `https://iobee.github.io/Maru/appcast.xml`, served from the `gh-pages` branch root.
+- The GitHub repository is `iobee/Maru`.
+- Sparkle's public EdDSA key is committed in `Sources/Maru/Info.plist`; the private EdDSA key must never be committed.
+
+### Versioning
+
+- Release versions must be updated in both:
+  - `Sources/Maru/Info.plist`: `CFBundleShortVersionString` and `CFBundleVersion`
+  - `project.yml`: `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`
+- `CFBundleVersion` must strictly increase. Sparkle uses it as the machine-readable update version.
+
 ### Building for Distribution
+
+The preferred release build is the Xcode archive/export path in `Scripts/package-release.sh`, not copying the SwiftPM debug or release product by hand.
+
 ```bash
-# Build release version
-swift build -c release
+# Validate first
+swift test
 
-# Create app bundle structure
-mkdir -p Release/Applications
-cp -r .build/release/Maru.app Release/Applications/
+# Build release app and DMG
+./Scripts/package-release.sh
 
-# Create DMG (if needed)
-hdiutil create -volname "Maru" -srcfolder Release/Applications -ov -format UDZO Maru.dmg
+# CI/headless build without launch smoke tests
+./Scripts/package-release.sh --no-smoke
 ```
+
+Expected output:
+- `Release/Export/Maru.app`
+- `Release/Maru-<version>.dmg`
+
+The packaging script regenerates `Maru.xcodeproj` with XcodeGen, archives with `xcodebuild archive`, exports with `xcodebuild -exportArchive`, verifies code signing, validates the Sparkle framework and menu bar icon asset, then creates and verifies the DMG.
+
+### GitHub Release Upload
+
+For local manual release uploads, prefer `gh` and explicitly ignore a stale environment token if `gh auth status` reports an invalid `GITHUB_TOKEN`:
+
+```bash
+VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/Maru/Info.plist)"
+TAG="v$VERSION"
+DMG="Release/Maru-$VERSION.dmg"
+
+env -u GITHUB_TOKEN -u GH_TOKEN gh release upload "$TAG" "$DMG" --clobber --repo iobee/Maru
+env -u GITHUB_TOKEN -u GH_TOKEN gh release edit "$TAG" --draft=false --prerelease --repo iobee/Maru
+env -u GITHUB_TOKEN -u GH_TOKEN gh release view "$TAG" --repo iobee/Maru
+```
+
+If the release does not exist yet, create it with:
+
+```bash
+env -u GITHUB_TOKEN -u GH_TOKEN gh release create "$TAG" "$DMG" \
+  --repo iobee/Maru \
+  --title "Maru $VERSION" \
+  --target "$(git rev-parse HEAD)" \
+  --generate-notes \
+  --prerelease
+```
+
+### Sparkle Appcast Publishing
+
+Use Sparkle's official `generate_appcast` tool. Do not hand-write signatures.
+
+Local manual flow:
+
+```bash
+VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/Maru/Info.plist)"
+TAG="v$VERSION"
+FEED_DIR="Release/SparkleFeed"
+
+rm -rf "$FEED_DIR"
+mkdir -p "$FEED_DIR"
+cp "Release/Maru-$VERSION.dmg" "$FEED_DIR/"
+
+.build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+  --download-url-prefix "https://github.com/iobee/Maru/releases/download/$TAG/" \
+  --link "https://github.com/iobee/Maru/releases/tag/$TAG" \
+  --maximum-deltas 0 \
+  -o "$FEED_DIR/appcast.xml" \
+  "$FEED_DIR"
+
+xmllint --noout "$FEED_DIR/appcast.xml"
+```
+
+`generate_appcast` reads the private EdDSA key from the local Keychain by default. In CI, pass the private key through the `SPARKLE_PRIVATE_KEY` repository secret and `--ed-key-file`; never commit private key material.
+
+Publish the generated feed to GitHub Pages:
+
+```bash
+rm -rf /tmp/maru-gh-pages
+git fetch origin gh-pages
+git worktree add /tmp/maru-gh-pages origin/gh-pages
+cp "$FEED_DIR/appcast.xml" /tmp/maru-gh-pages/appcast.xml
+xmllint --noout /tmp/maru-gh-pages/appcast.xml
+git -C /tmp/maru-gh-pages add appcast.xml
+git -C /tmp/maru-gh-pages commit -m "Publish ${VERSION} appcast"
+git -C /tmp/maru-gh-pages push origin HEAD:gh-pages
+git worktree remove /tmp/maru-gh-pages
+
+curl -fsSL https://iobee.github.io/Maru/appcast.xml | head -40
+```
+
+If the DMG contains a universal binary, do not add `sparkle:hardwareRequirements=arm64`. Only constrain hardware when the published app actually requires it.
+
+### Release Automation Workflows
+
+Two manual GitHub Actions workflows exist:
+- `.github/workflows/release-dmg.yml`: builds the DMG and creates or updates the GitHub Release.
+- `.github/workflows/sparkle-appcast.yml`: downloads the release DMG, generates the Sparkle appcast, and pushes it to `gh-pages`.
+
+Run them in order with the same tag. The Sparkle workflow requires the repository secret `SPARKLE_PRIVATE_KEY`.
 
 ### Code Signing
 - Ensure proper code signing for accessibility API usage
@@ -241,8 +341,8 @@ hdiutil create -volname "Maru" -srcfolder Release/Applications -ov -format UDZO 
 - Logs contain window titles and app names (user data)
 
 ### Code Safety
-- No external dependencies (dependencies array is empty in Package.swift)
-- No network requests
+- External dependencies should remain minimal. Sparkle is intentionally used for software updates.
+- No telemetry or product analytics. Network access should remain limited to Sparkle update checks over HTTPS.
 - Sandboxed file operations
 
 ## Common Development Tasks
