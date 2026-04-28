@@ -2,8 +2,6 @@
 set -euo pipefail
 
 APP_NAME="Maru"
-BUNDLE_ID="com.nick.maru"
-MIN_MACOS_VERSION="13.0"
 SKIP_SMOKE_TEST=0
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,19 +9,19 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_DIR="$ROOT_DIR/Release"
 SOURCE_PLIST_PATH="$ROOT_DIR/Sources/Maru/Info.plist"
 APP_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$SOURCE_PLIST_PATH")"
-APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
+ARCHIVE_PATH="$RELEASE_DIR/Maru.xcarchive"
+EXPORT_PATH="$RELEASE_DIR/Export"
+APP_BUNDLE="$EXPORT_PATH/$APP_NAME.app"
 DMG_ROOT="$RELEASE_DIR/DMGRoot"
 DMG_PATH="$RELEASE_DIR/$APP_NAME-$APP_VERSION.dmg"
 LEGACY_DMG_PATH="$RELEASE_DIR/$APP_NAME.dmg"
-PLIST_PATH="$APP_BUNDLE/Contents/Info.plist"
-SPARKLE_FRAMEWORK_SOURCE="$ROOT_DIR/.build/release/Sparkle.framework"
-SPARKLE_FRAMEWORK_DEST="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+APPCAST_PATH="$RELEASE_DIR/appcast.xml"
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [--no-smoke] [--help]
 
-Builds a release app bundle and DMG for $APP_NAME.
+Builds a release app bundle and DMG for $APP_NAME with Xcode archive/export.
 
 Options:
   --no-smoke   Skip launch smoke tests.
@@ -63,15 +61,25 @@ detach_existing_dmg_mounts() {
     done <<< "$mount_points"
 }
 
-plist_set() {
-    local key="$1"
-    local value="$2"
+validate_app_bundle() {
+    local bundle_path="$1"
+    local executable_path="$bundle_path/Contents/MacOS/$APP_NAME"
+    local sparkle_framework_path="$bundle_path/Contents/Frameworks/Sparkle.framework"
+    local assets_car_path="$bundle_path/Contents/Resources/Assets.car"
 
-    if /usr/libexec/PlistBuddy -c "Set :$key $value" "$PLIST_PATH" >/dev/null 2>&1; then
-        return
-    fi
+    [[ -d "$bundle_path" ]] || fail "Missing app bundle at $bundle_path"
+    [[ -x "$executable_path" ]] || fail "Missing executable at $executable_path"
+    [[ -f "$bundle_path/Contents/Info.plist" ]] || fail "Missing Info.plist in $bundle_path"
+    [[ -d "$sparkle_framework_path" ]] || fail "Missing Sparkle framework in $bundle_path"
+    [[ -f "$bundle_path/Contents/Resources/MaruIcon.icns" ]] || fail "Missing MaruIcon.icns in Contents/Resources"
+    [[ -f "$assets_car_path" ]] || fail "Missing asset catalog at $assets_car_path"
+    xcrun assetutil --info "$assets_car_path" | grep -Fq '"Name" : "MaruIconMenubar"' \
+        || fail "Missing MaruIconMenubar image in asset catalog"
 
-    /usr/libexec/PlistBuddy -c "Add :$key string $value" "$PLIST_PATH"
+    otool -L "$executable_path" | grep -Fq "@rpath/Sparkle.framework" \
+        || fail "Executable does not link Sparkle through @rpath"
+    otool -l "$executable_path" | grep -Fq "@executable_path/../Frameworks" \
+        || fail "Executable is missing @executable_path/../Frameworks rpath"
 }
 
 wait_for_launch() {
@@ -126,41 +134,33 @@ done
 
 cd "$ROOT_DIR"
 
-log "Building release binary"
-swift build -c release
+command -v xcodegen >/dev/null || fail "xcodegen is required to generate Maru.xcodeproj"
 
-BUILT_EXECUTABLE="$ROOT_DIR/.build/release/$APP_NAME"
-[[ -x "$BUILT_EXECUTABLE" ]] || fail "Missing release executable at $BUILT_EXECUTABLE"
+log "Generating Xcode project"
+xcodegen generate --project "$ROOT_DIR"
 
-detach_existing_dmg_mounts
+log "Cleaning previous build artifacts"
+rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "$APP_BUNDLE" "$DMG_ROOT" "$DMG_PATH" "$LEGACY_DMG_PATH" "$APPCAST_PATH"
+mkdir -p "$RELEASE_DIR"
 
-log "Creating app bundle"
-rm -rf "$APP_BUNDLE" "$DMG_ROOT" "$DMG_PATH" "$LEGACY_DMG_PATH"
-mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$APP_BUNDLE/Contents/Frameworks"
+log "Archiving with xcodebuild"
+xcodebuild archive \
+    -project "$ROOT_DIR/Maru.xcodeproj" \
+    -scheme "$APP_NAME" \
+    -configuration Release \
+    -archivePath "$ARCHIVE_PATH"
 
-cp "$SOURCE_PLIST_PATH" "$PLIST_PATH"
-plist_set "CFBundleDevelopmentRegion" "zh_CN"
-plist_set "CFBundleExecutable" "$APP_NAME"
-plist_set "CFBundleIdentifier" "$BUNDLE_ID"
-plist_set "CFBundlePackageType" "APPL"
-plist_set "LSMinimumSystemVersion" "$MIN_MACOS_VERSION"
-plutil -lint "$PLIST_PATH" >/dev/null
+log "Exporting archive"
+xcodebuild -exportArchive \
+    -archivePath "$ARCHIVE_PATH" \
+    -exportPath "$EXPORT_PATH" \
+    -exportOptionsPlist "$SCRIPT_DIR/ExportOptions.plist"
 
-cp "$BUILT_EXECUTABLE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-
-[[ -d "$SPARKLE_FRAMEWORK_SOURCE" ]] || fail "Missing Sparkle framework at $SPARKLE_FRAMEWORK_SOURCE"
-ditto "$SPARKLE_FRAMEWORK_SOURCE" "$SPARKLE_FRAMEWORK_DEST"
-if ! otool -l "$APP_BUNDLE/Contents/MacOS/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
-    install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-fi
-
-cp "$ROOT_DIR/Sources/Maru/Resources/MaruIcon.icns" "$APP_BUNDLE/Contents/Resources/MaruIcon.icns"
-cp "$ROOT_DIR/Sources/Maru/Resources/MaruIconMenubar.png" "$APP_BUNDLE/Contents/Resources/MaruIconMenubar.png"
-
-log "Signing app bundle with ad-hoc identity"
-codesign --force --deep --sign - "$APP_BUNDLE"
+log "Verifying exported app signature"
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+
+log "Validating app bundle layout"
+validate_app_bundle "$APP_BUNDLE"
 
 if [[ "$SKIP_SMOKE_TEST" -eq 0 ]]; then
     log "Smoke testing app launch"
@@ -169,7 +169,7 @@ fi
 
 log "Creating DMG"
 mkdir -p "$DMG_ROOT"
-cp -R "$APP_BUNDLE" "$DMG_ROOT/$APP_NAME.app"
+ditto "$APP_BUNDLE" "$DMG_ROOT/$APP_NAME.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_PATH"
 
@@ -187,6 +187,7 @@ trap cleanup_mount EXIT
 
 MOUNTED_APP="$MOUNT_POINT/$APP_NAME.app"
 [[ -d "$MOUNTED_APP" ]] || fail "Missing mounted app at $MOUNTED_APP"
+validate_app_bundle "$MOUNTED_APP"
 codesign --verify --deep --strict --verbose=2 "$MOUNTED_APP"
 
 if [[ "$SKIP_SMOKE_TEST" -eq 0 ]]; then
