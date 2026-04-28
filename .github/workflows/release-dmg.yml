@@ -1,0 +1,86 @@
+name: Release DMG
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag. Defaults to v<CFBundleShortVersionString>."
+        required: false
+        type: string
+      prerelease:
+        description: "Mark the GitHub release as a prerelease."
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release-dmg:
+    name: Build and upload DMG
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null; then
+            brew install xcodegen
+          fi
+
+      - name: Read release metadata
+        id: metadata
+        run: |
+          set -euo pipefail
+          version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/Maru/Info.plist)"
+          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' Sources/Maru/Info.plist)"
+          tag="${{ inputs.tag }}"
+          if [[ -z "$tag" ]]; then
+            tag="v$version"
+          fi
+          dmg_path="Release/Maru-$version.dmg"
+          {
+            echo "version=$version"
+            echo "build=$build"
+            echo "tag=$tag"
+            echo "dmg_path=$dmg_path"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build release DMG
+        run: ./Scripts/package-release.sh --no-smoke
+
+      - name: Verify DMG exists
+        run: |
+          set -euo pipefail
+          test -f "${{ steps.metadata.outputs.dmg_path }}"
+          hdiutil imageinfo "${{ steps.metadata.outputs.dmg_path }}" >/dev/null
+
+      - name: Create or update GitHub release
+        run: |
+          set -euo pipefail
+          tag="${{ steps.metadata.outputs.tag }}"
+          title="Maru ${{ steps.metadata.outputs.version }}"
+          dmg_path="${{ steps.metadata.outputs.dmg_path }}"
+
+          prerelease_args=()
+          if [[ "${{ inputs.prerelease }}" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$dmg_path" --clobber
+          else
+            gh release create "$tag" "$dmg_path" \
+              --title "$title" \
+              --target "$GITHUB_SHA" \
+              --generate-notes \
+              "${prerelease_args[@]}"
+          fi
