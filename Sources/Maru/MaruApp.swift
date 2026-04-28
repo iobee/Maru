@@ -99,11 +99,12 @@ struct MaruApp: App {
                 manualWindowActionButton(for: .moveToNextDisplay)
             }
         }
-        
+
         MenuBarExtra {
             statusBarMenuContent()
         } label: {
-            Image(nsImage: AppIconProvider.makeMenuBarIcon())
+            Image(AppIconProvider.menuBarIconName)
+                .renderingMode(.template)
         }
     }
 
@@ -161,7 +162,7 @@ struct MaruApp: App {
             }
         }
     }
-    
+
     private func configureWindow() {
         // 查找应用窗口
         for window in NSApplication.shared.windows {
@@ -252,8 +253,6 @@ struct MaruApp: App {
     }
     
     init() {
-        MaruApplicationActivation.applyLaunchPolicy()
-        AppIconProvider.setDockIcon()
         globalHotkeyManager = GlobalHotkeyManager(actionHandler: Self.dispatchManualWindowAction)
 
         // 设置未捕获异常处理
