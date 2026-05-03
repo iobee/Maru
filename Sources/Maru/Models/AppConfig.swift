@@ -70,14 +70,13 @@ class AppConfig: ObservableObject {
     // 单例实例
     static let shared = AppConfig()
     
-    init(storageDirectoryURL: URL? = nil) {
+    init(storageDirectoryURL: URL? = nil, storageLocations: AppStorageLocations = AppStorageLocations.resolve()) {
         // 获取应用支持目录
         let appDir: URL
         if let storageDirectoryURL {
             appDir = storageDirectoryURL
         } else {
-            let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            appDir = appSupportDir.appendingPathComponent("Maru")
+            appDir = storageLocations.configurationDirectory
         }
         
         // 创建应用目录（如果不存在）
