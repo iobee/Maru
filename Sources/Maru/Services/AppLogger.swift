@@ -90,10 +90,7 @@ class AppLogger: ObservableObject {
     private let maxLogFileCount = 5
     
     private init() {
-        // 获取应用支持目录
-        let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appDir = appSupportDir.appendingPathComponent("Maru")
-        let logsDir = appDir.appendingPathComponent("Logs")
+        let logsDir = AppStorageLocations.resolve().logDirectory
         
         // 创建日志目录（如果不存在）
         try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
@@ -290,4 +287,4 @@ class AppLogger: ObservableObject {
         
         return LogEntry(message: message, level: level, sourceFile: sourceFile, sourceLine: sourceLine)
     }
-} 
+}

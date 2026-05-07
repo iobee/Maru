@@ -1,0 +1,117 @@
+name: Sparkle Appcast
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag containing the Maru DMG, for example v1.0.0-beta.4."
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sparkle-appcast:
+    name: Generate and publish appcast
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate signing secret
+        run: |
+          set -euo pipefail
+          if [[ -z "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+            echo "Missing required repository secret: SPARKLE_PRIVATE_KEY" >&2
+            exit 1
+          fi
+
+      - name: Resolve Sparkle tools
+        id: sparkle
+        run: |
+          set -euo pipefail
+          swift package resolve
+          generate_appcast=".build/artifacts/sparkle/Sparkle/bin/generate_appcast"
+          if [[ ! -x "$generate_appcast" ]]; then
+            echo "Sparkle generate_appcast tool not found at $generate_appcast" >&2
+            exit 1
+          fi
+          echo "generate_appcast=$generate_appcast" >> "$GITHUB_OUTPUT"
+
+      - name: Download release DMG
+        id: release
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+          version="${tag#v}"
+          updates_dir="$RUNNER_TEMP/sparkle-updates"
+          mkdir -p "$updates_dir"
+          gh release download "$tag" \
+            --pattern "Maru-$version.dmg" \
+            --dir "$updates_dir"
+          dmg_path="$updates_dir/Maru-$version.dmg"
+          test -f "$dmg_path"
+
+          release_notes="$updates_dir/Maru-$version.md"
+          gh release view "$tag" --json body --jq '.body // ""' > "$release_notes"
+          if [[ ! -s "$release_notes" ]]; then
+            rm -f "$release_notes"
+          fi
+
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "updates_dir=$updates_dir"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate Sparkle appcast
+        run: |
+          set -euo pipefail
+          key_file="$RUNNER_TEMP/sparkle_ed25519_key"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
+          chmod 600 "$key_file"
+
+          "${{ steps.sparkle.outputs.generate_appcast }}" \
+            --ed-key-file "$key_file" \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.release.outputs.tag }}/" \
+            --link "https://github.com/${{ github.repository }}/releases/tag/${{ steps.release.outputs.tag }}" \
+            --embed-release-notes \
+            --maximum-deltas 0 \
+            -o "${{ steps.release.outputs.updates_dir }}/appcast.xml" \
+            "${{ steps.release.outputs.updates_dir }}"
+
+          rm -f "$key_file"
+          test -f "${{ steps.release.outputs.updates_dir }}/appcast.xml"
+
+      - name: Publish appcast to GitHub Pages
+        run: |
+          set -euo pipefail
+          pages_dir="$RUNNER_TEMP/maru-pages"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            git worktree add "$pages_dir" FETCH_HEAD
+          else
+            git worktree add --detach "$pages_dir"
+            git -C "$pages_dir" checkout --orphan gh-pages
+            git -C "$pages_dir" rm -rf . || true
+          fi
+
+          cp "${{ steps.release.outputs.updates_dir }}/appcast.xml" "$pages_dir/appcast.xml"
+          git -C "$pages_dir" add appcast.xml
+
+          if git -C "$pages_dir" diff --cached --quiet; then
+            echo "appcast.xml is unchanged."
+            exit 0
+          fi
+
+          git -C "$pages_dir" commit -m "Update Sparkle appcast for ${{ steps.release.outputs.tag }}"
+          git -C "$pages_dir" push origin HEAD:gh-pages

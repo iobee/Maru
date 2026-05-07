@@ -29,7 +29,7 @@ swift build -c release && cp -r .build/release/Maru.app /Applications/
 
 首次启动时，Maru 会请求**辅助功能**权限，用于读取和移动窗口位置。按系统提示前往「系统设置 > 隐私与安全性」开启即可。
 
-所有配置和日志仅保存在本机 `~/Library/Application Support/Maru/`，不进行网络通信。
+配置和日志默认保存在本机 `~/Library/Application Support/Maru/`。如果设置了 XDG 环境变量，配置会写入 `$XDG_CONFIG_HOME/Maru/`，日志会写入 `$XDG_STATE_HOME/Maru/Logs/`；相对路径会被忽略并回退到默认目录。
 
 ## 参与贡献
 
