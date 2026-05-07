@@ -181,6 +181,12 @@ private extension AboutView {
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.tertiary)
             }
+
+            if let actionTitle = updateStatusState.actionTitle {
+                AboutUpdateActionButton(title: actionTitle) {
+                    updateService.checkForUpdates()
+                }
+            }
         }
     }
 
@@ -317,5 +323,46 @@ private struct GitHubCapsuleLink: View {
                 Capsule(style: .continuous)
                     .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.46), lineWidth: 0.8)
             )
+    }
+}
+
+private struct AboutUpdateActionButton: View {
+    let title: String
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    var body: some View {
+        let visualStyle = AboutUpdateActionButtonVisualStyle(isHovered: isHovered, colorScheme: colorScheme)
+
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(red: 0.145, green: 0.388, blue: 0.922).opacity(visualStyle.textOpacity))
+        }
+        .buttonStyle(.plain)
+        .help("检查更新")
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+struct AboutUpdateActionButtonVisualStyle: Equatable {
+    let textOpacity: Double
+    let drawsUnderline: Bool
+
+    init(isHovered: Bool, colorScheme: ColorScheme) {
+        switch colorScheme {
+        case .dark:
+            textOpacity = isHovered ? 1.0 : 0.92
+        case .light:
+            textOpacity = isHovered ? 0.98 : 0.88
+        @unknown default:
+            textOpacity = isHovered ? 0.98 : 0.88
+        }
+
+        drawsUnderline = false
     }
 }
