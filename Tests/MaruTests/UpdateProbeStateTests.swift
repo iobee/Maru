@@ -33,7 +33,7 @@ final class UpdateProbeStateTests: XCTestCase {
         noUpdateCoordinator.markNoUpdateFound()
 
         XCTAssertEqual(noUpdateCoordinator.state, .idle)
-        XCTAssertEqual(AboutUpdateStatusState(probeState: noUpdateCoordinator.state), AboutUpdateStatusState(showsSpinner: false, message: nil))
+        XCTAssertEqual(AboutUpdateStatusState(probeState: noUpdateCoordinator.state), AboutUpdateStatusState(showsSpinner: false, message: nil, actionTitle: nil))
 
         var updateCoordinator = UpdateProbeCoordinator()
         XCTAssertTrue(updateCoordinator.startAboutProbeIfNeeded(canStart: true))
@@ -41,18 +41,18 @@ final class UpdateProbeStateTests: XCTestCase {
         updateCoordinator.markUpdateFound()
 
         XCTAssertEqual(updateCoordinator.state, .updateAvailable)
-        XCTAssertEqual(AboutUpdateStatusState(probeState: updateCoordinator.state), AboutUpdateStatusState(showsSpinner: false, message: "发现新版本"))
+        XCTAssertEqual(AboutUpdateStatusState(probeState: updateCoordinator.state), AboutUpdateStatusState(showsSpinner: false, message: nil, actionTitle: "发现新版本，点击更新"))
     }
 
     func testFailureStopsSpinnerWithoutSurfacingErrorText() {
         var coordinator = UpdateProbeCoordinator()
         XCTAssertTrue(coordinator.startAboutProbeIfNeeded(canStart: true))
-        XCTAssertEqual(AboutUpdateStatusState(probeState: coordinator.state), AboutUpdateStatusState(showsSpinner: true, message: nil))
+        XCTAssertEqual(AboutUpdateStatusState(probeState: coordinator.state), AboutUpdateStatusState(showsSpinner: true, message: nil, actionTitle: nil))
 
         coordinator.markFailed()
 
         XCTAssertEqual(coordinator.state, .failed)
-        XCTAssertEqual(AboutUpdateStatusState(probeState: coordinator.state), AboutUpdateStatusState(showsSpinner: false, message: nil))
+        XCTAssertEqual(AboutUpdateStatusState(probeState: coordinator.state), AboutUpdateStatusState(showsSpinner: false, message: nil, actionTitle: nil))
     }
 
     func testTerminalTransitionsBeforeStartingProbeDoNotLeaveIdleState() {
@@ -73,6 +73,14 @@ final class UpdateProbeStateTests: XCTestCase {
         let state = AboutUpdateStatusState(probeState: .updateAvailable)
 
         XCTAssertEqual(state.showsSpinner, false)
-        XCTAssertEqual(state.message, "发现新版本")
+        XCTAssertNil(state.message)
+        XCTAssertEqual(state.actionTitle, "发现新版本，点击更新")
+    }
+
+    func testPresentationOnlyExposesUpdateActionWhenUpdateIsAvailable() {
+        XCTAssertNil(AboutUpdateStatusState(probeState: .idle).actionTitle)
+        XCTAssertNil(AboutUpdateStatusState(probeState: .checking).actionTitle)
+        XCTAssertNil(AboutUpdateStatusState(probeState: .failed).actionTitle)
+        XCTAssertEqual(AboutUpdateStatusState(probeState: .updateAvailable).actionTitle, "发现新版本，点击更新")
     }
 }

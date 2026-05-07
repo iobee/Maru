@@ -8,20 +8,22 @@ enum UpdateProbeState: Equatable {
 struct AboutUpdateStatusState: Equatable {
     let showsSpinner: Bool
     let message: String?
+    let actionTitle: String?
 
-    init(showsSpinner: Bool, message: String?) {
+    init(showsSpinner: Bool, message: String?, actionTitle: String?) {
         self.showsSpinner = showsSpinner
         self.message = message
+        self.actionTitle = actionTitle
     }
 
     init(probeState: UpdateProbeState) {
         switch probeState {
         case .checking:
-            self.init(showsSpinner: true, message: nil)
+            self.init(showsSpinner: true, message: nil, actionTitle: nil)
         case .updateAvailable:
-            self.init(showsSpinner: false, message: "发现新版本")
+            self.init(showsSpinner: false, message: nil, actionTitle: "发现新版本，点击更新")
         case .idle, .failed:
-            self.init(showsSpinner: false, message: nil)
+            self.init(showsSpinner: false, message: nil, actionTitle: nil)
         }
     }
 }

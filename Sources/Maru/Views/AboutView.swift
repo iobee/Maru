@@ -181,6 +181,12 @@ private extension AboutView {
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.tertiary)
             }
+
+            if let actionTitle = updateStatusState.actionTitle {
+                AboutUpdateActionButton(title: actionTitle) {
+                    updateService.checkForUpdates()
+                }
+            }
         }
     }
 
@@ -317,5 +323,27 @@ private struct GitHubCapsuleLink: View {
                 Capsule(style: .continuous)
                     .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.46), lineWidth: 0.8)
             )
+    }
+}
+
+private struct AboutUpdateActionButton: View {
+    let title: String
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(red: 0.145, green: 0.388, blue: 0.922).opacity(colorScheme == .dark ? 0.92 : 0.88))
+                .underline(isHovered, color: Color(red: 0.145, green: 0.388, blue: 0.922).opacity(0.72))
+        }
+        .buttonStyle(.plain)
+        .help("检查更新")
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 }
