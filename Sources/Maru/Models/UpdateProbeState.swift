@@ -68,3 +68,15 @@ struct UpdateProbeCoordinator {
         state = .failed
     }
 }
+
+enum UpdatePreviewEnvironment {
+    static let forceAboutUpdateAvailableKey = "MARU_FORCE_ABOUT_UPDATE_AVAILABLE"
+
+    static func forcesAboutUpdateAvailable(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        guard let rawValue = environment[forceAboutUpdateAvailableKey]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
+            return false
+        }
+
+        return ["1", "true", "yes"].contains(rawValue)
+    }
+}

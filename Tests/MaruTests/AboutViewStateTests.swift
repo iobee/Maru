@@ -61,6 +61,15 @@ final class AboutViewStateTests: XCTestCase {
         XCTAssertGreaterThan(lightPalette.bottomColor.relativeLuminance, 0.88)
     }
 
+    func testAboutUpdateActionHoverUsesNoWebLinkUnderline() {
+        let restingStyle = AboutUpdateActionButtonVisualStyle(isHovered: false, colorScheme: .light)
+        let hoveredStyle = AboutUpdateActionButtonVisualStyle(isHovered: true, colorScheme: .light)
+
+        XCTAssertFalse(restingStyle.drawsUnderline)
+        XCTAssertFalse(hoveredStyle.drawsUnderline)
+        XCTAssertGreaterThan(hoveredStyle.textOpacity, restingStyle.textOpacity)
+    }
+
     private func reflectedFieldLabels(in state: AboutViewState) -> Set<String> {
         Set(Mirror(reflecting: state).children.compactMap(\.label))
     }

@@ -45,6 +45,12 @@ final class UpdateService: NSObject, ObservableObject {
             return
         }
 
+        guard UpdatePreviewEnvironment.forcesAboutUpdateAvailable() == false else {
+            AppLogger.shared.log("关于页更新探测使用模拟可用更新状态", level: .info)
+            markProbeUpdateFound(versionDescription: "preview")
+            return
+        }
+
         AppLogger.shared.log("开始关于页更新探测", level: .info)
         updater.checkForUpdateInformation()
     }

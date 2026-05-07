@@ -334,16 +334,35 @@ private struct AboutUpdateActionButton: View {
     @State private var isHovered = false
 
     var body: some View {
+        let visualStyle = AboutUpdateActionButtonVisualStyle(isHovered: isHovered, colorScheme: colorScheme)
+
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color(red: 0.145, green: 0.388, blue: 0.922).opacity(colorScheme == .dark ? 0.92 : 0.88))
-                .underline(isHovered, color: Color(red: 0.145, green: 0.388, blue: 0.922).opacity(0.72))
+                .foregroundStyle(Color(red: 0.145, green: 0.388, blue: 0.922).opacity(visualStyle.textOpacity))
         }
         .buttonStyle(.plain)
         .help("检查更新")
         .onHover { hovering in
             isHovered = hovering
         }
+    }
+}
+
+struct AboutUpdateActionButtonVisualStyle: Equatable {
+    let textOpacity: Double
+    let drawsUnderline: Bool
+
+    init(isHovered: Bool, colorScheme: ColorScheme) {
+        switch colorScheme {
+        case .dark:
+            textOpacity = isHovered ? 1.0 : 0.92
+        case .light:
+            textOpacity = isHovered ? 0.98 : 0.88
+        @unknown default:
+            textOpacity = isHovered ? 0.98 : 0.88
+        }
+
+        drawsUnderline = false
     }
 }

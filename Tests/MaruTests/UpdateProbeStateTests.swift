@@ -83,4 +83,14 @@ final class UpdateProbeStateTests: XCTestCase {
         XCTAssertNil(AboutUpdateStatusState(probeState: .failed).actionTitle)
         XCTAssertEqual(AboutUpdateStatusState(probeState: .updateAvailable).actionTitle, "发现新版本，点击更新")
     }
+
+    func testPreviewEnvironmentForcesAboutUpdateAvailabilityOnlyForExplicitTruthyValues() {
+        XCTAssertTrue(UpdatePreviewEnvironment.forcesAboutUpdateAvailable(environment: ["MARU_FORCE_ABOUT_UPDATE_AVAILABLE": "1"]))
+        XCTAssertTrue(UpdatePreviewEnvironment.forcesAboutUpdateAvailable(environment: ["MARU_FORCE_ABOUT_UPDATE_AVAILABLE": "true"]))
+        XCTAssertTrue(UpdatePreviewEnvironment.forcesAboutUpdateAvailable(environment: ["MARU_FORCE_ABOUT_UPDATE_AVAILABLE": "YES"]))
+
+        XCTAssertFalse(UpdatePreviewEnvironment.forcesAboutUpdateAvailable(environment: [:]))
+        XCTAssertFalse(UpdatePreviewEnvironment.forcesAboutUpdateAvailable(environment: ["MARU_FORCE_ABOUT_UPDATE_AVAILABLE": "0"]))
+        XCTAssertFalse(UpdatePreviewEnvironment.forcesAboutUpdateAvailable(environment: ["MARU_FORCE_ABOUT_UPDATE_AVAILABLE": "false"]))
+    }
 }
