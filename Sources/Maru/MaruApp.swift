@@ -15,6 +15,9 @@ struct MaruApp: App {
     @StateObject private var logger = AppLogger.shared
     @StateObject private var updateService = UpdateService.shared
     @StateObject private var stageManagerSettings = StageManagerSettings()
+    @StateObject private var currentAppRuleTargetTracker = CurrentAppRuleTargetTracker(
+        appBundleIdentifier: Bundle.main.bundleIdentifier ?? "com.nick.maru"
+    )
     private let globalHotkeyManager: GlobalHotkeyManager
     @State private var isWindowManagementEnabled = true
     @Environment(\.openWindow) private var openWindow
@@ -124,6 +127,8 @@ struct MaruApp: App {
     @ViewBuilder
     private func statusBarMenuItem(for item: StatusBarMenuItem) -> some View {
         switch item {
+        case .currentAppRuleMenu:
+            currentAppRuleMenu()
         case .windowManagementToggle:
             Toggle(item.title, isOn: windowManagementBinding)
         case .manualAction(let action):
@@ -149,6 +154,54 @@ struct MaruApp: App {
             }
             .keyboardShortcut("q")
         }
+    }
+
+    @ViewBuilder
+    private func currentAppRuleMenu() -> some View {
+        let state = CurrentAppRuleMenuState(
+            target: currentAppRuleTargetTracker.menuTargetApp,
+            appRules: appConfig.appRules
+        )
+
+        if let target = state.target {
+            Menu(state.title) {
+                ForEach(state.ruleOptions) { rule in
+                    Button {
+                        applyCurrentAppRule(rule, to: target)
+                    } label: {
+                        if state.selectedRule == rule {
+                            Label(rule.currentAppRuleMenuTitle, systemImage: "checkmark")
+                        } else {
+                            Text(rule.currentAppRuleMenuTitle)
+                        }
+                    }
+                }
+            }
+        } else {
+            Button(state.title) {}
+                .disabled(true)
+        }
+    }
+
+    private func applyCurrentAppRule(_ rule: WindowHandlingRule, to target: CurrentAppRuleTarget) {
+        CurrentAppRuleMenuSelection.apply(
+            rule: rule,
+            to: target,
+            saveRule: { target, rule in
+                appConfig.setRule(for: target.bundleId, appName: target.appName, rule: rule)
+            },
+            performManualAction: { action, target in
+                guard let action else {
+                    return
+                }
+
+                windowManager.performManualWindowAction(
+                    action,
+                    target: target,
+                    triggerSource: "菜单栏快速配置"
+                )
+            }
+        )
     }
 
     private func openConfigurationWindow(show notification: Notification.Name? = nil) {

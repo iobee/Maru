@@ -1,4 +1,5 @@
 enum StatusBarMenuItem: Equatable, Identifiable {
+    case currentAppRuleMenu
     case windowManagementToggle
     case manualAction(ManualWindowAction)
     case appConfiguration
@@ -8,6 +9,8 @@ enum StatusBarMenuItem: Equatable, Identifiable {
 
     var id: String {
         switch self {
+        case .currentAppRuleMenu:
+            return "currentAppRuleMenu"
         case .windowManagementToggle:
             return "windowManagementToggle"
         case .manualAction(let action):
@@ -25,6 +28,8 @@ enum StatusBarMenuItem: Equatable, Identifiable {
 
     var title: String {
         switch self {
+        case .currentAppRuleMenu:
+            return "配置当前应用"
         case .windowManagementToggle:
             return "窗口自动管理"
         case .manualAction(let action):
@@ -43,8 +48,8 @@ enum StatusBarMenuItem: Equatable, Identifiable {
 
 enum StatusBarMenuLayout {
     static let groups: [[StatusBarMenuItem]] = [
-        [.windowManagementToggle],
-        [.manualAction(.center), .manualAction(.almostMaximize), .manualAction(.moveToNextDisplay)],
+        [.currentAppRuleMenu],
+        [.windowManagementToggle, .manualAction(.center), .manualAction(.almostMaximize), .manualAction(.moveToNextDisplay)],
         [.appConfiguration, .appRules, .checkForUpdates],
         [.quit]
     ]

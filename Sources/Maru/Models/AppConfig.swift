@@ -340,6 +340,34 @@ class AppConfig: ObservableObject {
             NotificationCenter.default.post(name: Notification.Name("RuleUpdated"), object: nil)
         }
     }
+
+    // 创建或更新应用规则
+    func setRule(for bundleId: String, appName: String, rule: WindowHandlingRule) {
+        if let index = appRules.firstIndex(where: { $0.bundleId == bundleId }) {
+            let existingRule = appRules[index]
+            appRules[index] = AppRule(
+                bundleId: bundleId,
+                appName: appName,
+                rule: rule,
+                lastUsed: Date(),
+                useCount: existingRule.useCount
+            )
+        } else {
+            appRules.append(
+                AppRule(
+                    bundleId: bundleId,
+                    appName: appName,
+                    rule: rule,
+                    lastUsed: Date(),
+                    useCount: 0
+                )
+            )
+        }
+
+        saveConfig()
+        refreshID = UUID()
+        NotificationCenter.default.post(name: Notification.Name("RuleUpdated"), object: nil)
+    }
     
     // 记录应用使用
     func recordAppUsage(bundleId: String, appName: String) {
