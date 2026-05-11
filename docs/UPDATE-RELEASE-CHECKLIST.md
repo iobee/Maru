@@ -8,6 +8,36 @@
 - Local `generate_appcast` reads the private key from the macOS Keychain by default.
 - CI uses the `SPARKLE_PRIVATE_KEY` repository secret and passes it to Sparkle with `--ed-key-file`.
 
+### Retrieve the Sparkle Private Key
+
+Local appcast generation does not read a private key file by default. Sparkle's
+`generate_appcast` asks the macOS login Keychain for the private key created by
+Sparkle's `generate_keys` tool.
+
+Check that the local Keychain has the Sparkle key:
+
+```bash
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -p
+```
+
+Export the private key for GitHub Actions:
+
+```bash
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -x /private/tmp/maru-sparkle-ed25519-key
+pbcopy < /private/tmp/maru-sparkle-ed25519-key
+```
+
+Store the copied value as the `SPARKLE_PRIVATE_KEY` repository secret. The
+exported file is sensitive private key material; delete it after the secret has
+been set.
+
+If setting up a new machine from the CI secret, write the secret value to a
+temporary file and import it into the local Keychain:
+
+```bash
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -f /path/to/sparkle-ed25519-key
+```
+
 ## Stable Release Signing
 
 - Public release DMGs must be signed with the same stable code-signing certificate for every release.
@@ -48,6 +78,47 @@ base64 -i MaruReleaseSigning.p12 | pbcopy
 ```
 
 Store the copied value in `MARU_RELEASE_CERTIFICATE_BASE64` and the export password in `MARU_RELEASE_CERTIFICATE_PASSWORD`.
+
+### Retrieve the Release Signing Certificate
+
+Local DMG packaging does not read a certificate file. `Scripts/package-release.sh`
+looks up a code-signing identity in the macOS Keychain by name:
+
+```bash
+security find-identity -v -p codesigning | grep "Maru Release Signing"
+```
+
+The expected default identity name is `Maru Release Signing`. Override it only
+when intentionally using a different stable certificate:
+
+```bash
+MARU_CODE_SIGN_IDENTITY="Developer ID Application" ./Scripts/package-release.sh
+```
+
+For GitHub Actions, export the same identity from Keychain Access:
+
+1. Open Keychain Access.
+2. Select the login keychain.
+3. Open My Certificates.
+4. Select `Maru Release Signing`.
+5. Export it as `MaruReleaseSigning.p12` and set a strong export password.
+
+Then encode the `.p12` for the `Release DMG` workflow:
+
+```bash
+base64 -i MaruReleaseSigning.p12 | pbcopy
+```
+
+Store the copied value in `MARU_RELEASE_CERTIFICATE_BASE64`, the export password
+in `MARU_RELEASE_CERTIFICATE_PASSWORD`, and any random temporary keychain
+password in `MARU_KEYCHAIN_PASSWORD`.
+
+After packaging, confirm the exported app is certificate-based and not ad-hoc:
+
+```bash
+codesign -dv --verbose=4 Release/Export/Maru.app
+codesign -dr - Release/Export/Maru.app
+```
 
 ## Version Bump
 
