@@ -57,8 +57,10 @@ class WindowManager: ObservableObject {
     private var accessibilityPermissionPollingTimer: Timer?
     private var accessibilityPermissionPollingAttemptsRemaining = 0
     private let maxAccessibilityPermissionPollingAttempts = 120
+    private let runningApplicationResolver: (pid_t) -> NSRunningApplication?
 
-    init() {
+    init(runningApplicationResolver: @escaping (pid_t) -> NSRunningApplication? = { NSRunningApplication(processIdentifier: $0) }) {
+        self.runningApplicationResolver = runningApplicationResolver
         // Don't request permissions during init - wait for app to launch
     }
     
@@ -393,8 +395,45 @@ class WindowManager: ObservableObject {
     func performManualMoveToNextDisplay(triggerSource: String) {
         performManualWindowAction(.moveToNextDisplay, triggerSource: triggerSource)
     }
+
+    func performManualWindowAction(_ action: ManualWindowAction, target: CurrentAppRuleTarget, triggerSource: String) {
+        guard let app = runningApplicationResolver(target.processIdentifier) else {
+            AppLogger.shared.log(
+                "定向手动窗口操作跳过: 目标进程不可用, 来源=\(triggerSource), 动作=\(action.label), 应用=\(target.appName) (\(target.bundleId), pid: \(target.processIdentifier))",
+                level: .warning
+            )
+            return
+        }
+
+        performManualWindowAction(
+            action,
+            app: app,
+            triggerSource: triggerSource,
+            showsMissingWindowAlert: false
+        )
+    }
     
     private func performManualWindowAction(_ action: ManualWindowAction, triggerSource: String) {
+        guard let app = NSWorkspace.shared.frontmostApplication else {
+            AppLogger.shared.log("手动窗口操作失败: 无法获取前台应用, 来源=\(triggerSource), 动作=\(action.label)", level: .warning)
+            showManualWindowNotFoundAlert(triggerSource: triggerSource, appIdentity: nil, action: action)
+            return
+        }
+
+        performManualWindowAction(
+            action,
+            app: app,
+            triggerSource: triggerSource,
+            showsMissingWindowAlert: true
+        )
+    }
+
+    private func performManualWindowAction(
+        _ action: ManualWindowAction,
+        app: NSRunningApplication,
+        triggerSource: String,
+        showsMissingWindowAlert: Bool
+    ) {
         guard checkAccessibilityPermission() else {
             showAccessibilityPermissionAlert()
             return
@@ -405,17 +444,15 @@ class WindowManager: ObservableObject {
             return
         }
 
-        guard let app = NSWorkspace.shared.frontmostApplication else {
-            AppLogger.shared.log("手动窗口操作失败: 无法获取前台应用, 来源=\(triggerSource), 动作=\(action.label)", level: .warning)
-            showManualWindowNotFoundAlert(triggerSource: triggerSource, appIdentity: nil, action: action)
-            return
-        }
-
         let appIdentity = describeApplication(app)
         AppLogger.shared.log("手动窗口操作请求: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity)", level: .info)
 
         guard let window = resolveManualTargetWindow(for: app, triggerSource: triggerSource, action: action) else {
-            showManualWindowNotFoundAlert(triggerSource: triggerSource, appIdentity: appIdentity, action: action)
+            if showsMissingWindowAlert {
+                showManualWindowNotFoundAlert(triggerSource: triggerSource, appIdentity: appIdentity, action: action)
+            } else {
+                AppLogger.shared.log("定向手动窗口操作未找到可操作窗口: 来源=\(triggerSource), 动作=\(action.label), 应用=\(appIdentity)", level: .warning)
+            }
             return
         }
 

@@ -22,6 +22,11 @@ jobs:
     runs-on: macos-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      MARU_CODE_SIGN_IDENTITY: ${{ vars.MARU_CODE_SIGN_IDENTITY }}
+      MARU_DEVELOPMENT_TEAM: ${{ secrets.MARU_DEVELOPMENT_TEAM }}
+      MARU_RELEASE_CERTIFICATE_BASE64: ${{ secrets.MARU_RELEASE_CERTIFICATE_BASE64 }}
+      MARU_RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.MARU_RELEASE_CERTIFICATE_PASSWORD }}
+      MARU_KEYCHAIN_PASSWORD: ${{ secrets.MARU_KEYCHAIN_PASSWORD }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -32,6 +37,47 @@ jobs:
           if ! command -v xcodegen >/dev/null; then
             brew install xcodegen
           fi
+
+      - name: Validate release signing inputs
+        run: |
+          set -euo pipefail
+          for name in \
+            MARU_RELEASE_CERTIFICATE_BASE64 \
+            MARU_RELEASE_CERTIFICATE_PASSWORD \
+            MARU_KEYCHAIN_PASSWORD
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "$name secret is required for stable release signing" >&2
+              exit 1
+            fi
+          done
+          if [[ -z "${MARU_CODE_SIGN_IDENTITY:-}" ]]; then
+            echo "MARU_CODE_SIGN_IDENTITY=Maru Release Signing" >> "$GITHUB_ENV"
+          fi
+
+      - name: Import release signing certificate
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/maru-release-signing.p12"
+          keychain_path="$RUNNER_TEMP/maru-signing.keychain-db"
+
+          printf '%s' "$MARU_RELEASE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$MARU_KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$MARU_KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" \
+            -P "$MARU_RELEASE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$keychain_path"
+          security list-keychains -d user -s "$keychain_path" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$MARU_KEYCHAIN_PASSWORD" \
+            "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path"
 
       - name: Read release metadata
         id: metadata

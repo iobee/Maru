@@ -6,8 +6,8 @@ final class StatusBarMenuLayoutTests: XCTestCase {
         XCTAssertEqual(
             StatusBarMenuLayout.groups,
             [
-                [.windowManagementToggle],
-                [.manualAction(.center), .manualAction(.almostMaximize), .manualAction(.moveToNextDisplay)],
+                [.currentAppRuleMenu],
+                [.windowManagementToggle, .manualAction(.center), .manualAction(.almostMaximize), .manualAction(.moveToNextDisplay)],
                 [.appConfiguration, .appRules, .checkForUpdates],
                 [.quit]
             ]
@@ -15,6 +15,7 @@ final class StatusBarMenuLayoutTests: XCTestCase {
     }
 
     func testMenuTitlesMatchConfirmedLabels() {
+        XCTAssertEqual(StatusBarMenuItem.currentAppRuleMenu.title, "配置当前应用")
         XCTAssertEqual(StatusBarMenuItem.windowManagementToggle.title, "窗口自动管理")
         XCTAssertEqual(ManualWindowAction.center.menuTitle, "居中窗口")
         XCTAssertEqual(ManualWindowAction.almostMaximize.menuTitle, "呼吸窗口")
@@ -32,6 +33,7 @@ final class StatusBarMenuLayoutTests: XCTestCase {
     }
 
     func testMenuItemIdentifiersAreStableForRendering() {
+        XCTAssertEqual(StatusBarMenuItem.currentAppRuleMenu.id, "currentAppRuleMenu")
         XCTAssertEqual(StatusBarMenuItem.windowManagementToggle.id, "windowManagementToggle")
         XCTAssertEqual(StatusBarMenuItem.manualAction(.center).id, "manualAction.center")
         XCTAssertEqual(StatusBarMenuItem.manualAction(.almostMaximize).id, "manualAction.almostMaximize")
