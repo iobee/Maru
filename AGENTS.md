@@ -128,18 +128,25 @@ swift build
 # Build release version
 swift build -c release
 
-# Create distributable app bundle
-swift build -c release && mkdir -p Release && cp -r .build/release/Maru.app Release/
+# Create distributable app bundle and DMG
+./Scripts/package-release.sh
 ```
 
 ### Running
 ```bash
-# Run from source
-swift run
+# Build/export the real app bundle first
+./Scripts/package-release.sh --no-smoke
 
-# Run specific build
-swift run Maru
+# Start the exported app bundle for visual and menu bar testing
+open -n Release/Export/Maru.app
+
+# Confirm the launched app process
+pgrep -fl 'Release/Export/Maru.app/Contents/MacOS/Maru|Maru.app/Contents/MacOS/Maru'
 ```
+
+For UI, menu bar, icon, Sparkle, permission, and packaging smoke tests, always launch the exported `.app` bundle. Do not use `swift run`, `.build/release/Maru`, or `.build/arm64-apple-macosx/debug/Maru` for visual verification because those SwiftPM executable layouts do not behave like a signed macOS app bundle and can misrepresent asset catalog behavior such as the menu bar icon.
+
+`swift run Maru` is acceptable only for quick compile/runtime debugging when app-bundle resources and visual behavior are not under review.
 
 ### Development
 ```bash

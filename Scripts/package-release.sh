@@ -123,6 +123,9 @@ validate_app_bundle() {
     local executable_path="$bundle_path/Contents/MacOS/$APP_NAME"
     local sparkle_framework_path="$bundle_path/Contents/Frameworks/Sparkle.framework"
     local assets_car_path="$bundle_path/Contents/Resources/Assets.car"
+    local asset_info=""
+    local linked_libraries=""
+    local load_commands=""
 
     [[ -d "$bundle_path" ]] || fail "Missing app bundle at $bundle_path"
     [[ -x "$executable_path" ]] || fail "Missing executable at $executable_path"
@@ -130,13 +133,15 @@ validate_app_bundle() {
     [[ -d "$sparkle_framework_path" ]] || fail "Missing Sparkle framework in $bundle_path"
     [[ -f "$bundle_path/Contents/Resources/MaruIcon.icns" ]] || fail "Missing MaruIcon.icns in Contents/Resources"
     [[ -f "$assets_car_path" ]] || fail "Missing asset catalog at $assets_car_path"
-    xcrun assetutil --info "$assets_car_path" | grep -Fq '"Name" : "MaruIconMenubar"' \
-        || fail "Missing MaruIconMenubar image in asset catalog"
 
-    otool -L "$executable_path" | grep -Fq "@rpath/Sparkle.framework" \
-        || fail "Executable does not link Sparkle through @rpath"
-    otool -l "$executable_path" | grep -Fq "@executable_path/../Frameworks" \
-        || fail "Executable is missing @executable_path/../Frameworks rpath"
+    asset_info="$(xcrun assetutil --info "$assets_car_path")"
+    [[ "$asset_info" == *'"Name" : "MaruIconMenubar"'* ]] || fail "Missing MaruIconMenubar image in asset catalog"
+
+    linked_libraries="$(otool -L "$executable_path")"
+    [[ "$linked_libraries" == *"@rpath/Sparkle.framework"* ]] || fail "Executable does not link Sparkle through @rpath"
+
+    load_commands="$(otool -l "$executable_path")"
+    [[ "$load_commands" == *"@executable_path/../Frameworks"* ]] || fail "Executable is missing @executable_path/../Frameworks rpath"
 }
 
 wait_for_launch() {
