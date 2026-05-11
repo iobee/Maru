@@ -9,8 +9,8 @@ options:
 settings:
   base:
     DEVELOPMENT_LANGUAGE: zh_CN
-    MARKETING_VERSION: 1.0.0-beta.5
-    CURRENT_PROJECT_VERSION: 5
+    MARKETING_VERSION: 1.0.0-beta.6
+    CURRENT_PROJECT_VERSION: 6
     CODE_SIGN_STYLE: Manual
   configs:
     Debug:
