@@ -62,6 +62,7 @@ Temporary Items
 # 编辑器临时文件
 *~
 *.swp 
+.vscode/
 .build/build.db
 .dmg
 .build/*
