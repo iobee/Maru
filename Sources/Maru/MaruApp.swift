@@ -15,6 +15,8 @@ struct MaruApp: App {
     @StateObject private var logger = AppLogger.shared
     @StateObject private var updateService = UpdateService.shared
     @StateObject private var stageManagerSettings = StageManagerSettings()
+    @StateObject private var dockSettings = DockSettings()
+    @StateObject private var activityStore = AppActivityStore.shared
     @StateObject private var currentAppRuleTargetTracker = CurrentAppRuleTargetTracker(
         appBundleIdentifier: Bundle.main.bundleIdentifier ?? "com.nick.maru"
     )
@@ -34,6 +36,8 @@ struct MaruApp: App {
                 .environmentObject(logger)
                 .environmentObject(updateService)
                 .environmentObject(stageManagerSettings)
+                .environmentObject(dockSettings)
+                .environmentObject(activityStore)
                 .background(Color(NSColor.windowBackgroundColor))
                 .onAppear {
                     // 在下一个运行循环中配置窗口
@@ -90,7 +94,7 @@ struct MaruApp: App {
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
 
-                Button("查看日志") {
+                Button("查看后台日志") {
                     openConfigurationWindow(show: Self.showLogsNotification)
                 }
                 .keyboardShortcut("l", modifiers: [.command, .option])

@@ -4,12 +4,15 @@ struct HomeDashboardView: View {
     @Binding var isWindowManagementEnabled: Bool
     @EnvironmentObject private var appConfig: AppConfig
     @EnvironmentObject private var stageManagerSettings: StageManagerSettings
+    @EnvironmentObject private var dockSettings: DockSettings
+    @State private var isShowingIndividualCompanionSettings = false
 
     private var state: HomeDashboardState {
         HomeDashboardState(
             appRules: appConfig.appRules,
             isEnabled: isWindowManagementEnabled,
             isStageManagerEnabled: stageManagerSettings.isEnabled,
+            isDockAutohideEnabled: dockSettings.isAutohideEnabled,
             windowScaleFactor: appConfig.windowScaleFactor
         )
     }
@@ -18,8 +21,8 @@ struct HomeDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 dashboardHeader
-                stageManagerControlCard
                 heroControlCard
+                companionControlCard
                 scaleControlCard
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -30,16 +33,35 @@ struct HomeDashboardView: View {
         .background(Color.clear)
         .onAppear {
             stageManagerSettings.reload()
+            dockSettings.reload()
         }
     }
 }
 
 private extension HomeDashboardView {
+    var companionBinding: Binding<Bool> {
+        Binding(
+            get: { state.isCompanionEnabled },
+            set: { targetEnabled in
+                applyCompanionChange(targetEnabled: targetEnabled)
+            }
+        )
+    }
+
     var stageManagerBinding: Binding<Bool> {
         Binding(
             get: { stageManagerSettings.isEnabled },
             set: { newValue in
                 stageManagerSettings.setEnabled(newValue)
+            }
+        )
+    }
+
+    var dockAutohideBinding: Binding<Bool> {
+        Binding(
+            get: { dockSettings.isAutohideEnabled },
+            set: { newValue in
+                dockSettings.setAutohideEnabled(newValue)
             }
         )
     }
@@ -57,17 +79,17 @@ private extension HomeDashboardView {
         }
     }
 
-    var stageManagerControlCard: some View {
+    var companionControlCard: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    stageManagerStatusBadge
+                    companionStatusBadge
 
-                    Text(state.stageManagerTitle)
+                    Text(state.companionTitle)
                         .font(.title3)
                         .fontWeight(.semibold)
 
-                    Text(state.stageManagerDescription)
+                    Text(state.companionDescription)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -75,31 +97,69 @@ private extension HomeDashboardView {
 
                 Spacer(minLength: 16)
 
-                Toggle("", isOn: stageManagerBinding)
+                Toggle(state.companionToggleTitle, isOn: companionBinding)
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(state.stageManagerToggleTitle)
+                Text(state.companionToggleTitle)
                     .font(.headline)
 
-                Text(state.stageManagerToggleSubtitle)
+                Text(state.companionToggleSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if let errorMessage = stageManagerSettings.lastErrorMessage {
-                Text("\(state.stageManagerErrorPrefix)\(errorMessage)")
+            ForEach(Array(companionErrorMessages.enumerated()), id: \.offset) { _, message in
+                Label(message, systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .symbolRenderingMode(.hierarchical)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            Divider()
+
+            DisclosureGroup(isExpanded: $isShowingIndividualCompanionSettings) {
+                VStack(spacing: 0) {
+                    individualCompanionSettingRow(
+                        title: state.stageManagerTitle,
+                        statusTitle: state.stageManagerStatusTitle,
+                        subtitle: state.stageManagerToggleSubtitle,
+                        systemImage: "rectangle.stack",
+                        binding: stageManagerBinding
+                    )
+
+                    Divider()
+                        .padding(.leading, 44)
+
+                    individualCompanionSettingRow(
+                        title: state.dockAutohideTitle,
+                        statusTitle: state.dockAutohideStatusTitle,
+                        subtitle: state.dockAutohideToggleSubtitle,
+                        systemImage: "dock.rectangle",
+                        binding: dockAutohideBinding
+                    )
+                }
+                .padding(.top, 10)
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(state.individualSettingsTitle)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Text(state.individualSettingsSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .tint(.blue)
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(stageManagerCardBackground)
+        .background(systemControlCardBackground(cornerRadius: 22))
     }
 
     var heroControlCard: some View {
@@ -214,21 +274,21 @@ private extension HomeDashboardView {
         standardCardBackground(cornerRadius: 22)
     }
 
-    var stageManagerCardBackground: some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
+    func systemControlCardBackground(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(Color(nsColor: .controlBackgroundColor))
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.blue.opacity(0.06))
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.blue.opacity(0.04))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(Color.blue.opacity(0.16), lineWidth: 1)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.blue.opacity(0.12), lineWidth: 1)
             )
     }
 
-    var stageManagerStatusBadge: some View {
-        Label(state.stageManagerStatusTitle, systemImage: stageManagerSettings.isEnabled ? "rectangle.stack.badge.person.crop.fill" : "rectangle.stack")
+    var companionStatusBadge: some View {
+        Label(state.companionStatusTitle, systemImage: companionStatusSystemImage)
             .font(.subheadline)
             .fontWeight(.medium)
             .foregroundStyle(.blue)
@@ -238,6 +298,85 @@ private extension HomeDashboardView {
                 Capsule()
                     .fill(Color.blue.opacity(0.10))
             )
+    }
+
+    var companionStatusSystemImage: String {
+        switch state.companionStatus {
+        case .enabled:
+            return "checkmark.circle.fill"
+        case .partial:
+            return "circle.lefthalf.filled"
+        case .disabled:
+            return "sparkles"
+        }
+    }
+
+    var companionErrorMessages: [String] {
+        var messages: [String] = []
+
+        if let errorMessage = stageManagerSettings.lastErrorMessage {
+            messages.append("\(state.stageManagerErrorPrefix)\(errorMessage)")
+        }
+
+        if let errorMessage = dockSettings.lastErrorMessage {
+            messages.append("\(state.dockAutohideErrorPrefix)\(errorMessage)")
+        }
+
+        return messages
+    }
+
+    func applyCompanionChange(targetEnabled: Bool) {
+        let plan = state.companionChangePlan(targetEnabled: targetEnabled)
+        AppLogger.shared.log(
+            "请求\(targetEnabled ? "开启" : "关闭") Maru 风格好搭子组合设置",
+            level: .info
+        )
+
+        if let stageManagerTarget = plan.stageManagerTarget {
+            stageManagerSettings.setEnabled(stageManagerTarget)
+        }
+
+        if let dockAutohideTarget = plan.dockAutohideTarget {
+            dockSettings.setAutohideEnabled(dockAutohideTarget)
+        }
+    }
+
+    func individualCompanionSettingRow(
+        title: String,
+        statusTitle: String,
+        subtitle: String,
+        systemImage: String,
+        binding: Binding<Bool>
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.blue)
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.blue.opacity(0.08))
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("\(statusTitle) · \(subtitle)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 12)
+
+            Toggle(title, isOn: binding)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+        }
+        .padding(.vertical, 8)
     }
 
     func standardCardBackground(cornerRadius: CGFloat) -> some View {

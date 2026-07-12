@@ -40,7 +40,7 @@ enum LogLevel: String, Codable, CaseIterable, Identifiable {
 }
 
 // 日志条目结构体
-struct LogEntry: Codable, Identifiable {
+struct LogEntry: Codable, Identifiable, Equatable {
     let id: UUID
     let timestamp: Date
     let message: String
@@ -48,9 +48,16 @@ struct LogEntry: Codable, Identifiable {
     let sourceFile: String
     let sourceLine: Int
     
-    init(message: String, level: LogLevel, sourceFile: String = #file, sourceLine: Int = #line) {
-        self.id = UUID()
-        self.timestamp = Date()
+    init(
+        id: UUID = UUID(),
+        timestamp: Date = Date(),
+        message: String,
+        level: LogLevel,
+        sourceFile: String = #file,
+        sourceLine: Int = #line
+    ) {
+        self.id = id
+        self.timestamp = timestamp
         self.message = message
         self.level = level
         self.sourceFile = (sourceFile as NSString).lastPathComponent
@@ -279,12 +286,18 @@ class AppLogger: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
         
-        guard let _ = formatter.date(from: timestampString),
+        guard let timestamp = formatter.date(from: timestampString),
               let level = LogLevel(rawValue: levelString),
               let sourceLine = Int(sourceLineString) else {
             return nil
         }
         
-        return LogEntry(message: message, level: level, sourceFile: sourceFile, sourceLine: sourceLine)
+        return LogEntry(
+            timestamp: timestamp,
+            message: message,
+            level: level,
+            sourceFile: sourceFile,
+            sourceLine: sourceLine
+        )
     }
 }

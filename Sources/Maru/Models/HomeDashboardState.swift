@@ -23,9 +23,21 @@ struct HomeDashboardState {
         }
     }
 
+    enum CompanionStatus: Equatable {
+        case disabled
+        case partial
+        case enabled
+    }
+
+    struct CompanionChangePlan: Equatable {
+        let stageManagerTarget: Bool?
+        let dockAutohideTarget: Bool?
+    }
+
     let appRules: [AppRule]
     let isEnabled: Bool
     let isStageManagerEnabled: Bool
+    let isDockAutohideEnabled: Bool
     let windowScaleFactor: Double
     let manualCenterShortcut: ShortcutBinding?
     let manualAlmostMaximizeShortcut: ShortcutBinding?
@@ -35,6 +47,7 @@ struct HomeDashboardState {
         appRules: [AppRule],
         isEnabled: Bool,
         isStageManagerEnabled: Bool = false,
+        isDockAutohideEnabled: Bool = false,
         windowScaleFactor: Double,
         manualCenterShortcut: ShortcutBinding? = nil,
         manualAlmostMaximizeShortcut: ShortcutBinding? = nil,
@@ -43,6 +56,7 @@ struct HomeDashboardState {
         self.appRules = appRules
         self.isEnabled = isEnabled
         self.isStageManagerEnabled = isStageManagerEnabled
+        self.isDockAutohideEnabled = isDockAutohideEnabled
         self.windowScaleFactor = windowScaleFactor
         self.manualCenterShortcut = manualCenterShortcut
         self.manualAlmostMaximizeShortcut = manualAlmostMaximizeShortcut
@@ -85,6 +99,79 @@ struct HomeDashboardState {
         "呼吸空间"
     }
 
+    var companionStatus: CompanionStatus {
+        switch (isStageManagerEnabled, isDockAutohideEnabled) {
+        case (true, true):
+            return .enabled
+        case (false, false):
+            return .disabled
+        default:
+            return .partial
+        }
+    }
+
+    var isCompanionEnabled: Bool {
+        companionStatus == .enabled
+    }
+
+    var companionTitle: String {
+        "Maru 风格好搭子"
+    }
+
+    var companionStatusTitle: String {
+        switch companionStatus {
+        case .enabled:
+            return "搭配已就绪"
+        case .partial:
+            return "部分开启"
+        case .disabled:
+            return "推荐开启"
+        }
+    }
+
+    var companionDescription: String {
+        "一键开启 Stage Manager 和 Dock 自动隐藏，让窗口分组、居中与呼吸留白自然配合。"
+    }
+
+    var companionToggleTitle: String {
+        switch companionStatus {
+        case .enabled:
+            return "推荐搭配正在使用"
+        case .partial:
+            return "补齐推荐搭配"
+        case .disabled:
+            return "一键开启推荐搭配"
+        }
+    }
+
+    var companionToggleSubtitle: String {
+        switch companionStatus {
+        case .enabled:
+            return "Stage Manager 负责窗口分组，Dock 自动隐藏留出更多桌面空间。"
+        case .partial where isStageManagerEnabled:
+            return "Stage Manager 已开启；打开组合开关即可同时补上 Dock 自动隐藏。"
+        case .partial:
+            return "Dock 自动隐藏已开启；打开组合开关即可同时补上 Stage Manager。"
+        case .disabled:
+            return "一个开关同时配置两项系统功能，减少单独理解和设置的成本。"
+        }
+    }
+
+    var individualSettingsTitle: String {
+        "单独设置"
+    }
+
+    var individualSettingsSubtitle: String {
+        "需要时分别调整这两项系统功能"
+    }
+
+    func companionChangePlan(targetEnabled: Bool) -> CompanionChangePlan {
+        CompanionChangePlan(
+            stageManagerTarget: isStageManagerEnabled == targetEnabled ? nil : targetEnabled,
+            dockAutohideTarget: isDockAutohideEnabled == targetEnabled ? nil : targetEnabled
+        )
+    }
+
     var stageManagerTitle: String {
         "Stage Manager"
     }
@@ -93,24 +180,32 @@ struct HomeDashboardState {
         isStageManagerEnabled ? "已开启" : "未开启"
     }
 
-    var stageManagerDescription: String {
-        isStageManagerEnabled
-            ? "Stage Manager 已开启。macOS 会将各应用的窗口分组收纳在屏幕一侧，Maru 则在切换应用时自动居中或展开窗口——两者配合，桌面始终整洁有序。"
-            : "Stage Manager 是 macOS 内置的窗口分组功能。开启后每个应用的窗口会被自动收纳到屏幕一侧，不会互相堆叠遮挡。建议与 Maru 配合使用，一个负责分组，一个负责定位。"
-    }
-
-    var stageManagerToggleTitle: String {
-        isStageManagerEnabled ? "配合使用中" : "开启 Stage Manager"
-    }
-
     var stageManagerToggleSubtitle: String {
         isStageManagerEnabled
-            ? "切换应用时 Stage Manager 负责窗口分组收纳，Maru 负责居中和呼吸窗口布局，桌面井然有序。"
-            : "开启后 Maru 负责窗口位置与大小，Stage Manager 负责按应用分组，专注单个任务时桌面更清爽。"
+            ? "窗口正在按应用分组收纳。"
+            : "按应用分组收纳窗口，减少桌面堆叠。"
     }
 
     var stageManagerErrorPrefix: String {
         "系统设置同步失败："
+    }
+
+    var dockAutohideTitle: String {
+        "自动隐藏 Dock"
+    }
+
+    var dockAutohideStatusTitle: String {
+        isDockAutohideEnabled ? "已开启" : "未开启"
+    }
+
+    var dockAutohideToggleSubtitle: String {
+        isDockAutohideEnabled
+            ? "Dock 平时收起，需要时从屏幕边缘滑出。"
+            : "收起常驻 Dock，为窗口留出更多空间。"
+    }
+
+    var dockAutohideErrorPrefix: String {
+        "Dock 设置同步失败："
     }
 
     var scaleDescription: String {

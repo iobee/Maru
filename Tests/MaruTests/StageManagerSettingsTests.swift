@@ -22,6 +22,20 @@ final class StageManagerSettingsTests: XCTestCase {
         XCTAssertTrue(settings.isEnabled)
     }
 
+    func testSetEnabledKeepsWriteErrorVisibleWhenRefreshSucceeds() {
+        let controller = StageManagerSystemControllerStub(
+            readEnabledResult: .success(false),
+            writeError: StageManagerSettingsError.commandFailed("not allowed")
+        )
+        let settings = StageManagerSettings(controller: controller)
+
+        settings.setEnabled(true)
+
+        XCTAssertEqual(controller.writeCalls, [true])
+        XCTAssertFalse(settings.isEnabled)
+        XCTAssertEqual(settings.lastErrorMessage, "写入 Stage Manager 系统设置失败: not allowed")
+    }
+
     func testDefaultsControllerReadsGloballyEnabledKey() throws {
         let store = PreferencesStoreStub(objectValue: true)
         let controller = DefaultsStageManagerController(store: store)
@@ -45,11 +59,13 @@ final class StageManagerSettingsTests: XCTestCase {
 
 private final class StageManagerSystemControllerStub: StageManagerSystemControlling {
     var readEnabledResult: Result<Bool, Error>
+    var writeError: Error?
     private(set) var writeCalls: [Bool] = []
     private(set) var readCallCount = 0
 
-    init(readEnabledResult: Result<Bool, Error>) {
+    init(readEnabledResult: Result<Bool, Error>, writeError: Error? = nil) {
         self.readEnabledResult = readEnabledResult
+        self.writeError = writeError
     }
 
     func readEnabled() throws -> Bool {
@@ -59,6 +75,9 @@ private final class StageManagerSystemControllerStub: StageManagerSystemControll
 
     func writeEnabled(_ isEnabled: Bool) throws {
         writeCalls.append(isEnabled)
+        if let writeError {
+            throw writeError
+        }
         readEnabledResult = .success(isEnabled)
     }
 }

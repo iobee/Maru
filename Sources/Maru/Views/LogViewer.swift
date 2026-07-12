@@ -1,164 +1,292 @@
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct LogViewer: View {
     @ObservedObject private var logger = AppLogger.shared
-    @State private var logLevelFilter: LogLevel? = .info
+    @State private var minimumLevel: LogLevel? = .info
+    @State private var searchText = ""
     @State private var selectedLogFile: URL?
     @State private var showingFileSelector = false
     @State private var logFiles: [URL] = []
+    @State private var loadedHistoricalLogs: [LogEntry]?
+    @State private var loadedFileName: String?
+    @State private var copyFeedback: String?
     @Environment(\.colorScheme) private var colorScheme
 
-    private var filteredLogs: [LogEntry] {
-        var logs = logger.logs
-
-        if let level = logLevelFilter {
-            logs = logs.filter { $0.level.priority >= level.priority }
-        }
-
-        return logs.reversed()
+    private var sourceLogs: [LogEntry] {
+        loadedHistoricalLogs ?? logger.logs
     }
 
-    private var logTextContent: String {
-        filteredLogs.map(\.formatted).joined(separator: "\n")
-    }
-
-    private var subtitleText: String {
-        if filteredLogs.isEmpty {
-            return "查看、筛选、导出运行日志，也可载入历史日志文件。"
-        }
-
-        return "共 \(filteredLogs.count) 条日志，可按级别筛选。"
+    private var state: BackgroundLogViewState {
+        BackgroundLogViewState(
+            logs: sourceLogs,
+            minimumLevel: minimumLevel,
+            searchText: searchText
+        )
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                pageHeader
-                toolRow
-                logSurface
-            }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 34)
-            .padding(.vertical, 30)
+        VStack(alignment: .leading, spacing: 20) {
+            pageHeader
+            toolRow
+            logSurface
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.clear)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 34)
+        .padding(.vertical, 30)
         .sheet(isPresented: $showingFileSelector) {
-            LogFileSelector(logFiles: logFiles, selectedFile: $selectedLogFile, isPresented: $showingFileSelector)
-                .frame(minWidth: 480, idealWidth: 540, maxWidth: 620, minHeight: 380, idealHeight: 480, maxHeight: 580)
+            LogFileSelector(
+                logFiles: logFiles,
+                selectedFile: $selectedLogFile,
+                isPresented: $showingFileSelector
+            )
+            .frame(
+                minWidth: 480,
+                idealWidth: 540,
+                maxWidth: 620,
+                minHeight: 380,
+                idealHeight: 480,
+                maxHeight: 580
+            )
         }
         .onChange(of: selectedLogFile) { file in
-            if let file = file {
-                loadLogsFromFile(file)
-            }
+            guard let file else { return }
+            loadLogsFromFile(file)
         }
     }
 
     private var pageHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("日志")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("后台日志")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
 
-            Text(subtitleText)
-                .font(.body)
+                Text("供开发者排查问题使用。遇到异常时，可直接复制或导出完整日志发送给开发者。")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 16)
+
+            Label(logSourceTitle, systemImage: loadedHistoricalLogs == nil ? "dot.radiowaves.left.and.right" : "doc.text")
+                .font(.caption)
+                .fontWeight(.medium)
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Color.secondary.opacity(0.09)))
         }
     }
 
     private var toolRow: some View {
-        HStack(spacing: 12) {
-            filterMenu
-
-            Spacer(minLength: 16)
-
-            Button {
-                showingFileSelector = true
-                loadLogFiles()
-            } label: {
-                Label("历史日志", systemImage: "folder")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(toolButtonBackground)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                searchField
+                filterMenu
+                Spacer(minLength: 12)
+                logActionButtons
             }
-            .buttonStyle(.plain)
 
-            Button {
-                confirmClearLogs()
-            } label: {
-                Label("清空", systemImage: "trash")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(toolButtonBackground)
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    searchField
+                    filterMenu
+                    Spacer(minLength: 0)
+                }
+
+                HStack(spacing: 10) {
+                    Spacer(minLength: 0)
+                    logActionButtons
+                }
             }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(secondarySurfaceBackground(cornerRadius: 18))
+    }
+
+    private var logActionButtons: some View {
+        HStack(spacing: 10) {
+            Button(action: copyCompleteLogs) {
+                Label("复制日志", systemImage: "doc.on.doc")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(toolButtonBackground)
+            }
+            .buttonStyle(.plain)
+            .disabled(sourceLogs.isEmpty)
+
+            Button(action: exportCompleteLogs) {
+                Label("导出", systemImage: "square.and.arrow.up")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(toolButtonBackground)
+            }
+            .buttonStyle(.plain)
+            .disabled(sourceLogs.isEmpty)
+
+            moreMenu
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            TextField("搜索消息或源码位置", text: $searchText)
+                .textFieldStyle(.plain)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(minWidth: 180, idealWidth: 240, maxWidth: 280, minHeight: 34)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .textBackgroundColor).opacity(colorScheme == .dark ? 0.55 : 0.75))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color.secondary.opacity(0.12), lineWidth: 1)
+                )
+        )
     }
 
     private var filterMenu: some View {
         Menu {
             Button {
-                logLevelFilter = nil
+                minimumLevel = nil
             } label: {
-                Label("全部级别", systemImage: logLevelFilter == nil ? "checkmark" : "line.3.horizontal.decrease.circle")
+                Label("全部级别", systemImage: minimumLevel == nil ? "checkmark" : "line.3.horizontal.decrease.circle")
             }
 
             ForEach(LogLevel.allCases) { level in
                 Button {
-                    logLevelFilter = level
+                    minimumLevel = level
                 } label: {
-                    Label(level.rawValue, systemImage: logLevelFilter == level ? "checkmark" : level.icon)
+                    Label("\(level.rawValue)及以上", systemImage: minimumLevel == level ? "checkmark" : level.icon)
                 }
             }
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "line.3.horizontal.decrease.circle")
-                    .font(.system(size: 12, weight: .semibold))
-
-                Text("级别：\(logLevelFilter?.rawValue ?? "全部")")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(toolButtonBackground)
+            Label(filterTitle, systemImage: "line.3.horizontal.decrease.circle")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(toolButtonBackground)
         }
-        .buttonStyle(.plain)
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button {
+                loadLogFiles()
+                showingFileSelector = true
+            } label: {
+                Label("查看历史日志", systemImage: "folder")
+            }
+
+            if loadedHistoricalLogs != nil {
+                Button(action: returnToLiveLogs) {
+                    Label("返回实时日志", systemImage: "dot.radiowaves.left.and.right")
+                }
+            } else {
+                Divider()
+
+                Button(role: .destructive, action: confirmClearLogs) {
+                    Label("清空当前内存日志", systemImage: "trash")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 34, height: 34)
+                .background(toolButtonBackground)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
     }
 
     private var logSurface: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if filteredLogs.isEmpty {
+            if state.filteredLogs.isEmpty {
                 emptyStateView
             } else {
-                ScrollView(.horizontal, showsIndicators: true) {
-                    Text(logTextContent)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .padding(20)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(state.filteredLogs) { entry in
+                            logRow(entry)
+
+                            if entry.id != state.filteredLogs.last?.id {
+                                Divider()
+                                    .padding(.leading, 184)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Divider()
-                .overlay(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12))
-
             bottomStatusBar
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(primarySurfaceBackground(cornerRadius: 22))
+    }
+
+    private func logRow(_ entry: LogEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(logTime(entry.timestamp))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+
+                Text(logDate(entry.timestamp))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(width: 78, alignment: .trailing)
+
+            Label(entry.level.rawValue, systemImage: entry.level.icon)
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundStyle(levelColor(entry.level))
+                .frame(width: 66, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(entry.message)
+                    .font(.system(size: 12.5, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("\(entry.sourceFile):\(entry.sourceLine)")
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
     }
 
     private var emptyStateView: some View {
@@ -167,73 +295,66 @@ struct LogViewer: View {
                 .font(.system(size: 34))
                 .foregroundStyle(.secondary)
 
-            Text("当前没有可显示的日志")
+            Text(sourceLogs.isEmpty ? "当前没有后台日志" : "没有符合筛选条件的日志")
                 .font(.headline)
-                .foregroundStyle(.primary)
 
-            if logLevelFilter != nil {
-                Text("试试切换到更低日志级别，或者载入历史日志文件。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+            Text(sourceLogs.isEmpty
+                ? "应用运行期间产生的技术日志会显示在这里。"
+                : "可以清除搜索条件，或降低日志级别后再查看。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
 
-                Button {
-                    logLevelFilter = nil
-                } label: {
-                    Text("显示全部级别")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(Color.blue.opacity(0.12))
-                        )
+            if !sourceLogs.isEmpty {
+                Button("重置筛选") {
+                    searchText = ""
+                    minimumLevel = nil
                 }
-                .buttonStyle(.plain)
-            } else {
-                Text("应用运行期间产生的日志会集中显示在这里。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                .buttonStyle(.bordered)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 52)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(40)
     }
 
     private var bottomStatusBar: some View {
-        HStack(spacing: 12) {
-            Label("\(filteredLogs.count) 条日志", systemImage: "doc.text")
+        HStack(spacing: 10) {
+            Label("显示 \(state.filteredLogs.count) / \(sourceLogs.count) 条", systemImage: "doc.text")
                 .font(.footnote)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
 
-            Spacer(minLength: 16)
-
-            Button {
-                exportLogs()
-            } label: {
-                Label("导出日志", systemImage: "square.and.arrow.up")
+            if let copyFeedback {
+                Label(copyFeedback, systemImage: "checkmark.circle.fill")
                     .font(.footnote)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(toolButtonBackground)
+                    .foregroundStyle(.green)
             }
-            .buttonStyle(.plain)
+
+            Spacer(minLength: 12)
+
+            Text("复制与导出始终包含当前来源的完整日志")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private var logSourceTitle: String {
+        loadedFileName ?? "实时日志"
+    }
+
+    private var filterTitle: String {
+        minimumLevel.map { "\($0.rawValue)及以上" } ?? "全部级别"
     }
 
     private var toolButtonBackground: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.55))
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color.white.opacity(colorScheme == .dark ? 0.055 : 0.58))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.secondary.opacity(0.08), lineWidth: 1)
+            )
     }
 
     private func primarySurfaceBackground(cornerRadius: CGFloat) -> some View {
@@ -241,11 +362,11 @@ struct LogViewer: View {
             .fill(Color(nsColor: .controlBackgroundColor))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.blue.opacity(0.035))
+                    .fill(Color.blue.opacity(0.02))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.blue.opacity(0.10), lineWidth: 1)
+                    .strokeBorder(Color.blue.opacity(0.09), lineWidth: 1)
             )
     }
 
@@ -254,19 +375,68 @@ struct LogViewer: View {
             .fill(Color(nsColor: .controlBackgroundColor))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(colorScheme == .dark ? 0.02 : 0.38))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12), lineWidth: 1)
             )
     }
 
+    private func levelColor(_ level: LogLevel) -> Color {
+        switch level {
+        case .debug: return .secondary
+        case .info: return .blue
+        case .warning: return .orange
+        case .error: return .red
+        }
+    }
+
+    private func logTime(_ date: Date) -> String {
+        date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits))
+    }
+
+    private func logDate(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.twoDigits).day(.twoDigits))
+    }
+
+    private func copyCompleteLogs() {
+        guard !state.completeLogText.isEmpty else { return }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(state.completeLogText, forType: .string)
+        showCopyFeedback("已复制 \(sourceLogs.count) 条")
+    }
+
+    private func showCopyFeedback(_ message: String) {
+        copyFeedback = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+            if copyFeedback == message {
+                copyFeedback = nil
+            }
+        }
+    }
+
+    private func loadLogFiles() {
+        logFiles = logger.getLogFiles()
+    }
+
+    private func loadLogsFromFile(_ file: URL) {
+        loadedHistoricalLogs = logger.loadLogFile(file)
+        loadedFileName = file.lastPathComponent
+        searchText = ""
+        selectedLogFile = nil
+    }
+
+    private func returnToLiveLogs() {
+        loadedHistoricalLogs = nil
+        loadedFileName = nil
+        selectedLogFile = nil
+        searchText = ""
+    }
+
     private func confirmClearLogs() {
         let alert = NSAlert()
-        alert.messageText = "确认清除当前日志吗？"
-        alert.informativeText = "此操作无法撤销。清除后，日志将从界面中移除，但日志文件仍会保留。"
-        alert.addButton(withTitle: "确认清除")
+        alert.messageText = "清空当前内存日志？"
+        alert.informativeText = "界面中的实时日志会被清空，磁盘上的历史日志文件不会删除。"
+        alert.addButton(withTitle: "清空")
         alert.addButton(withTitle: "取消")
         alert.alertStyle = .warning
 
@@ -275,49 +445,28 @@ struct LogViewer: View {
         }
     }
 
-    private func loadLogFiles() {
-        logFiles = AppLogger.shared.getLogFiles()
-    }
+    private func exportCompleteLogs() {
+        guard !state.completeLogText.isEmpty else { return }
 
-    private func loadLogsFromFile(_ file: URL) {
-        let entries = AppLogger.shared.loadLogFile(file)
-        DispatchQueue.main.async {
-            AppLogger.shared.logs = entries
-        }
-    }
-
-    private func exportLogs() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let timestamp = formatter.string(from: Date())
+        let defaultName = "maru_logs_\(formatter.string(from: Date())).log"
+        let content = state.completeLogText + "\n"
 
-        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("maru_logs_\(timestamp).log")
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = defaultName
+        panel.allowedContentTypes = [.log, .plainText]
+        panel.canCreateDirectories = true
 
-        var logContent = ""
-        for entry in filteredLogs.reversed() {
-            logContent += entry.formatted + "\n"
-        }
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
 
-        do {
-            try logContent.write(to: fileURL, atomically: true, encoding: .utf8)
-
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = fileURL.lastPathComponent
-            panel.allowedContentTypes = [.log, .text]
-            panel.canCreateDirectories = true
-
-            panel.begin { response in
-                if response == .OK, let url = panel.url {
-                    do {
-                        try FileManager.default.moveItem(at: fileURL, to: url)
-                        AppLogger.shared.log("日志已导出到: \(url.path)", level: .info)
-                    } catch {
-                        AppLogger.shared.log("导出日志失败: \(error.localizedDescription)", level: .error)
-                    }
-                }
+            do {
+                try content.write(to: url, atomically: true, encoding: .utf8)
+                AppLogger.shared.log("日志已导出到: \(url.path)", level: .info)
+            } catch {
+                AppLogger.shared.log("导出日志失败: \(error.localizedDescription)", level: .error)
             }
-        } catch {
-            AppLogger.shared.log("导出日志失败: \(error.localizedDescription)", level: .error)
         }
     }
 }
@@ -350,7 +499,7 @@ struct LogFileSelector: View {
                 .padding(24)
             } else {
                 ScrollView {
-                    VStack(spacing: 12) {
+                    LazyVStack(spacing: 10) {
                         ForEach(logFiles, id: \.self) { file in
                             LogFileRow(file: file)
                                 .contentShape(Rectangle())
@@ -360,7 +509,7 @@ struct LogFileSelector: View {
                                 }
                         }
                     }
-                    .padding(24)
+                    .padding(20)
                 }
             }
 
@@ -376,7 +525,7 @@ struct LogFileSelector: View {
                     .font(.title3)
                     .fontWeight(.semibold)
 
-                Text("选择一个日志文件载入当前查看器。")
+                Text("载入查看不会覆盖或中断当前实时日志。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -394,36 +543,31 @@ struct LogFileSelector: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
-        .background(
-            Rectangle()
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .overlay(Rectangle().fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.10)))
-        )
+        .background(headerFooterBackground)
     }
 
     private var footer: some View {
         HStack {
-            Button {
-                isPresented = false
-            } label: {
-                Text("取消")
-                    .frame(width: 100)
-            }
-            .buttonStyle(.bordered)
-
-            Spacer(minLength: 16)
-
             Text("\(logFiles.count) 个日志文件")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            Spacer(minLength: 16)
+
+            Button("取消") {
+                isPresented = false
+            }
+            .buttonStyle(.bordered)
         }
         .padding(.horizontal, 24)
-        .padding(.vertical, 18)
-        .background(
-            Rectangle()
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .overlay(Rectangle().fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.10)))
-        )
+        .padding(.vertical, 16)
+        .background(headerFooterBackground)
+    }
+
+    private var headerFooterBackground: some View {
+        Rectangle()
+            .fill(Color(nsColor: .controlBackgroundColor))
+            .overlay(Rectangle().fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.10)))
     }
 }
 
@@ -433,22 +577,21 @@ struct LogFileRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.blue.opacity(0.10))
-
-                Image(systemName: "doc.text.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.blue)
-            }
-            .frame(width: 40, height: 40)
+            Image(systemName: "doc.text.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.blue)
+                .frame(width: 40, height: 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.blue.opacity(0.10))
+                )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(file.lastPathComponent)
                     .font(.headline)
                     .lineLimit(1)
 
-                Text("创建于：\(formattedDate(for: file))")
+                Text("创建于 \(formattedDate(for: file))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -459,51 +602,35 @@ struct LogFileRow: View {
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.45))
-                )
         }
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.12), lineWidth: 1)
                 )
         )
     }
 
     private func formattedDate(for file: URL) -> String {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-            if let date = attributes[.creationDate] as? Date {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                formatter.timeStyle = .short
-                return formatter.string(from: date)
-            }
-        } catch {
-            print("获取文件日期失败: \(error)")
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+              let date = attributes[.creationDate] as? Date else {
+            return "未知日期"
         }
-        return "未知日期"
+        return date.formatted(date: .abbreviated, time: .shortened)
     }
 
     private func formattedFileSize(for file: URL) -> String {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-            if let size = attributes[.size] as? NSNumber {
-                let formatter = ByteCountFormatter()
-                formatter.allowedUnits = [.useKB, .useMB]
-                formatter.countStyle = .file
-                return formatter.string(fromByteCount: size.int64Value)
-            }
-        } catch {
-            print("获取文件大小失败: \(error)")
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+              let size = attributes[.size] as? NSNumber else {
+            return "未知大小"
         }
-        return "未知大小"
+
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size.int64Value)
     }
 }

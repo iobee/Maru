@@ -2,6 +2,18 @@ import XCTest
 @testable import Maru
 
 final class AppConfigRuleUpsertTests: XCTestCase {
+    func testReadingUnknownRuleDoesNotPersistTransientApplication() {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Maru-AppConfigReadOnlyRule-\(UUID().uuidString)", isDirectory: true)
+        let config = AppConfig(storageDirectoryURL: temporaryDirectory)
+        let originalRules = config.appRules
+
+        let rule = config.getRule(for: "com.apple.SecurityAgent", appName: "SecurityAgent")
+
+        XCTAssertEqual(rule, .almostMaximize)
+        XCTAssertEqual(config.appRules, originalRules)
+    }
+
     func testSetRuleCreatesMissingApplicationRuleAndPersistsIt() throws {
         let temporaryDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("Maru-AppConfigRuleUpsert-\(UUID().uuidString)", isDirectory: true)

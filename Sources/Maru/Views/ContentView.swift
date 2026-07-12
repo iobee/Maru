@@ -10,6 +10,7 @@ struct ContentView: View {
         case home = 0
         case manualControl
         case rules
+        case activity
         case logs
         case about
         
@@ -20,7 +21,8 @@ struct ContentView: View {
             case .home: return "常规"
             case .manualControl: return "快捷键"
             case .rules: return "应用规则"
-            case .logs: return "日志"
+            case .activity: return "应用动态"
+            case .logs: return "后台日志"
             case .about: return "关于"
             }
         }
@@ -30,6 +32,7 @@ struct ContentView: View {
             case .home: return "house.fill"
             case .manualControl: return "keyboard.fill"
             case .rules: return "gearshape.fill"
+            case .activity: return "clock.arrow.circlepath"
             case .logs: return "doc.text.fill"
             case .about: return "info.circle.fill"
             }
@@ -219,6 +222,8 @@ struct ContentView: View {
                     ManualControlView()
                 case .rules:
                     RuleConfigView()
+                case .activity:
+                    AppActivityView()
                 case .logs:
                     LogViewer()
                 case .about:
@@ -254,6 +259,8 @@ private extension ContentView.NavigationSection {
             self = .manualControl
         case .rules:
             self = .rules
+        case .activity:
+            self = .activity
         case .logs:
             self = .logs
         case .about:
@@ -269,6 +276,8 @@ private extension ContentView.NavigationSection {
             return .manualControl
         case .rules:
             return .rules
+        case .activity:
+            return .activity
         case .logs:
             return .logs
         case .about:

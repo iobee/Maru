@@ -394,9 +394,6 @@ class AppConfig: ObservableObject {
     
     // 获取应用规则
     func getRule(for bundleId: String, appName: String) -> WindowHandlingRule {
-        // 记录应用使用
-        recordAppUsage(bundleId: bundleId, appName: appName)
-        
         // 查找规则
         if let rule = appRules.first(where: { $0.bundleId == bundleId }) {
             return rule.rule

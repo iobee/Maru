@@ -38,6 +38,21 @@ temporary file and import it into the local Keychain:
 .build/artifacts/sparkle/Sparkle/bin/generate_keys -f /path/to/sparkle-ed25519-key
 ```
 
+## Local Behavior Testing Without a Signing Identity
+
+Use the local packaging script when validating window behavior on a machine
+that does not have the stable release certificate:
+
+```bash
+./Scripts/package-local.sh
+open -n Release/Local/Maru.app
+```
+
+This creates a real local `.app` bundle with an ad-hoc signature and the bundle
+identifier `com.nick.maru.local`. It is for local testing only and must never be
+uploaded as a release artifact. Because its signature changes when rebuilt,
+macOS may require Accessibility permission again.
+
 ## Stable Release Signing
 
 - Public release DMGs must be signed with the same stable code-signing certificate for every release.

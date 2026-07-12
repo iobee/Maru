@@ -4,6 +4,7 @@ enum NavigationTab: String, CaseIterable, Identifiable {
     case home
     case manualControl
     case rules
+    case activity
     case logs
     case about
     
@@ -14,7 +15,8 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         case .home: return "常规"
         case .manualControl: return "快捷键"
         case .rules: return "应用规则"
-        case .logs: return "日志"
+        case .activity: return "应用动态"
+        case .logs: return "后台日志"
         case .about: return "关于"
         }
     }
@@ -24,6 +26,7 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         case .home: return "house.fill"
         case .manualControl: return "keyboard.fill"
         case .rules: return "gearshape.fill"
+        case .activity: return "clock.arrow.circlepath"
         case .logs: return "doc.text.fill"
         case .about: return "info.circle.fill"
         }

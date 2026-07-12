@@ -116,9 +116,18 @@ final class StageManagerSettings: ObservableObject {
             lastErrorMessage = nil
             AppLogger.shared.log("Stage Manager 已\(isEnabled ? "开启" : "关闭")", level: .info)
         } catch {
-            lastErrorMessage = error.localizedDescription
-            AppLogger.shared.log("切换 Stage Manager 失败: \(error.localizedDescription)", level: .error)
-            reload()
+            let writeErrorMessage = error.localizedDescription
+            lastErrorMessage = writeErrorMessage
+            AppLogger.shared.log("切换 Stage Manager 失败: \(writeErrorMessage)", level: .error)
+            refreshStateAfterWriteFailure()
+        }
+    }
+
+    private func refreshStateAfterWriteFailure() {
+        do {
+            isEnabled = try controller.readEnabled()
+        } catch {
+            AppLogger.shared.log("写入失败后刷新 Stage Manager 状态也失败: \(error.localizedDescription)", level: .warning)
         }
     }
 }
