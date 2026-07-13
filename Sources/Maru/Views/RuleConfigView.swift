@@ -104,7 +104,7 @@ struct RuleConfigView: View {
         let centerCount = config.appRules.filter { $0.rule == .center }.count
         let almostMaximizeCount = config.appRules.filter { $0.rule == .almostMaximize }.count
 
-        return "当前共 \(config.appRules.count) 条规则，其中 \(centerCount) 条居中、\(almostMaximizeCount) 条几乎最大化。"
+        return "当前共 \(config.appRules.count) 条规则，其中 \(centerCount) 条居中、\(almostMaximizeCount) 条呼吸窗口。"
     }
 
     var body: some View {
@@ -334,7 +334,7 @@ struct RuleConfigView: View {
                 Button {
                     updateRuleAndRefresh(for: rule.bundleId, rule: .almostMaximize)
                 } label: {
-                    Label("设为几乎最大化", systemImage: "rectangle.inset.filled")
+                    Label("设为\(WindowHandlingRule.almostMaximize.rawValue)", systemImage: "rectangle.inset.filled")
                 }
             }
         }
@@ -506,14 +506,7 @@ struct RuleRow: View {
     }
 
     private var ruleLabelText: String {
-        switch rule.rule {
-        case .center:
-            return "居中"
-        case .almostMaximize:
-            return "几乎最大化"
-        case .ignore:
-            return "忽略"
-        }
+        rule.rule.rawValue
     }
 
     private var ruleSemanticColor: Color {

@@ -2222,7 +2222,7 @@ class WindowManager: ObservableObject {
     }
 
     private func almostMaximizeWindow(_ window: AXUIElement, completion: ((Bool) -> Void)? = nil) {
-        AppLogger.shared.log("开始几乎最大化窗口操作", level: .debug)
+        AppLogger.shared.log("开始呼吸窗口操作", level: .debug)
         
         // 直接获取窗口所在的屏幕
         let currentScreen = getScreenForWindow(window)

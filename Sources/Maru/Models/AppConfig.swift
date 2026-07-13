@@ -52,7 +52,7 @@ class AppConfig: ObservableObject {
     @Published private(set) var manualAlmostMaximizeShortcut: ShortcutBinding? = ManualWindowAction.almostMaximize.defaultShortcut
     @Published private(set) var manualMoveToNextDisplayShortcut: ShortcutBinding? = ManualWindowAction.moveToNextDisplay.defaultShortcut
     
-    // 窗口缩放比例 (0.0-1.0)，控制几乎最大化时窗口的大小
+    // 窗口缩放比例 (0.0-1.0)，控制呼吸窗口模式下的窗口大小
     @Published var windowScaleFactor: Double = 0.92 {
         didSet {
             // 当值变化时保存配置
