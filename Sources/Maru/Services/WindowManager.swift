@@ -152,6 +152,28 @@ enum WindowActionPolicy {
     }
 }
 
+enum WindowRuleExecutionMode: Equatable {
+    case automatic
+    case manual
+}
+
+enum WindowRuleEligibilityPolicy {
+    static func shouldApply(
+        executionMode: WindowRuleExecutionMode,
+        isSizeSettable: Bool
+    ) -> Bool {
+        switch executionMode {
+        case .automatic:
+            // AXSize 是 macOS 提供的整体尺寸写入能力。只要任一维度可调整，
+            // 应用通常就会公开该属性为可写，并在写入后约束到实际接受的尺寸。
+            return isSizeSettable
+        case .manual:
+            // 用户主动操作时保留固定尺寸窗口的居中能力。
+            return true
+        }
+    }
+}
+
 enum WindowResizeSettlingPolicy {
     static func shouldRetry(
         originalSize: CGSize,
@@ -850,6 +872,34 @@ class WindowManager: ObservableObject {
             return
         }
 
+        let windowTitle = activityWindowTitle(window)
+        let executionMode: WindowRuleExecutionMode = triggerSource.hasPrefix("automatic")
+            ? .automatic
+            : .manual
+        let isSizeSettable = isAXAttributeSettable(
+            window,
+            attribute: kAXSizeAttribute as CFString
+        )
+
+        guard WindowRuleEligibilityPolicy.shouldApply(
+            executionMode: executionMode,
+            isSizeSettable: isSizeSettable
+        ) else {
+            AppLogger.shared.log(
+                "跳过固定尺寸窗口的自动处理: 应用=\(appIdentity), 规则=\(rule.rawValue)",
+                level: .info
+            )
+            recordActivity(
+                for: app,
+                kind: .skipped,
+                title: "未处理固定尺寸窗口",
+                detail: "macOS 报告当前窗口的宽度和高度均不可调整；为避免误操作，Maru 不会自动移动或居中它。",
+                windowTitle: windowTitle,
+                trigger: userFacingTrigger(triggerSource)
+            )
+            return
+        }
+
         guard let signature = getWindowSignature(window) else {
             AppLogger.shared.log("目标窗口无法读取位置和尺寸，取消操作: \(appIdentity)", level: .warning)
             recordActivity(
@@ -863,7 +913,6 @@ class WindowManager: ObservableObject {
             return
         }
 
-        let windowTitle = activityWindowTitle(window)
         recordActivity(
             for: app,
             kind: .action,

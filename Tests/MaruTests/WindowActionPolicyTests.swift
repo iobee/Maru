@@ -20,6 +20,33 @@ final class WindowActionPolicyTests: XCTestCase {
         XCTAssertEqual(plan, .positionOnly)
     }
 
+    func testAutomaticRuleSkipsWindowWhenNeitherSizeDimensionIsAdjustable() {
+        XCTAssertFalse(
+            WindowRuleEligibilityPolicy.shouldApply(
+                executionMode: .automatic,
+                isSizeSettable: false
+            )
+        )
+    }
+
+    func testAutomaticRuleAllowsWindowWhenAtLeastOneSizeDimensionIsAdjustable() {
+        XCTAssertTrue(
+            WindowRuleEligibilityPolicy.shouldApply(
+                executionMode: .automatic,
+                isSizeSettable: true
+            )
+        )
+    }
+
+    func testManualRuleStillAllowsFixedSizeWindow() {
+        XCTAssertTrue(
+            WindowRuleEligibilityPolicy.shouldApply(
+                executionMode: .manual,
+                isSizeSettable: false
+            )
+        )
+    }
+
     func testCenterNeverRequiresSizeMutation() {
         let plan = WindowActionPolicy.mutationPlan(
             for: .center,
@@ -49,11 +76,22 @@ final class WindowActionPolicyTests: XCTestCase {
         )
     }
 
-    func testResizeAcceptsApplicationConstrainedSizeAfterAnyActualResponse() {
+    func testResizeAcceptsHeightOnlyResponseFromWidthConstrainedWindow() {
         XCTAssertFalse(
             WindowResizeSettlingPolicy.shouldRetry(
                 originalSize: CGSize(width: 900, height: 700),
-                actualSize: CGSize(width: 1050, height: 740),
+                actualSize: CGSize(width: 900, height: 740),
+                requestedSize: CGSize(width: 1200, height: 800),
+                retriesRemaining: 2
+            )
+        )
+    }
+
+    func testResizeAcceptsWidthOnlyResponseFromHeightConstrainedWindow() {
+        XCTAssertFalse(
+            WindowResizeSettlingPolicy.shouldRetry(
+                originalSize: CGSize(width: 900, height: 700),
+                actualSize: CGSize(width: 1050, height: 700),
                 requestedSize: CGSize(width: 1200, height: 800),
                 retriesRemaining: 2
             )
