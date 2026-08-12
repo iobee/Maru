@@ -49,8 +49,12 @@ require_release_signing_identity() {
     local identities=""
 
     identities="$(security find-identity -v -p codesigning)"
-    grep -F "$SIGNING_IDENTITY" <<< "$identities" >/dev/null \
-        || fail "No matching stable signing identity found: $SIGNING_IDENTITY"
+    if ! grep -F "$SIGNING_IDENTITY" <<< "$identities" >/dev/null; then
+        if [[ -n "${CODEX_SANDBOX:-}" ]]; then
+            fail "No matching stable signing identity is visible: $SIGNING_IDENTITY. Codex sandboxing can falsely report 0 valid identities; rerun Scripts/release-preflight.sh outside the sandbox before concluding the certificate is missing."
+        fi
+        fail "No matching stable signing identity found: $SIGNING_IDENTITY"
+    fi
 
     if [[ -n "$DEVELOPMENT_TEAM" ]]; then
         grep -F "$SIGNING_IDENTITY" <<< "$identities" | grep -F "($DEVELOPMENT_TEAM)" >/dev/null \

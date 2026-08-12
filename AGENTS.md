@@ -215,6 +215,9 @@ swift package clean
 ### Release Source of Truth
 
 - Use `docs/UPDATE-RELEASE-CHECKLIST.md` as the detailed runbook for DMG packaging, GitHub Release upload, and Sparkle appcast publishing.
+- The canonical local release entry point is `./Scripts/publish-release.sh --publish`; it runs the complete preflight itself and must be executed outside a restrictive Codex sandbox. Use `./Scripts/release-preflight.sh --publish` only for an optional read-only preview.
+- Do not conclude that `Maru Release Signing` is missing from a sandboxed `security find-identity` result. Sandbox Keychain visibility can return a false `0 valid identities`; repeat the preflight outside the sandbox.
+- Prefer the proven local signed release path until every GitHub Actions signing secret is confirmed. Workflow files alone are not proof that CI publishing is configured.
 - The current public Sparkle feed is `https://iobee.github.io/Maru/appcast.xml`, served from the `gh-pages` branch root.
 - The GitHub repository is `iobee/Maru`.
 - Sparkle's public EdDSA key is committed in `Sources/Maru/Info.plist`; the private EdDSA key must never be committed.
@@ -246,6 +249,16 @@ Expected output:
 - `Release/Maru-<version>.dmg`
 
 The packaging script regenerates `Maru.xcodeproj` with XcodeGen, archives with `xcodebuild archive`, exports with `xcodebuild -exportArchive`, verifies code signing, validates the Sparkle framework and menu bar icon asset, then creates and verifies the DMG.
+
+For a complete public release, do not manually stitch the later steps together:
+
+```bash
+./Scripts/publish-release.sh --publish
+```
+
+The publish script clears stale GitHub token environment variables, uses the
+validated Sparkle key-file fallback, refuses to clobber tags/assets, publishes
+`gh-pages`, and verifies the public feed.
 
 ### GitHub Release Upload
 
@@ -282,12 +295,14 @@ Local manual flow:
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/Maru/Info.plist)"
 TAG="v$VERSION"
 FEED_DIR="Release/SparkleFeed"
+SPARKLE_KEY_FILE="${MARU_SPARKLE_PRIVATE_KEY_FILE:-$HOME/Downloads/maru-sparkle-ed25519-key}"
 
 rm -rf "$FEED_DIR"
 mkdir -p "$FEED_DIR"
 cp "Release/Maru-$VERSION.dmg" "$FEED_DIR/"
 
 .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+  --ed-key-file "$SPARKLE_KEY_FILE" \
   --download-url-prefix "https://github.com/iobee/Maru/releases/download/$TAG/" \
   --link "https://github.com/iobee/Maru/releases/tag/$TAG" \
   --maximum-deltas 0 \
@@ -297,7 +312,12 @@ cp "Release/Maru-$VERSION.dmg" "$FEED_DIR/"
 xmllint --noout "$FEED_DIR/appcast.xml"
 ```
 
-`generate_appcast` reads the private EdDSA key from the local Keychain by default. In CI, pass the private key through the `SPARKLE_PRIVATE_KEY` repository secret and `--ed-key-file`; never commit private key material.
+Direct `generate_appcast` calls can read the private EdDSA key from the local
+Keychain, but that can hang on an interactive authorization prompt. The proven
+local path uses the existing `~/Downloads/maru-sparkle-ed25519-key` backup via
+`--ed-key-file`; never print, commit, upload, or rotate that key. In CI, pass the
+private key through the `SPARKLE_PRIVATE_KEY` repository secret and
+`--ed-key-file`.
 
 Publish the generated feed to GitHub Pages:
 
