@@ -79,6 +79,10 @@ def notarize(path, team, profile, submit_only):
     if record.get('fingerprint') != fingerprint:
         record = {}
     auth = ['--keychain-profile', profile]
+    # notarytool otherwise searches the data-protection keychain, even when a
+    # file-based CI keychain was added to the signing certificate search list.
+    if os.environ.get('MACOS_NOTARY_KEYCHAIN'):
+        auth += ['--keychain', os.environ['MACOS_NOTARY_KEYCHAIN']]
     if not record.get('id'):
         upload = path
         if path.suffix == '.app':

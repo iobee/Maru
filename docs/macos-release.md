@@ -31,7 +31,7 @@ A rejected or pending submission stops the pipeline before that artifact is publ
 
 Apple can take longer than a build job. `MACOS_NOTARY_TIMEOUT` defaults to `20m`.
 Pending submissions exit 75 and are recorded beside the artifact in `.notary/`.
-Resume the exact artifact with `python3 <Scripts-or-scripts>/macos-release.py notarize
+Resume the exact artifact with `python3 Scripts/macos-release.py notarize
 /path/to/App.app` (or the DMG), using the same environment. Do not rebuild it merely
 to poll: a new build has a new signature and requires a new submission.
 
@@ -39,6 +39,9 @@ to poll: a new build has a new signature and requires a new submission.
 
 CI is gated on Developer ID certificate and notarization credentials. Adding the
 workflow does not configure repository secrets. Never commit or print these values.
+The workflow stores notarization credentials in a temporary file-based keychain
+and sets `MACOS_NOTARY_KEYCHAIN` so every notarytool command reads that same keychain.
+Local builds can leave this unset to use the existing default Keychain profile.
 Set `MACOS_SIGN_IDENTITY` and `MACOS_TEAM_ID` as repository variables. Supply
 `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, and
 `APPLE_APP_SPECIFIC_PASSWORD` as repository secrets. HiTranslator also needs its

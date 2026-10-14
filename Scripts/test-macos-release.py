@@ -27,6 +27,20 @@ class ReleaseTests(unittest.TestCase):
    with patch.object(r,'verify',return_value='CDHash=abc\n'),patch.object(r,'run',side_effect=fake):
     self.assertEqual(r.notarize(app,'TEAM','profile',True),75)
    self.assertEqual([c[2] for c in calls],['info'])
+ def test_custom_keychain_is_used_throughout_submission_and_polling(self):
+  with TemporaryDirectory() as tmp:
+   app=Path(tmp)/'A.app';app.mkdir();calls=[];statuses=iter(['In Progress','Accepted'])
+   def fake(*args,**kw):
+    calls.append(args)
+    status=next(statuses) if args[:3]==('xcrun','notarytool','info') else 'Accepted'
+    return SimpleNamespace(stdout=json.dumps({'id':'request-1','status':status}),stderr='',returncode=0)
+   with patch.dict(r.os.environ,{'MACOS_NOTARY_KEYCHAIN':'/tmp/release.keychain-db'}),patch.object(r,'verify',return_value='CDHash=abc\n'),patch.object(r,'run',side_effect=fake):
+    self.assertEqual(r.notarize(app,'TEAM','profile',False),0)
+   notary_calls=[c for c in calls if c[:2]==('xcrun','notarytool')]
+   self.assertEqual([c[2] for c in notary_calls],['submit','info','wait','info','log'])
+   for call in notary_calls:
+    self.assertEqual(call[call.index('--keychain')+1],'/tmp/release.keychain-db')
+   self.assertTrue(any(c[:3]==('xcrun','stapler','staple') for c in calls))
  def test_invalid_submission_does_not_staple(self):
   with TemporaryDirectory() as tmp:
    app=Path(tmp)/'A.app';app.mkdir();state=app.parent/'.notary'/app.name;state.mkdir(parents=True)

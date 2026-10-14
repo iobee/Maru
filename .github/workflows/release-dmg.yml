@@ -16,6 +16,7 @@ jobs:
       MACOS_SIGN_IDENTITY: ${{ vars.MACOS_SIGN_IDENTITY }}
       MACOS_TEAM_ID: ${{ vars.MACOS_TEAM_ID }}
       MACOS_NOTARY_PROFILE: release-notary
+      MACOS_NOTARY_KEYCHAIN: ${{ runner.temp }}/release-signing.keychain-db
       MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
       MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
