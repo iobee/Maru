@@ -77,3 +77,10 @@ test_launch.sh
 
 # Agent local artifacts
 .superpowers/brainstorm/
+
+# Local signing configuration and notarization receipts
+.env.release.local
+**/.notary/
+
+# Python release-tool bytecode
+**/__pycache__/

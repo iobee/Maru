@@ -27,6 +27,26 @@ final class ReleaseSigningConfigurationTests: XCTestCase {
         )
     }
 
+    func testReleasePreflightGuardsKnownLocalFailureModes() throws {
+        let script = try repositoryFileContents("Scripts/release-preflight.sh")
+
+        XCTAssertTrue(script.contains("CODEX_SANDBOX"))
+        XCTAssertTrue(script.contains("Maru Release Signing"))
+        XCTAssertTrue(script.contains("expected 44"))
+        XCTAssertTrue(script.contains("mode 400 or 600"))
+        XCTAssertTrue(script.contains("env -u GITHUB_TOKEN -u GH_TOKEN"))
+    }
+
+    func testPublishReleaseUsesNonInteractiveSigningAndNeverClobbersAssets() throws {
+        let script = try repositoryFileContents("Scripts/publish-release.sh")
+
+        XCTAssertTrue(script.contains("--ed-key-file"))
+        XCTAssertFalse(script.contains("--clobber"))
+        XCTAssertTrue(script.contains("validate_published_dmg"))
+        XCTAssertTrue(script.contains("read_appcast_enclosure_url"))
+        XCTAssertTrue(script.contains("PUBLIC_APPCAST_URL"))
+    }
+
     private func repositoryFileContents(_ relativePath: String) throws -> String {
         let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent(relativePath)

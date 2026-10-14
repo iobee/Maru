@@ -1,20 +1,77 @@
 # Maru Update Release Checklist
 
+Developer ID migration: follow [macOS release setup](macos-release.md) and source
+`.env.release.local` before the commands below. Publishing now requires Developer ID
+plus Accepted notarization. The self-signed instructions below describe legacy local
+builds only. Keep the existing Sparkle EdDSA key. Increment version/build before
+publishing a newly signed replacement for an already released version.
+
+## Canonical Local Release Path
+
+Until all GitHub Actions signing secrets are confirmed, the proven release path
+for this repository is the local signed flow. Use the repository scripts instead
+of reconstructing the individual commands from shell history:
+
+```bash
+# Optional read-only preview. Run this outside a restrictive Codex sandbox.
+./Scripts/release-preflight.sh --publish
+
+# Canonical one-command publish; it reruns the complete preflight itself.
+./Scripts/publish-release.sh --publish
+```
+
+`publish-release.sh` runs tests, builds and verifies the signed DMG, creates or
+resumes the annotated tag and GitHub prerelease, generates the Sparkle appcast,
+publishes it to `gh-pages`, and verifies the public feed. It resumes only when
+the existing tag matches the current commit and the published DMG has the
+expected version, build, and exact release-certificate fingerprint. Newly
+uploaded bytes are downloaded and hash-checked. The script never uses
+`--clobber` and refuses to overwrite a mismatched published artifact.
+
+Running `publish-release.sh` without `--publish` performs only the local preflight.
+
+### Release Invariants
+
+- Run Keychain, code-signing, `hdiutil`, and GitHub publishing checks outside a
+  restrictive Codex sandbox. A sandboxed `security find-identity` can incorrectly
+  report `0 valid identities` even when the login keychain contains a usable
+  `Maru Release Signing` identity. Always repeat that check outside the sandbox
+  before asking for a new certificate or `.p12`.
+- The local stable identity is `Maru Release Signing` in the login keychain.
+- Keep the Sparkle private key separate from the code-signing identity. On the
+  current release Mac, the validated backup is
+  `~/Downloads/maru-sparkle-ed25519-key`; it must be 44 bytes and owner-only
+  (`chmod 600`). The scripts inspect metadata but never print its contents.
+- Local appcast generation uses Sparkle's official `--ed-key-file` path so a
+  Keychain authorization dialog cannot leave a headless release hanging.
+- Local `gh` commands always clear `GITHUB_TOKEN` and `GH_TOKEN`, allowing the
+  validated keyring-backed `gh` login to be used.
+- `Info.plist`, `project.yml`, the commit, tag, DMG name, GitHub Release, and
+  Sparkle version/build must agree. Never rotate a key or overwrite a tag/asset
+  to repair a mismatch; increment the version/build instead.
+- The GitHub Actions workflows are an alternative only after confirming all
+  listed repository secrets. Their presence alone does not mean CI publishing
+  is configured.
+
 ## Sparkle Keys
 
 - `SUPublicEDKey` is committed in `Sources/Maru/Info.plist`.
 - The private EdDSA key is stored outside the repository.
 - Never commit private key material.
-- Local `generate_appcast` reads the private key from the macOS Keychain by default.
+- Local `generate_appcast` can read the private key from the macOS Keychain by default,
+  but the canonical local release script uses the validated key-file backup to avoid
+  interactive Keychain prompts.
 - CI uses the `SPARKLE_PRIVATE_KEY` repository secret and passes it to Sparkle with `--ed-key-file`.
 
 ### Retrieve the Sparkle Private Key
 
-Local appcast generation does not read a private key file by default. Sparkle's
-`generate_appcast` asks the macOS login Keychain for the private key created by
-Sparkle's `generate_keys` tool.
+When invoked directly without `--ed-key-file`, Sparkle's `generate_appcast` asks
+the macOS login Keychain for the private key created by Sparkle's `generate_keys`
+tool. The end-to-end release script deliberately supplies the validated backup
+file instead.
 
-Check that the local Keychain has the Sparkle key:
+Check that the local Keychain has the Sparkle key only when diagnosing or restoring
+the backup:
 
 ```bash
 .build/artifacts/sparkle/Sparkle/bin/generate_keys -p
@@ -153,14 +210,13 @@ Sparkle compares updates using `CFBundleVersion` / `sparkle:version`; do not pub
 1. Update `CFBundleShortVersionString`.
 2. Increment `CFBundleVersion`.
 3. Update `project.yml` to the same marketing version and build number.
-4. Run `swift test`.
-5. Package with `./Scripts/package-release.sh`.
-6. Upload `Release/Maru-<version>.dmg` to GitHub Releases.
-7. Publish the release as a prerelease while the app is still in beta.
-8. Generate Sparkle appcast and EdDSA signatures.
-9. Publish `appcast.xml` to GitHub Pages at `https://iobee.github.io/Maru/appcast.xml`.
-10. Verify the public appcast URL returns the new version.
-11. Verify an older Maru build detects the new version.
+4. Commit the intended version/release changes and push them to `origin/main`.
+5. Run `./Scripts/publish-release.sh --publish` outside the sandbox. It performs
+   the complete preflight before changing remote state.
+6. Verify an older Maru build detects the new version.
+
+The sections below document the component commands for diagnosis and recovery.
+They are not the preferred routine path now that the end-to-end script exists.
 
 ## Manual DMG Packaging
 
@@ -223,12 +279,14 @@ Use this after the DMG is uploaded to GitHub Releases:
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/Maru/Info.plist)"
 TAG="v$VERSION"
 FEED_DIR="Release/SparkleFeed"
+SPARKLE_KEY_FILE="${MARU_SPARKLE_PRIVATE_KEY_FILE:-$HOME/Downloads/maru-sparkle-ed25519-key}"
 
 rm -rf "$FEED_DIR"
 mkdir -p "$FEED_DIR"
 cp "Release/Maru-$VERSION.dmg" "$FEED_DIR/"
 
 .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+  --ed-key-file "$SPARKLE_KEY_FILE" \
   --download-url-prefix "https://github.com/iobee/Maru/releases/download/$TAG/" \
   --link "https://github.com/iobee/Maru/releases/tag/$TAG" \
   --maximum-deltas 0 \
