@@ -10,7 +10,7 @@ RELEASE_DIR="$ROOT_DIR/Release"
 SOURCE_PLIST_PATH="$ROOT_DIR/Sources/Maru/Info.plist"
 REPOSITORY="${MARU_GITHUB_REPOSITORY:-iobee/Maru}"
 PUBLIC_APPCAST_URL="${MARU_PUBLIC_APPCAST_URL:-https://iobee.github.io/Maru/appcast.xml}"
-SIGNING_IDENTITY="${MARU_CODE_SIGN_IDENTITY:-Maru Release Signing}"
+SIGNING_IDENTITY="${MACOS_SIGN_IDENTITY:-${MARU_CODE_SIGN_IDENTITY:-Maru Release Signing}}"
 LOGIN_KEYCHAIN="${MARU_LOGIN_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
 
 usage() {
@@ -113,9 +113,20 @@ validate_published_dmg() {
         | awk -v identity="\"$SIGNING_IDENTITY\"" 'index($0, identity) { print tolower($2); exit }')"
     [[ -n "$certificate_hash" ]] \
         || fail "Could not resolve the certificate fingerprint for $SIGNING_IDENTITY"
-    requirement_output="$(codesign -dr - "$mounted_app" 2>&1)"
-    grep -F "certificate leaf = H\"$certificate_hash\"" <<< "$requirement_output" >/dev/null \
+    # Developer ID requirements identify the team rather than a literal leaf hash.
+    # Compare the embedded leaf certificate directly for both signing types.
+    local cert_dir=""
+    local actual_hash=""
+    cert_dir="$(mktemp -d "${TMPDIR:-/tmp}/maru-cert.XXXXXX")"
+    codesign -d --extract-certificates "$cert_dir/cert" "$mounted_app"
+    actual_hash="$(shasum -a 1 "$cert_dir/cert0" | awk '{ print $1 }')"
+    rm -rf "$cert_dir"
+    [[ "$actual_hash" == "$certificate_hash" ]] \
         || fail "Published DMG does not use the certificate behind $SIGNING_IDENTITY"
+    if [[ "${MACOS_RELEASE:-0}" == "1" ]]; then
+        python3 "$SCRIPT_DIR/macos-release.py" verify "$mounted_app" --notarized
+        python3 "$SCRIPT_DIR/macos-release.py" verify "$dmg_path" --notarized
+    fi
 
     hdiutil detach "$mount_path" >/dev/null
     MOUNT_POINT=""
@@ -142,6 +153,9 @@ cd "$ROOT_DIR"
 if [[ "$PUBLISH" -eq 0 ]]; then
     exec "$SCRIPT_DIR/release-preflight.sh"
 fi
+
+[[ "${MACOS_RELEASE:-0}" == "1" ]] \
+    || fail "Publishing requires Developer ID signing and notarization. Load .env.release.local first."
 
 SPARKLE_KEY_FILE="$(resolve_sparkle_key_file)"
 export MARU_SPARKLE_PRIVATE_KEY_FILE="$SPARKLE_KEY_FILE"

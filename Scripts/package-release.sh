@@ -17,8 +17,8 @@ DMG_ROOT="$RELEASE_DIR/DMGRoot"
 DMG_PATH="$RELEASE_DIR/$APP_NAME-$APP_VERSION.dmg"
 LEGACY_DMG_PATH="$RELEASE_DIR/$APP_NAME.dmg"
 APPCAST_PATH="$RELEASE_DIR/appcast.xml"
-DEVELOPMENT_TEAM="${MARU_DEVELOPMENT_TEAM:-}"
-SIGNING_IDENTITY="${MARU_CODE_SIGN_IDENTITY:-Maru Release Signing}"
+DEVELOPMENT_TEAM="${MACOS_TEAM_ID:-${MARU_DEVELOPMENT_TEAM:-}}"
+SIGNING_IDENTITY="${MACOS_SIGN_IDENTITY:-${MARU_CODE_SIGN_IDENTITY:-Maru Release Signing}}"
 
 usage() {
     cat <<EOF
@@ -64,6 +64,9 @@ require_release_signing_identity() {
 
 create_export_options_plist() {
     cp "$SCRIPT_DIR/ExportOptions.plist" "$GENERATED_EXPORT_OPTIONS_PATH"
+    if [[ "${MACOS_RELEASE:-0}" == "1" ]]; then
+        /usr/libexec/PlistBuddy -c 'Set :method developer-id' "$GENERATED_EXPORT_OPTIONS_PATH"
+    fi
     /usr/libexec/PlistBuddy -c "Delete :signingCertificate" "$GENERATED_EXPORT_OPTIONS_PATH" >/dev/null 2>&1 || true
     /usr/libexec/PlistBuddy -c "Add :signingCertificate string $SIGNING_IDENTITY" "$GENERATED_EXPORT_OPTIONS_PATH"
     if [[ -n "$DEVELOPMENT_TEAM" ]]; then
@@ -202,6 +205,11 @@ cd "$ROOT_DIR"
 
 command -v xcodegen >/dev/null || fail "xcodegen is required to generate Maru.xcodeproj"
 require_release_signing_identity
+if [[ "${MACOS_RELEASE:-0}" == "1" ]]; then
+    : "${MACOS_SIGN_IDENTITY:?Developer ID identity is required}"
+    : "${MACOS_TEAM_ID:?Apple Developer team is required}"
+    : "${MACOS_NOTARY_PROFILE:?Notary Keychain profile is required}"
+fi
 
 log "Generating Xcode project"
 xcodegen generate --project "$ROOT_DIR"
@@ -224,6 +232,12 @@ if [[ -n "$DEVELOPMENT_TEAM" ]]; then
     )
 fi
 
+if [[ "${MACOS_RELEASE:-0}" == "1" ]]; then
+    build_signing_settings+=(ENABLE_HARDENED_RUNTIME=YES
+        CODE_SIGN_ENTITLEMENTS="$SCRIPT_DIR/Maru.entitlements"
+        OTHER_CODE_SIGN_FLAGS="--timestamp")
+fi
+
 log "Archiving with xcodebuild"
 xcodebuild archive \
     -project "$ROOT_DIR/Maru.xcodeproj" \
@@ -242,6 +256,10 @@ log "Verifying exported app signature"
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 verify_stable_release_signature "$APP_BUNDLE"
 
+if [[ "${MACOS_RELEASE:-0}" == "1" ]]; then
+    python3 "$SCRIPT_DIR/macos-release.py" notarize "$APP_BUNDLE"
+fi
+
 log "Validating app bundle layout"
 validate_app_bundle "$APP_BUNDLE"
 
@@ -255,6 +273,11 @@ mkdir -p "$DMG_ROOT"
 ditto "$APP_BUNDLE" "$DMG_ROOT/$APP_NAME.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_PATH"
+
+if [[ "${MACOS_RELEASE:-0}" == "1" ]]; then
+    codesign --force --sign "$SIGNING_IDENTITY" --timestamp "$DMG_PATH"
+    python3 "$SCRIPT_DIR/macos-release.py" notarize "$DMG_PATH"
+fi
 
 log "Verifying DMG"
 hdiutil imageinfo "$DMG_PATH" >/dev/null

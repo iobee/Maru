@@ -11,7 +11,7 @@ SOURCE_PLIST_PATH="$ROOT_DIR/Sources/Maru/Info.plist"
 PROJECT_CONFIG_PATH="$ROOT_DIR/project.yml"
 REPOSITORY="${MARU_GITHUB_REPOSITORY:-iobee/Maru}"
 RELEASE_BRANCH="${MARU_RELEASE_BRANCH:-main}"
-SIGNING_IDENTITY="${MARU_CODE_SIGN_IDENTITY:-Maru Release Signing}"
+SIGNING_IDENTITY="${MACOS_SIGN_IDENTITY:-${MARU_CODE_SIGN_IDENTITY:-Maru Release Signing}}"
 LOGIN_KEYCHAIN="${MARU_LOGIN_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
 PUBLIC_APPCAST_URL="${MARU_PUBLIC_APPCAST_URL:-https://iobee.github.io/Maru/appcast.xml}"
 
@@ -156,8 +156,10 @@ BRANCH="$(git symbolic-ref --quiet --short HEAD)" || fail "Release checkout is d
 [[ "$BUILD" == "$PROJECT_BUILD" ]] \
     || fail "Build mismatch: Info.plist=$BUILD, project.yml=$PROJECT_BUILD"
 [[ "$BUILD" =~ ^[0-9]+$ ]] || fail "CFBundleVersion must be an integer; found $BUILD"
-[[ "$BRANCH" == "$RELEASE_BRANCH" ]] \
-    || fail "Releases must run from $RELEASE_BRANCH; current branch is $BRANCH"
+if [[ "$CHECK_REMOTE" -eq 1 ]]; then
+    [[ "$BRANCH" == "$RELEASE_BRANCH" ]] \
+        || fail "Releases must run from $RELEASE_BRANCH; current branch is $BRANCH"
+fi
 
 if [[ "$ALLOW_DIRTY" -eq 0 ]]; then
     git diff --quiet || fail "Worktree has unstaged changes. Commit only the intended release changes first."
@@ -168,7 +170,7 @@ else
     log "Dirty-worktree check bypassed for local script validation"
 fi
 
-if git show-ref --verify --quiet "refs/tags/$TAG"; then
+if [[ "$CHECK_REMOTE" -eq 1 ]] && git show-ref --verify --quiet "refs/tags/$TAG"; then
     LOCAL_TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
     [[ "$LOCAL_TAG_COMMIT" == "$HEAD_COMMIT" ]] \
         || fail "Local tag $TAG points to $LOCAL_TAG_COMMIT, not HEAD $HEAD_COMMIT. Bump the version instead of overwriting the tag."

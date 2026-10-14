@@ -1,132 +1,98 @@
 name: Release DMG
-
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag. Defaults to v<CFBundleShortVersionString>."
-        required: false
+        description: 'New tag matching the app version'
+        required: true
         type: string
-      prerelease:
-        description: "Mark the GitHub release as a prerelease."
-        required: false
-        default: true
-        type: boolean
-
 permissions:
   contents: write
-
 jobs:
   release-dmg:
-    name: Build and upload DMG
     runs-on: macos-latest
     env:
+      MACOS_RELEASE: '1'
+      MACOS_SIGN_IDENTITY: ${{ vars.MACOS_SIGN_IDENTITY }}
+      MACOS_TEAM_ID: ${{ vars.MACOS_TEAM_ID }}
+      MACOS_NOTARY_PROFILE: release-notary
+      MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       GH_TOKEN: ${{ github.token }}
-      MARU_CODE_SIGN_IDENTITY: ${{ vars.MARU_CODE_SIGN_IDENTITY }}
-      MARU_DEVELOPMENT_TEAM: ${{ secrets.MARU_DEVELOPMENT_TEAM }}
-      MARU_RELEASE_CERTIFICATE_BASE64: ${{ secrets.MARU_RELEASE_CERTIFICATE_BASE64 }}
-      MARU_RELEASE_CERTIFICATE_PASSWORD: ${{ secrets.MARU_RELEASE_CERTIFICATE_PASSWORD }}
-      MARU_KEYCHAIN_PASSWORD: ${{ secrets.MARU_KEYCHAIN_PASSWORD }}
+      RELEASE_TAG: ${{ inputs.tag }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate signing configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in MACOS_SIGN_IDENTITY MACOS_TEAM_ID MACOS_CERTIFICATE_BASE64 MACOS_CERTIFICATE_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            [[ -n "${!name}" ]] || { echo "Missing signing configuration: $name" >&2; exit 1; }
+          done
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main || { echo 'Release source must be merged into main.' >&2; exit 1; }
+
+      - name: Test notarization failure and resume handling
+        run: python3 Scripts/test-macos-release.py
+
+      - name: Configure temporary signing keychain
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/release-signing.keychain-db"
+          certificate="$RUNNER_TEMP/release-signing.p12"
+          keychain_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$keychain_password"
+          printf '%s' "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -P "$MACOS_CERTIFICATE_PASSWORD" -t cert -f pkcs12 -k "$keychain" -T /usr/bin/codesign -T /usr/bin/security
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          xcrun notarytool store-credentials release-notary --keychain "$keychain" --apple-id "$APPLE_ID" --team-id "$MACOS_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD"
+          rm -f "$certificate"
 
       - name: Install build tools
-        run: |
-          set -euo pipefail
-          if ! command -v xcodegen >/dev/null; then
-            brew install xcodegen
-          fi
-
-      - name: Validate release signing inputs
-        run: |
-          set -euo pipefail
-          for name in \
-            MARU_RELEASE_CERTIFICATE_BASE64 \
-            MARU_RELEASE_CERTIFICATE_PASSWORD \
-            MARU_KEYCHAIN_PASSWORD
-          do
-            if [[ -z "${!name}" ]]; then
-              echo "$name secret is required for stable release signing" >&2
-              exit 1
-            fi
-          done
-          if [[ -z "${MARU_CODE_SIGN_IDENTITY:-}" ]]; then
-            echo "MARU_CODE_SIGN_IDENTITY=Maru Release Signing" >> "$GITHUB_ENV"
-          fi
-
-      - name: Import release signing certificate
-        run: |
-          set -euo pipefail
-          certificate_path="$RUNNER_TEMP/maru-release-signing.p12"
-          keychain_path="$RUNNER_TEMP/maru-signing.keychain-db"
-
-          printf '%s' "$MARU_RELEASE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
-          security create-keychain -p "$MARU_KEYCHAIN_PASSWORD" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$MARU_KEYCHAIN_PASSWORD" "$keychain_path"
-          security import "$certificate_path" \
-            -P "$MARU_RELEASE_CERTIFICATE_PASSWORD" \
-            -A \
-            -t cert \
-            -f pkcs12 \
-            -k "$keychain_path"
-          security list-keychains -d user -s "$keychain_path" $(security list-keychains -d user | tr -d '"')
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s \
-            -k "$MARU_KEYCHAIN_PASSWORD" \
-            "$keychain_path"
-          security find-identity -v -p codesigning "$keychain_path"
-
-      - name: Read release metadata
-        id: metadata
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Check release version
+        shell: bash
         run: |
           set -euo pipefail
           version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/Maru/Info.plist)"
-          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' Sources/Maru/Info.plist)"
-          tag="${{ inputs.tag }}"
-          if [[ -z "$tag" ]]; then
-            tag="v$version"
+          [[ "$RELEASE_TAG" == "v$version" ]] || { echo 'Tag/app version mismatch.' >&2; exit 1; }
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Release already exists; increment the version instead of replacing assets.' >&2; exit 1
           fi
-          dmg_path="Release/Maru-$version.dmg"
-          {
-            echo "version=$version"
-            echo "build=$build"
-            echo "tag=$tag"
-            echo "dmg_path=$dmg_path"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Run tests
-        run: swift test
-
-      - name: Build release DMG
-        run: ./Scripts/package-release.sh --no-smoke
-
-      - name: Verify DMG exists
+          tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG^{}" "refs/tags/$RELEASE_TAG" | awk '/\^\{\}$/ { print $1; found=1; exit } NR==1 { first=$1 } END { if (!found) print first }')"
+          [[ -z "$tag_sha" || "$tag_sha" == "$GITHUB_SHA" ]] || { echo 'Tag/source mismatch.' >&2; exit 1; }
+      - run: swift test
+      - run: ./Scripts/package-release.sh --no-smoke
+      - name: Publish signed DMG
+        shell: bash
         run: |
           set -euo pipefail
-          test -f "${{ steps.metadata.outputs.dmg_path }}"
-          hdiutil imageinfo "${{ steps.metadata.outputs.dmg_path }}" >/dev/null
+          dmg="Release/Maru-${RELEASE_TAG#v}.dmg"
+          python3 Scripts/macos-release.py verify "$dmg" --notarized
+          shasum -a 256 "$dmg" > "$dmg.sha256"
+          gh release create "$RELEASE_TAG" "$dmg" "$dmg.sha256" --target "$GITHUB_SHA" --title "Maru ${RELEASE_TAG#v}" --prerelease --generate-notes
 
-      - name: Create or update GitHub release
+      - name: Save notarization records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notarization-records
+          include-hidden-files: true
+          path: |
+            **/.notary/**/submission.json
+            **/.notary/**/notary-log.json
+      - name: Remove temporary signing keychain
+        if: always()
+        shell: bash
         run: |
-          set -euo pipefail
-          tag="${{ steps.metadata.outputs.tag }}"
-          title="Maru ${{ steps.metadata.outputs.version }}"
-          dmg_path="${{ steps.metadata.outputs.dmg_path }}"
-
-          prerelease_args=()
-          if [[ "${{ inputs.prerelease }}" == "true" ]]; then
-            prerelease_args+=(--prerelease)
-          fi
-
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$dmg_path" --clobber
-          else
-            gh release create "$tag" "$dmg_path" \
-              --title "$title" \
-              --target "$GITHUB_SHA" \
-              --generate-notes \
-              "${prerelease_args[@]}"
-          fi
+          security delete-keychain "$RUNNER_TEMP/release-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/release-signing.p12"

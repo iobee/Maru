@@ -1,5 +1,11 @@
 # Maru Update Release Checklist
 
+Developer ID migration: follow [macOS release setup](macos-release.md) and source
+`.env.release.local` before the commands below. Publishing now requires Developer ID
+plus Accepted notarization. The self-signed instructions below describe legacy local
+builds only. Keep the existing Sparkle EdDSA key. Increment version/build before
+publishing a newly signed replacement for an already released version.
+
 ## Canonical Local Release Path
 
 Until all GitHub Actions signing secrets are confirmed, the proven release path
