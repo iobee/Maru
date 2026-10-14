@@ -3,15 +3,25 @@
     <channel>
         <title>Maru</title>
         <item>
-            <title>1.0.0-beta.8</title>
-            <pubDate>Wed, 12 Aug 2026 00:50:31 +0800</pubDate>
-            <link>https://github.com/iobee/Maru/releases/tag/v1.0.0-beta.8</link>
-            <sparkle:version>8</sparkle:version>
-            <sparkle:shortVersionString>1.0.0-beta.8</sparkle:shortVersionString>
+            <title>1.0.0-beta.10</title>
+            <pubDate>Thu, 15 Oct 2026 01:10:28 +0800</pubDate>
+            <link>https://github.com/iobee/Maru/releases/tag/v1.0.0-beta.10</link>
+            <sparkle:version>10</sparkle:version>
+            <sparkle:shortVersionString>1.0.0-beta.10</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[**Full Changelog**: https://github.com/iobee/Maru/compare/v1.0.0-beta.7...v1.0.0-beta.8
+            <description sparkle:format="markdown"><![CDATA[本次 beta 主要升级 macOS 签名与发行流程。
+
+- 使用 Developer ID 正式签名，覆盖应用、Sparkle 内置组件及 DMG。
+- 应用与安装包均通过 Apple 公证并附加公证票据。
+- 已下载公开 Release 产物，核对 SHA-256、版本及 Gatekeeper 接受状态。
+- 修复发行脚本的证书校验参数与公证记录收集路径，完整 CI 已通过。
+
+安装包为 Universal 版本，支持 Intel 与 Apple Silicon，要求 macOS 13 或更新版本。从旧自签名版升级后，macOS 可能要求重新授予辅助功能或自动化权限。
+
+[签名发布工作流](https://github.com/iobee/Maru/actions/runs/38603211482)
+
 ]]></description>
-            <enclosure url="https://github.com/iobee/Maru/releases/download/v1.0.0-beta.8/Maru-1.0.0-beta.8.dmg" length="7417356" type="application/octet-stream" sparkle:edSignature="w3R/lD92vDBUfrYvxKjsMHTfVEzgI/CHoRslzcxCzLs9I1OuAAaPzlCfO3hSILfDSl+viyc3fZYlcfvpWbBQCw=="/>
+            <enclosure url="https://github.com/iobee/Maru/releases/download/v1.0.0-beta.10/Maru-1.0.0-beta.10.dmg" length="7469339" type="application/octet-stream" sparkle:edSignature="6miWzXr3i9kk3nfqs08BdoQlDkQA8mtXSR7i8KGvOYVrDICkUqQK0yOZ2GG657w7D9BHCrJuQaSrcRKG8HtUCQ=="/>
         </item>
     </channel>
 </rss>
