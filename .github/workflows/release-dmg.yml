@@ -89,8 +89,10 @@ jobs:
           name: notarization-records
           include-hidden-files: true
           path: |
-            **/.notary/**/submission.json
-            **/.notary/**/notary-log.json
+            Release/Export/.notary/*/submission.json
+            Release/Export/.notary/*/notary-log.json
+            Release/.notary/*/submission.json
+            Release/.notary/*/notary-log.json
       - name: Remove temporary signing keychain
         if: always()
         shell: bash

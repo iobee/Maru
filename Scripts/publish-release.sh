@@ -118,7 +118,7 @@ validate_published_dmg() {
     local cert_dir=""
     local actual_hash=""
     cert_dir="$(mktemp -d "${TMPDIR:-/tmp}/maru-cert.XXXXXX")"
-    codesign -d --extract-certificates "$cert_dir/cert" "$mounted_app"
+    codesign -d --extract-certificates="$cert_dir/cert" "$mounted_app"
     actual_hash="$(shasum -a 1 "$cert_dir/cert0" | awk '{ print $1 }')"
     rm -rf "$cert_dir"
     [[ "$actual_hash" == "$certificate_hash" ]] \
